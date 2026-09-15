@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataviz-Agent</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/variables.css?v=20260908_1410">
+    <link rel="stylesheet" href="/static/style.css?v=20260915_1133">
+    <!-- LineUp.js CSS and JS from a CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/lineupjs/build/LineUpJS.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://unpkg.com/lineupjs/build/LineUpJS.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse/papaparse.min.js"></script>
+    <!-- SandDance dependencies (Vega pinned to v5.22 for SandDance v4 compatibility) -->
+    <script src="https://unpkg.com/vega@^5.22/build/vega.js" charset="utf-8"></script>
+    <script src="https://unpkg.com/@msrvida/sanddance@^4/dist/umd/sanddance.js"></script>
+    <!-- D3.js and d3-sankey for Sankey Visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <!-- Mermaid.js for Diagrams & Charts (Latest v12+) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <!-- Marked.js for Markdown parsing (Latest) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify for secure Markdown HTML sanitization (Latest) -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <!-- Global process polyfill for browser UMD libraries (e.g. Graphic-Walker) -->
+    <script>
+        window.process = window.process || { env: { NODE_ENV: 'production' } };
+    </script>
+</head>
+
+<body>
+    <header id="header-bar">
+        <!-- Left: Brand (Text only, no icon) -->
+        <div id="header-brand">
+            <h1 class="brand-title">Dataviz-Agent</h1>
+            <p class="brand-subtitle">Visual Analytics Suite</p>
+        </div>
+
+        <!-- Center: Floating Segmented Tools Bar -->
+        <nav id="view-controls" aria-label="Views">
+            <button id="show-lineup-btn" class="button icon-button" disabled title="Upload data to explore LineUp">
+                <i class="fa-solid fa-table-cells"></i><span>LineUp</span>
+            </button>
+            <button id="show-graphicwalker-btn" class="button icon-button" disabled
+                title="Upload data to explore Graphic-Walker">
+                <i class="fa-solid fa-chart-line"></i><span>Graphic-Walker</span>
+            </button>
+            <button id="show-sanddance-btn" class="button icon-button" disabled
+                title="Upload data to explore SandDance">
+                <i class="fa-solid fa-cubes-stacked"></i><span>SandDance</span>
+            </button>
+            <div class="nav-separator-dot"></div>
+            <button id="show-mermaid-btn" class="button icon-button" disabled title="Upload data to explore Mermaid">
+                <i class="fa-solid fa-code-fork"></i><span>Mermaid</span>
+            </button>
+            <button id="show-sankey-btn" class="button icon-button" disabled title="Upload data to explore Sankey">
+                <i class="fa-solid fa-diagram-project"></i><span>Sankey</span>
+            </button>
+            <div class="nav-separator-dot"></div>
+            <button id="show-agent-btn" class="button icon-button" disabled
+                title="Upload data to explore Agentic Studio">
+                <i class="fa-solid fa-robot"></i><span>Agent</span>
+            </button>
+        </nav>
+
+        <!-- Right: Controls & Actions -->
+        <div id="controls">
+            <button id="set-data-btn" class="button icon-button primary hidden" title="Upload or Paste Dataset">
+                <i class="fa-solid fa-cloud-arrow-up"></i><span>Set Data</span>
+            </button>
+            <button id="dummy-data-btn" class="button icon-button hidden" title="Load sample dataset">
+                <i class="fa-solid fa-wand-magic-sparkles"></i><span>Demo Data</span>
+            </button>
+            <input type="file" id="csv-file-input" accept=".csv" class="hidden-element">
+            <button id="settings-btn" class="button icon-button compact-icon-btn" title="AI Settings">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+            <button id="reset-btn" class="button icon-button compact-icon-btn" disabled title="Reset Dataset">
+                <i class="fa-solid fa-arrow-rotate-left"></i>
+            </button>
+            <button id="help-btn" class="button icon-button compact-icon-btn" title="Documentation">
+                <i class="fa-solid fa-book-open"></i>
+            </button>
+        </div>
+    </header>
+    <main>
+
+
+        <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
+        <div id="empty-state-container" class="vis-container">
+            <div class="initial-message">
+                <h2>Explore - Visualize - Analyze</h2>
+                <p>Upload a CSV, paste from clipboard or load demo data, then explore with interactive analysis tools -
+                    or let an AI agent run
+                    Python code, generate charts, and automate insights for you.</p>
+
+                <div class="empty-state-actions">
+                    <button id="empty-set-data-btn" class="button icon-button primary" title="Upload or Paste Dataset">
+                        <i class="fa-solid fa-cloud-arrow-up"></i><span>Set Data</span>
+                    </button>
+                    <button id="empty-demo-btn" class="button icon-button" title="Load sample dataset">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i><span>Demo Data</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LineUp View -->
+        <div id="lineup-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">Interactive tabular data exploration engine for
+                        large datasets with live sorting, filtering, and ad-hoc column combination modeling.</p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://github.com/lineupjs/lineup.js" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official LineUp repository">
+                            <i class="fa-brands fa-github"></i><span>Repo</span><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Multi-attribute rankings, sorting/filtering records,
+                                    cross-column comparisons.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Complex multidimensional distributions or relational
+                                    hierarchy
+                                    flows.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="lineup-root"></div>
+        </div>
+
+        <!-- Graphic-Walker View -->
+        <div id="graphic-walker-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">Automated visual data exploration engine with
+                        drag-and-drop shelves, automatic chart recommendations, multi-dimensional filters, and
+                        aggregations.</p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://github.com/Kanaries/graphic-walker" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official Graphic-Walker repository">
+                            <i class="fa-brands fa-github"></i><span>Repo</span><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Visual data discovery, ad-hoc chart pivoting, metric
+                                    aggregations, and drag-and-drop analysis.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Structured process topologies or sequence flows (use Mermaid
+                                    Studio instead).</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="graphic-walker-wrapper" class="graphic-walker-wrapper">
+                <div id="graphic-walker-loading" class="graphic-walker-loading hidden">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span>Loading Graphic-Walker Studio...</span>
+                </div>
+                <div id="graphic-walker-root" class="graphic-walker-root"></div>
+            </div>
+        </div>
+
+        <!-- SandDance View -->
+        <div id="sanddance-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">3D unit-visualization by Microsoft Research where every individual row
+                        is
+                        mapped to an interactive physical particle across scatter, stack, treemap, and density
+                        layouts.
+                    </p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://github.com/microsoft/SandDance" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official SandDance repository">
+                            <i class="fa-brands fa-github"></i><span>Repo</span><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Micro-level particle inspection, outlier hunting,
+                                    multidimensional clustering.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Massive datasets (&gt;200k rows) with WebGL overhead or
+                                    simple
+                                    static summary tables.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="sanddance-main-layout">
+                <div id="sanddance-canvas-wrapper">
+                    <button id="sanddance-controls-expand-btn" class="sidebar-expand-tab sidebar-expand-right hidden"
+                        title="Open SandDance Controls">
+                        <i class="fa-solid fa-chevron-left tab-arrow"></i>
+                        <span class="tab-text">Controls</span>
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <div id="sanddance-root"></div>
+                </div>
+                <div id="sanddance-toolbar">
+                    <div class="controls-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-sliders header-icon-primary"></i>
+                            <span>Controls</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <button id="sanddance-controls-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Controls Panel">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="controls-sidebar-body">
+                        <div class="control-group">
+                            <label for="sanddance-chart-type">Chart Type</label>
+                            <select id="sanddance-chart-type" class="control-select">
+                                <option value="density" selected>Density</option>
+                                <option value="scatterplot">Scatterplot</option>
+                                <option value="barchart">Bar Chart (Vertical)</option>
+                                <option value="barchartH">Bar Chart (Horizontal)</option>
+                                <option value="treemap">Treemap</option>
+                                <option value="stacks">Stacks</option>
+                                <option value="strips">Strips</option>
+                                <option value="grid">Grid</option>
+                            </select>
+                        </div>
+                        <div class="control-group hidden" id="sanddance-total-style-group">
+                            <label for="sanddance-total-style">Bar Layout</label>
+                            <select id="sanddance-total-style" class="control-select">
+                                <option value="">Count (Squares)</option>
+                                <option value="count-strip">Count (Strips)</option>
+                                <option value="sum-treemap">Sum (Treemap)</option>
+                                <option value="sum-strip">Sum (Strips)</option>
+                                <option value="sum-strip-percent">Sum (Strips %)</option>
+                            </select>
+                        </div>
+                        <hr class="control-divider">
+                        <div class="control-group" id="sanddance-x-group">
+                            <label for="sanddance-x-axis" id="sanddance-x-label">X Axis</label>
+                            <select id="sanddance-x-axis" class="control-select"></select>
+                        </div>
+                        <div class="control-group" id="sanddance-y-group">
+                            <label for="sanddance-y-axis" id="sanddance-y-label">Y Axis</label>
+                            <select id="sanddance-y-axis" class="control-select"></select>
+                            <span id="sanddance-chart-hint" class="hint-text-sm"></span>
+                        </div>
+                        <div class="control-group">
+                            <label for="sanddance-color">Color By</label>
+                            <select id="sanddance-color" class="control-select"></select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sanddance-sort">Sort By</label>
+                            <select id="sanddance-sort" class="control-select"></select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sanddance-facet">Facet By</label>
+                            <select id="sanddance-facet" class="control-select"></select>
+                        </div>
+                        <hr class="control-divider">
+                        <div class="control-group sanddance-disaggregate-group">
+                            <label class="checkbox-label checkbox-label-compact" for="sanddance-disaggregate-check"
+                                title="Unroll aggregated rows into individual data points using a numeric count column">
+                                <input type="checkbox" id="sanddance-disaggregate-check" class="checkbox-input-custom">
+                                <span>Disaggregate by Column</span>
+                            </label>
+                            <div id="sanddance-disaggregate-container" class="hidden disaggregate-col-container">
+                                <select id="sanddance-disaggregate-col" class="control-select"></select>
+                                <span id="sanddance-disaggregate-info" class="disaggregate-info-text">Unrolls rows by
+                                    numerical count</span>
+                            </div>
+                        </div>
+                        <hr class="control-divider">
+                        <div class="controls-sidebar-actions">
+                            <div class="control-group">
+                                <label>Capture Chart</label>
+                                <button id="sanddance-export-btn" class="button icon-button btn-full-width"
+                                    title="Export as Image">
+                                    <i class="fa-solid fa-camera"></i><span>Capture PNG</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sankey Chart View -->
+        <div id="sankey-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">Flow-directed pathway diagram powered by SankeyMatic syntax
+                        illustrating volumes, conversions, and transfers between stages or categorical entities.</p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://github.com/d3/d3-sankey" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official d3-sankey repository">
+                            <i class="fa-brands fa-github"></i><span>Repo</span><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Funnels, budgets, supply chains, energy balances, and stage
+                                    transitions.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Cyclical network loops, non-directional correlations, or
+                                    dense
+                                    tables.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="sankey-main-layout">
+                <div id="sankey-sidebar">
+                    <div class="syntax-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-code text-primary-icon-sm"></i>
+                            <span>SankeyMatic Syntax</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <span class="sidebar-live-tag">Live</span>
+                            <button id="sankey-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Syntax Editor (Ctrl+B)">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="sankey-text-editor" placeholder="Source [Value] Target&#10;or :Node #Color"
+                        spellcheck="false"></textarea>
+                </div>
+                <div id="sankey-canvas-wrapper">
+                    <button id="sankey-expand-btn" class="sidebar-expand-tab hidden"
+                        title="Open SankeyMatic Syntax Editor">
+                        <i class="fa-solid fa-code"></i>
+                        <span class="tab-text">Syntax</span>
+                        <i class="fa-solid fa-chevron-right tab-arrow"></i>
+                    </button>
+                    <button id="sankey-controls-expand-btn" class="sidebar-expand-tab sidebar-expand-right hidden"
+                        title="Open Sankey Controls">
+                        <i class="fa-solid fa-chevron-left tab-arrow"></i>
+                        <span class="tab-text">Controls</span>
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <svg id="sankey-svg"></svg>
+                </div>
+                <div id="sankey-controls-sidebar">
+                    <div class="controls-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-sliders header-icon-primary"></i>
+                            <span>Controls</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <button id="sankey-controls-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Controls Panel">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="controls-sidebar-body">
+                        <div class="control-group">
+                            <label for="sankey-source-col">Source Column</label>
+                            <select id="sankey-source-col" class="control-select"></select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sankey-target-col">Target Column</label>
+                            <select id="sankey-target-col" class="control-select"></select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sankey-value-col">Value Column</label>
+                            <select id="sankey-value-col" class="control-select"></select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sankey-agg-func">Aggregation</label>
+                            <select id="sankey-agg-func" class="control-select">
+                                <option value="none">None</option>
+                                <option value="sum" selected>Sum</option>
+                                <option value="mean">Mean (Average)</option>
+                                <option value="count">Count</option>
+                                <option value="min">Min</option>
+                                <option value="max">Max</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label class="curves-checkbox-item curves-checkbox-subitem"
+                                title="Prefix/suffix stage names to source and target to allow multi-election transitions or shared category names without circular loops">
+                                <input type="checkbox" id="sankey-disambiguate-nodes" checked>
+                                <span>Remove Loops</span>
+                            </label>
+                        </div>
+                        <hr class="control-divider">
+
+                        <div class="control-group">
+                            <div class="dimension-header-row">
+                                <label class="cursor-pointer-no-margin">Dimensions</label>
+                                <label class="curves-checkbox-item dimension-checkbox-label">
+                                    <input type="checkbox" id="sankey-autofit" checked>
+                                    <span>Auto-fit</span>
+                                </label>
+                            </div>
+                            <div class="dimensions-grid-2col">
+                                <div class="dimension-input-group">
+                                    <span class="dimension-label-text">Width:</span>
+                                    <input type="number" id="sankey-custom-width"
+                                        class="control-input dimension-input-number" min="200" max="4000" step="50"
+                                        placeholder="Auto">
+                                </div>
+                                <div class="dimension-input-group">
+                                    <span class="dimension-label-text">Height:</span>
+                                    <input type="number" id="sankey-custom-height"
+                                        class="control-input dimension-input-number" min="150" max="3000" step="50"
+                                        placeholder="Auto">
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="control-divider">
+
+                        <div class="control-group">
+                            <label for="sankey-palette">Color Theme</label>
+                            <select id="sankey-palette" class="control-select">
+                                <option value="category10">Category 10</option>
+                                <option value="tableau10">Tableau 10</option>
+                                <option value="set2">Set 2 Pastel</option>
+                                <option value="dark2">Dark Palette</option>
+                                <option value="warm">Warm</option>
+                                <option value="cool">Cool</option>
+                            </select>
+                        </div>
+                        <!-- Alignment kept as default justify without cluttering the toolbar -->
+                        <select id="sankey-node-align" class="control-select hidden-element">
+                            <option value="justify" selected>Justify</option>
+                        </select>
+
+                        <div class="control-group">
+                            <label id="sankey-color-label">Node Color <span id="sankey-selected-node-name"
+                                    class="selected-node-hint">(Select node)</span></label>
+                            <div class="sankey-color-picker-row">
+                                <input type="color" id="sankey-selected-color" class="color-swatch" value="#2563eb"
+                                    title="Click a node on the canvas to select and change its color">
+                                <span class="sankey-color-hint">Select node to paint</span>
+                            </div>
+                        </div>
+                        <hr class="control-divider">
+
+                        <div class="controls-sidebar-actions">
+                            <div class="control-group">
+                                <label>Annotations</label>
+                                <button id="sankey-add-text-btn" class="button icon-button"
+                                    title="Add Text Annotation to Canvas"><i class="fa-solid fa-font"></i><span>Add
+                                        Text</span></button>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Export Diagram</label>
+                                <div class="utility-segmented-btn-group">
+                                    <button id="sankey-export-png-btn" class="utility-btn" title="Export as PNG"><i
+                                            class="fa-solid fa-file-image"></i><span>PNG</span></button>
+                                    <button id="sankey-export-svg-btn" class="utility-btn" title="Export as SVG"><i
+                                            class="fa-solid fa-file-code"></i><span>SVG</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mermaid Diagram View -->
+        <div id="mermaid-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">Code-native diagramming framework that renders Sankey diagrams,
+                        flowcharts, ER models, sequences, state machines, and XY bar charts directly from
+                        markdown-like
+                        syntax.</p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://github.com/mermaid-js/mermaid" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official Mermaid repository">
+                            <i class="fa-brands fa-github"></i><span>Repo</span><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Sankey flows, architecture blueprints, decision logic,
+                                    schemas,
+                                    workflow pipelines.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Dense high-frequency time series or granular row-level data
+                                    points.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mermaid-main-layout">
+                <div id="mermaid-sidebar">
+                    <div class="syntax-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-code text-primary-icon-sm"></i>
+                            <span>Mermaid Syntax</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <span class="sidebar-live-tag">Live</span>
+                            <button id="mermaid-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Syntax Editor (Ctrl+B)">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="mermaid-text-editor" placeholder="flowchart TD&#10;  A[Start] --> B(Process)"
+                        spellcheck="false"></textarea>
+                    <div id="mermaid-error-notice" class="hidden"></div>
+                </div>
+                <div id="mermaid-canvas-wrapper">
+                    <button id="mermaid-expand-btn" class="sidebar-expand-tab hidden"
+                        title="Open Mermaid Syntax Editor">
+                        <i class="fa-solid fa-code"></i>
+                        <span class="tab-text">Syntax</span>
+                        <i class="fa-solid fa-chevron-right tab-arrow"></i>
+                    </button>
+                    <button id="mermaid-controls-expand-btn" class="sidebar-expand-tab sidebar-expand-right hidden"
+                        title="Open Mermaid Controls">
+                        <i class="fa-solid fa-chevron-left tab-arrow"></i>
+                        <span class="tab-text">Controls</span>
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <div id="mermaid-render-output"></div>
+                </div>
+                <div id="mermaid-controls-sidebar">
+                    <div class="controls-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-sliders header-icon-primary"></i>
+                            <span>Controls</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <button id="mermaid-controls-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Controls Panel">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="controls-sidebar-body">
+
+                        <div class="control-group">
+                            <label for="mermaid-chart-preset">Chart Type</label>
+                            <select id="mermaid-chart-preset" class="control-select">
+                                <option value="xychart" selected>XY Chart (Bar / Metric)</option>
+                                <option value="pie">Pie Chart (Distribution)</option>
+                                <option value="sankey">Sankey Diagram (Flow / Transitions)</option>
+                                <option value="radar">Radar Chart (Multi-Metric Comparison)</option>
+                                <option value="treemap">Treemap (Hierarchical Proportions)</option>
+                                <option value="flowchart">Flowchart (Source &rarr; Target)</option>
+                                <option value="erDiagram">ER Diagram (Entity-Relationship)</option>
+                                <option value="sequence">Sequence Diagram (Workflow)</option>
+                            </select>
+                        </div>
+
+                        <div id="mermaid-title-group" class="control-group">
+                            <label for="mermaid-chart-title">Chart Title</label>
+                            <input type="text" id="mermaid-chart-title" class="control-input"
+                                placeholder="e.g. Regional Flow Overview">
+                        </div>
+
+                        <div id="mermaid-col1-group" class="control-group">
+                            <label id="mermaid-source-label" for="mermaid-source-col">Source Column</label>
+                            <select id="mermaid-source-col" class="control-select"></select>
+                        </div>
+
+                        <div id="mermaid-col2-group" class="control-group">
+                            <label id="mermaid-target-label" for="mermaid-target-col">Target Column</label>
+                            <select id="mermaid-target-col" class="control-select"></select>
+                        </div>
+
+                        <div id="mermaid-curves-group" class="control-group hidden-element">
+                            <label>Numeric Curves (Metrics)</label>
+                            <div id="mermaid-curves-list" class="curves-checkbox-list"></div>
+                        </div>
+
+                        <div id="mermaid-val-group" class="control-group">
+                            <label id="mermaid-val-label" for="mermaid-val-col">Value Column</label>
+                            <select id="mermaid-val-col" class="control-select"></select>
+                        </div>
+
+                        <div id="mermaid-agg-group" class="control-group">
+                            <label for="mermaid-agg-func">Aggregation</label>
+                            <select id="mermaid-agg-func" class="control-select">
+                                <option value="none">None</option>
+                                <option value="sum" selected>Sum</option>
+                                <option value="mean">Mean (Average)</option>
+                                <option value="count">Count</option>
+                                <option value="min">Min</option>
+                                <option value="max">Max</option>
+                            </select>
+                        </div>
+
+
+                        <hr class="control-divider">
+
+                        <details class="control-group mermaid-config-details" id="mermaid-config-group">
+                            <summary class="mermaid-config-summary">
+                                <label class="cursor-pointer-no-margin">Chart Config</label>
+                                <i class="fa-solid fa-chevron-down details-chevron"></i>
+                            </summary>
+                            <div id="mermaid-config-panel" class="mermaid-config-panel"></div>
+                        </details>
+
+                        <hr class="control-divider">
+
+                        <div class="actions-stack">
+                            <button id="mermaid-ai-btn" class="button icon-button ai-action-btn"
+                                title="Use AI Agent to generate Mermaid diagram from dataset structure">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Generate</span>
+                            </button>
+                            <button id="mermaid-demo-btn" class="button icon-button"
+                                title="Show a sample demo diagram with full configuration enabled">
+                                <i class="fa-solid fa-play"></i><span>Show Demo</span>
+                            </button>
+                        </div>
+                        <hr class="control-divider">
+
+
+                        <div class="controls-sidebar-actions">
+                            <div class="control-group">
+                                <label>Zoom Controls</label>
+                                <div class="utility-segmented-btn-group">
+                                    <button id="mermaid-zoom-in" class="utility-btn" title="Zoom In"><i
+                                            class="fa-solid fa-magnifying-glass-plus"></i><span>In</span></button>
+                                    <button id="mermaid-zoom-out" class="utility-btn" title="Zoom Out"><i
+                                            class="fa-solid fa-magnifying-glass-minus"></i><span>Out</span></button>
+                                    <button id="mermaid-zoom-reset" class="utility-btn" title="Reset Zoom"><i
+                                            class="fa-solid fa-expand"></i><span>Reset</span></button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Export Diagram</label>
+                                <div class="utility-segmented-btn-group">
+                                    <button id="mermaid-export-png-btn" class="utility-btn" title="Export as PNG"><i
+                                            class="fa-solid fa-file-image"></i><span>PNG</span></button>
+                                    <button id="mermaid-export-svg-btn" class="utility-btn" title="Export as SVG"><i
+                                            class="fa-solid fa-file-code"></i><span>SVG</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent View -->
+        <div id="agent-container" class="vis-container hidden">
+            <!-- Simplified Chat Area -->
+            <div class="chat-panel">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message agent" id="agent-status-msg">Connecting to Data Agent...</div>
+                </div>
+                <div class="chat-input-area">
+                    <button id="chat-clear-btn" class="chat-new-btn"
+                        title="Start new conversation (deletes old history)">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>New Chat</span>
+                    </button>
+                    <input type="text" id="chat-input"
+                        placeholder="Ask anything about your data... (e.g. “Summarize this dataset”, “Show correlation between numeric columns”, or “Plot distribution of top values”.)">
+                    <button id="chat-send-btn" class="button icon-button primary" title="Send Message">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modern Bottom Docked Live Data Bar -->
+            <div id="agent-preview-wrapper" class="agent-preview-wrapper collapsed">
+                <div class="agent-preview-card">
+                    <div class="agent-preview-header" id="agent-preview-header-bar" title="Click to toggle Data State">
+                        <div class="agent-preview-title">
+                            <i class="fa-solid fa-table-cells text-primary-icon"></i>
+                            <span>Live Data State</span>
+                            <span id="agent-data-count-badge" class="agent-badge">0 rows</span>
+                        </div>
+                        <div class="agent-preview-actions">
+                            <button id="agent-toggle-preview-btn" class="button icon-button" title="Toggle Data View">
+                                <i id="agent-toggle-icon" class="fa-solid fa-chevron-up"></i>
+                                <span id="agent-toggle-label">Expand</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="agent-data-body" class="agent-preview-body">
+                        <div id="agent-data-preview" class="agent-data-scroll">
+                            <p class="agent-empty-hint">
+                                Dataframe state will appear here...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- AI Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI Model Settings</h2>
+            </div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label for="ai-preset-select">Provider Preset</label>
+                    <select id="ai-preset-select" class="control-select">
+                        <option value="custom">Custom Configuration</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="ai-base-url">API Base URL</label>
+                    <input type="text" id="ai-base-url" class="control-input" value="https://api.deepseek.com">
+                </div>
+                <div class="control-group">
+                    <label for="ai-model-name">Model Name</label>
+                    <input type="text" id="ai-model-name" class="control-input" value="deepseek-chat">
+                </div>
+                <div class="control-group">
+                    <label for="ai-api-key">API Key (Stored locally in your browser - BYOK)</label>
+                    <input type="password" id="ai-api-key" class="control-input" placeholder="sk-...">
+                    <small class="form-help-text">Supports DeepSeek, OpenAI,
+                        Anthropic, Mistral, and OpenRouter API keys.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-settings-modal-btn" class="button">Cancel</button>
+                <button id="save-settings-btn" class="button primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Data Modal (Upload CSV / Paste Data) -->
+    <div id="set-data-modal" class="modal hidden">
+        <div class="modal-content set-data-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-database text-primary-icon-md"></i>
+                    <h2>Set Dataset</h2>
+                </div>
+            </div>
+
+            <div class="set-data-tabs">
+                <button id="set-data-tab-upload" class="set-data-tab-btn active">
+                    <i class="fa-solid fa-cloud-arrow-up"></i><span>Upload CSV</span>
+                </button>
+                <button id="set-data-tab-paste" class="set-data-tab-btn">
+                    <i class="fa-solid fa-paste"></i><span>Paste Data</span>
+                </button>
+            </div>
+
+            <div class="modal-body modal-body-spaced">
+                <!-- Tab Pane: Upload -->
+                <div id="set-data-pane-upload" class="set-data-pane">
+                    <div id="set-data-dropzone" class="set-data-dropzone">
+                        <i class="fa-solid fa-cloud-arrow-up set-data-dropzone-icon"></i>
+                        <p class="set-data-dropzone-text"><strong>Click to browse</strong> or drag & drop CSV file</p>
+                        <span class="set-data-dropzone-sub">Supports .csv tabular files</span>
+                    </div>
+                </div>
+
+                <!-- Tab Pane: Paste -->
+                <div id="set-data-pane-paste" class="set-data-pane hidden">
+                    <div class="paste-pane-header">
+                        <label for="set-data-paste-textarea" class="paste-pane-label">Paste CSV / Tabular Text</label>
+                        <button id="set-data-clipboard-btn" class="button icon-button paste-clipboard-btn">
+                            <i class="fa-regular fa-clipboard"></i><span>Paste Clipboard</span>
+                        </button>
+                    </div>
+                    <textarea id="set-data-paste-textarea" class="control-input paste-textarea-mono" rows="6"
+                        placeholder="Column1,Column2,Column3&#10;Value1,Value2,Value3..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancel-set-data-btn" class="button">Cancel</button>
+                <button id="confirm-set-data-paste-btn" class="button primary hidden">Load Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Configuration Modal -->
+    <div id="import-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Settings</h2>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Content injected by JS -->
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-import-btn" class="button">Cancel</button>
+                <button id="confirm-import-btn" class="button primary">Import Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mermaid AI Format Prompt Modal -->
+    <div id="mermaid-ai-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI Diagram Generation</h2>
+                <button id="close-mermaid-ai-modal-btn" class="button modal-close-btn-compact">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label for="mermaid-ai-prompt-input">Additional format prompts</label>
+                    <textarea id="mermaid-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
+                        placeholder="e.g. Highlight anomalies in red, orient horizontally, group into categories..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-mermaid-ai-modal-btn" class="button">Cancel</button>
+                <button id="confirm-mermaid-ai-modal-btn" class="button primary">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Docs / README Markdown Viewer Modal -->
+    <div id="docs-modal" class="modal hidden">
+        <div class="modal-content docs-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-book-open text-primary-icon"></i>
+                    <h2>Documentation</h2>
+                </div>
+            </div>
+            <div class="modal-body docs-modal-body" id="docs-modal-body">
+                <div class="docs-loading-container">
+                    <i class="fa-solid fa-spinner fa-spin loading-spinner-icon"></i> Loading documentation...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="ok-docs-modal-btn" class="button primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Policy Markdown Viewer Modal -->
+    <div id="privacy-modal" class="modal hidden">
+        <div class="modal-content docs-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-shield-halved text-primary-icon"></i>
+                    <h2>Privacy Policy</h2>
+                </div>
+            </div>
+            <div class="modal-body docs-modal-body" id="privacy-modal-body">
+                <div class="docs-loading-container">
+                    <i class="fa-solid fa-spinner fa-spin loading-spinner-icon"></i> Loading privacy policy...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="ok-privacy-modal-btn" class="button primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Imprint Markdown Viewer Modal -->
+    <div id="imprint-modal" class="modal hidden">
+        <div class="modal-content docs-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-building-columns text-primary-icon"></i>
+                    <h2>Imprint</h2>
+                </div>
+            </div>
+            <div class="modal-body docs-modal-body" id="imprint-modal-body">
+                <div class="docs-loading-container">
+                    <i class="fa-solid fa-spinner fa-spin loading-spinner-icon"></i> Loading imprint...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="ok-imprint-modal-btn" class="button primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <footer id="app-footer">
+        <div class="footer-links">
+            <span>Coded by <a href="https://github.com/albortino" target="_blank" rel="noopener">albortino</a></span>
+            <span id="footer-privacy-divider" class="footer-divider hidden">•</span>
+            <a href="#" id="footer-privacy-link" class="footer-link hidden">Privacy Policy</a>
+            <span id="footer-imprint-divider" class="footer-divider hidden">•</span>
+            <a href="#" id="footer-imprint-link" class="footer-link hidden">Imprint</a>
+        </div>
+    </footer>
+
+    <script type="module" src="/static/main.js?v=20260915_direct_gw"></script>
+</body>
+
+</html>

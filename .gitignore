@@ -1,0 +1,13 @@
+concepts/
+graphify-out/
+.*
+!.github/
+!.github/**
+!.gitignore
+.agents/
+AGENTS.md
+PRIVACY.md
+IMPRINT.md
+__pycache__/
+*.pyc
+.env
