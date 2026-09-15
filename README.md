@@ -24,12 +24,40 @@
 The following flowchart demonstrates an end-to-end analytical workflow using the integrated suite:
 
 ```mermaid
-flowchart TD
-    A["📂 Ingest Data\n(CSV, TSV, Clipboard, or Demo)"] --> B["📊 LineUp: Tabular Exploration\n• Multi-attribute ranking\n• Filter, group, and slice\n• In-cell distribution bars"]
-    B --> C["📈 Graphic-Walker: Quantitative Plotting\n• Drag-and-drop measure shelves\n• Multi-variable correlations\n• Bar, scatter, and line charts"]
-    C --> D["🤖 AI ReAct Agent: Deep Analytics\n• Conversational summary statistics\n• Outlier detection & hypothesis tests\n• Python sandbox execution & charts"]
-    D --> E["🎨 Mermaid Studio: Flow & Architecture\n• Distill key analytical messages\n• Extract entity models & workflows\n• Live syntax editor with pan/zoom"]
-    E --> F["💾 Export & Deliver\n• High-resolution SVG / PNG\n• Cleaned dataset exports\n• Presentation-ready graphics"]
+flowchart LR
+    subgraph Exploration["🔍 Exploration"]
+        direction TB
+        A["📂 Ingest Data<br/>(CSV, TSV, Clipboard, or Demo)"]
+        B["📊 LineUp: Tabular Exploration<br/>• Multi-attribute ranking<br/>• Filter, group, and slice<br/>• In-cell distribution bars"]
+    end
+
+    subgraph Visualization["📈 Visualization"]
+        direction TB
+        C["📈 Graphic-Walker: Quantitative Plotting<br/>• Drag-and-drop measure shelves<br/>• Multi-variable correlations<br/>• Bar, scatter, and line charts"]
+        E["🎨 Mermaid Studio: Flow & Architecture<br/>• Distill key analytical messages<br/>• Extract entity models & workflows<br/>• Live syntax editor with pan/zoom"]
+        F["💾 Export & Deliver<br/>• High-resolution SVG / PNG<br/>• Cleaned dataset exports<br/>• Presentation-ready graphics"]
+    end
+
+    subgraph Agent["Agent Studio"]
+        direction TB
+        D["🤖 AI ReAct Agent: Deep Analytics<br/>• Conversational summary statistics<br/>• Outlier detection & hypothesis tests<br/>• Python sandbox execution & charts"]
+    end
+
+    %% Workflow Connections
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+
+    %% Styling
+    classDef exploration fill:#e8f4fd,stroke:#1d70b8,stroke-width:2px,color:#0b0c0c;
+    classDef agent fill:#fef3e6,stroke:#d46b08,stroke-width:2px,color:#0b0c0c;
+    classDef viz fill:#eef8f0,stroke:#237804,stroke-width:2px,color:#0b0c0c;
+
+    class A,B exploration;
+    class C,E,F viz;
+    class D agent;
 ```
 
 ---
