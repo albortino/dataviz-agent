@@ -143,6 +143,8 @@ export class MermaidManager {
         this.targetCol = document.getElementById('mermaid-target-col');
         this.curvesGroup = document.getElementById('mermaid-curves-group');
         this.curvesList = document.getElementById('mermaid-curves-list');
+        this.curvesSelectAllBtn = document.getElementById('mermaid-curves-select-all');
+        this.curvesClearBtn = document.getElementById('mermaid-curves-clear');
         this.valCol = document.getElementById('mermaid-val-col');
         this.aggFunc = document.getElementById('mermaid-agg-func');
         this.demoBtn = document.getElementById('mermaid-demo-btn');
@@ -551,7 +553,7 @@ export class MermaidManager {
                     const chk = document.createElement('input');
                     chk.type = 'checkbox';
                     chk.value = col;
-                    chk.checked = prevChecked.length > 0 ? prevChecked.includes(col) : cIdx < 3;
+                    chk.checked = prevChecked.length > 0 ? prevChecked.includes(col) : true;
                     chk.addEventListener('change', () => {
                         if (this.presetSelect && this.presetSelect.value === 'radar') {
                             this.generateFromData();
@@ -678,7 +680,10 @@ export class MermaidManager {
                 return;
             }
 
-            const cleanAxes = topAxes.map(ax => ax.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 15) || 'Axis');
+            const cleanAxes = topAxes.map((ax, idx) => {
+                const safeLabel = String(ax ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
+                return `ax_${idx + 1}["${safeLabel}"]`;
+            });
             const titleStr = userTitle || `Comparison by ${col1}`;
             let code = `radar-beta\n`;
             code += `    title ${titleStr}\n`;
@@ -686,7 +691,7 @@ export class MermaidManager {
 
             selectedCurves.forEach((curveCol, cIdx) => {
                 const curveId = `curve_${cIdx + 1}`;
-                const curveLabel = curveCol.replace(/"/g, "'");
+                const curveLabel = String(curveCol ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
                 const valList = [];
                 topAxes.forEach(ax => {
                     const rows = axisGroups[ax];
@@ -880,7 +885,7 @@ export class MermaidManager {
                 ? Array.from(this.curvesList.querySelectorAll('input:checked')).map(i => i.value)
                 : [];
             prompt = `Create a clean, syntactically valid Mermaid radar-beta chart based on the active dataset.`;
-            prompt += ` Use syntax: radar-beta\n title <Title>\n axis <Axis1>, <Axis2>, ...\n curve id1["CurveName"]{val1, val2, ...}\n showLegend true.`;
+            prompt += ` Use syntax: radar-beta\n title <Title>\n axis ax_1["Axis1"], ax_2["Axis2"], ...\n curve id1["CurveName"]{val1, val2, ...}\n showLegend true.`;
             if (col1) prompt += ` Categorical axis column: '${col1}'.`;
             if (selectedCurves.length > 0) prompt += ` Metric curve columns: ${selectedCurves.join(', ')}.`;
             prompt += ` Aggregation method: '${agg}'.`;
@@ -1087,6 +1092,30 @@ export class MermaidManager {
                 const customPrompt = this.aiModalPrompt ? this.aiModalPrompt.value.trim() : '';
                 if (this.aiModal) this.aiModal.classList.add('hidden');
                 this.generateWithAI(customPrompt);
+            });
+        }
+
+        if (this.curvesSelectAllBtn) {
+            this.curvesSelectAllBtn.addEventListener('click', () => {
+                if (this.curvesList) {
+                    const chks = this.curvesList.querySelectorAll('input[type="checkbox"]');
+                    chks.forEach(chk => { chk.checked = true; });
+                    if (this.presetSelect && this.presetSelect.value === 'radar') {
+                        this.generateFromData();
+                    }
+                }
+            });
+        }
+
+        if (this.curvesClearBtn) {
+            this.curvesClearBtn.addEventListener('click', () => {
+                if (this.curvesList) {
+                    const chks = this.curvesList.querySelectorAll('input[type="checkbox"]');
+                    chks.forEach(chk => { chk.checked = false; });
+                    if (this.presetSelect && this.presetSelect.value === 'radar') {
+                        this.generateFromData();
+                    }
+                }
             });
         }
 
