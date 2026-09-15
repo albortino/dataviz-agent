@@ -224,11 +224,15 @@ def get_readme():
     except Exception as e:
         raise HTTPException(500, f"Error reading README.md: {str(e)}")
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
 @app.get("/imprint")
 def get_imprint():
-    if os.path.exists("IMPRINT.md"):
+    imprint_path = os.path.join(BASE_DIR, "IMPRINT.md")
+    if os.path.exists(imprint_path):
         try:
-            with open("IMPRINT.md", "r", encoding="utf-8") as f:
+            with open(imprint_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
             if content:
                 return {"available": True, "content": content}
@@ -238,9 +242,10 @@ def get_imprint():
 
 @app.get("/privacy")
 def get_privacy():
-    if os.path.exists("PRIVACY.md"):
+    privacy_path = os.path.join(BASE_DIR, "PRIVACY.md")
+    if os.path.exists(privacy_path):
         try:
-            with open("PRIVACY.md", "r", encoding="utf-8") as f:
+            with open(privacy_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
             if content:
                 return {"available": True, "content": content}
@@ -249,17 +254,17 @@ def get_privacy():
     return {"available": False, "content": ""}
 
 # Mount the static site at the root
-app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 @app.get("/")
 def root():
     from fastapi.responses import FileResponse
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     from fastapi.responses import FileResponse
-    return FileResponse("static/favicon.ico")
+    return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
 
 if __name__ == "__main__":
     import uvicorn
