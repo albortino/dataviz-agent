@@ -693,7 +693,13 @@
                         </div>
 
                         <div id="mermaid-curves-group" class="control-group hidden-element">
-                            <label>Numeric Curves (Metrics)</label>
+                            <div class="curves-header-row">
+                                <label for="mermaid-curves-list">Numeric Value Curves</label>
+                                <div class="curves-quick-actions">
+                                    <button type="button" id="mermaid-curves-select-all" class="curves-quick-btn" title="Select all numeric columns">Select All</button>
+                                    <button type="button" id="mermaid-curves-clear" class="curves-quick-btn" title="Clear selection">Clear</button>
+                                </div>
+                            </div>
                             <div id="mermaid-curves-list" class="curves-checkbox-list"></div>
                         </div>
 
