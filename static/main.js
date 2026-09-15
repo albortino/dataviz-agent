@@ -197,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setActiveView(mermaidContainer, showMermaidBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
+            mermaidMgr.updateColumnOptions();
             mermaidMgr.updateUIControls();
             mermaidMgr.renderChart();
         }, 100);
