@@ -744,19 +744,38 @@ hr.control-divider,
     flex-direction: column;
 }
 
-#sanddance-canvas-wrapper,
 #sankey-canvas-wrapper {
     overflow: auto;
 }
 
-#sanddance-root,
-#sanddance-root .sanddance-gl,
-#sanddance-root canvas {
+#sanddance-canvas-wrapper {
+    overflow: hidden;
+    min-height: 0;
+    height: 100%;
+}
+
+#sanddance-root {
     width: 100% !important;
     height: 100% !important;
+    min-height: 0 !important;
     flex: 1;
     display: block;
     position: relative;
+    overflow: hidden;
+}
+
+#sanddance-root .sanddance-gl {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+#sanddance-root .sanddance-gl canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
 }
 
 /* Syntax Editor Sidebars (Bubble Containers) */
@@ -1353,6 +1372,93 @@ hr.control-divider,
 
 .sanddance-disaggregate-group:hover {
     border-color: var(--color-border-input);
+}
+
+/* SandDance Built-in Panel inside Controls Sidebar */
+#sanddance-panel-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sanddance-panel-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.sanddance-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    width: 100%;
+    position: static !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    color: var(--color-text-main);
+    font-family: inherit;
+    font-size: 0.825rem;
+}
+
+.sanddance-panel details {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 0.35rem 0.5rem;
+    background: var(--color-background-body);
+}
+
+.sanddance-panel summary {
+    cursor: pointer;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-main);
+    margin-bottom: 0.35rem;
+}
+
+.sanddance-panel button {
+    font-family: inherit;
+    font-size: 0.775rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-background-light);
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all var(--transition-fast) ease;
+}
+
+.sanddance-panel button:hover {
+    background: var(--color-secondary);
+    border-color: var(--color-primary);
+}
+
+.sanddance-panel input[type="range"] {
+    width: 100%;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+.sanddance-panel input[type="number"],
+.sanddance-panel input[type="text"],
+.sanddance-panel select {
+    width: 100%;
+    padding: 0.3rem 0.45rem;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-background-light);
+    color: var(--color-text-main);
+    font-family: inherit;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+}
+
+.sanddance-panel label {
+    font-size: 0.775rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
 }
 
 /* ==========================================================================

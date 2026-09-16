@@ -187,9 +187,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentData || currentData.length === 0) return;
         setActiveView(sanddanceContainer, showSanddanceBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.remove('hidden');
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             sanddanceMgr.render();
-        }, 100);
+            setTimeout(() => {
+                sanddanceMgr.resize();
+            }, 80);
+        });
     }
 
     function showMermaid() {
@@ -652,9 +655,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('resize', () => {
         if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-            sanddanceMgr.render();
+            sanddanceMgr.resize();
         } else if (sankeyContainer && !sankeyContainer.classList.contains('hidden')) {
             sankeyMgr.renderChart();
+        }
+    });
+
+    // Recover visualization layout on browser tab switch and window focus
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                sanddanceMgr.resize();
+            }
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+            sanddanceMgr.resize();
         }
     });
 
@@ -665,6 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (banner) {
                 const isOpen = banner.classList.toggle('open');
                 btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                    setTimeout(() => sanddanceMgr.resize(), 160);
+                }
             }
         });
     });
@@ -676,6 +697,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (banner) {
                 const isOpen = banner.classList.toggle('info-open');
                 btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                    setTimeout(() => sanddanceMgr.resize(), 160);
+                }
             }
         });
     });
