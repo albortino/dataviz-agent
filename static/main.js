@@ -11,12 +11,19 @@
  */
 
 import { detectType, parseValue, processFullCSV } from './js/data-transform.js';
+import { duckdbEngine } from './js/duckdb-engine.js';
 import { MermaidManager } from './js/mermaid.js';
 import { SankeyManager } from './js/sankey.js';
+import { VegaManager } from './js/vega.js';
 import { SandDanceManager } from './js/sanddance.js';
 import { GraphicWalkerManager } from './js/graphic-walker.js';
 import { AgentManager } from './js/agent.js';
 import { SettingsManager } from './js/settings.js';
+import { exportSession, validateDatasetForSession, restoreSessionState } from './js/session.js';
+
+const isInternalColumn = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
+
+window.duckdbEngine = duckdbEngine;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Navigation & Container Elements
@@ -25,8 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const showSanddanceBtn = document.getElementById('show-sanddance-btn');
     const showMermaidBtn = document.getElementById('show-mermaid-btn');
     const showSankeyBtn = document.getElementById('show-sankey-btn');
+    const showVegaBtn = document.getElementById('show-vega-btn');
     const showAgentBtn = document.getElementById('show-agent-btn');
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, showMermaidBtn, showSankeyBtn, showAgentBtn];
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, showMermaidBtn, showSankeyBtn, showVegaBtn, showAgentBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -34,8 +42,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sanddanceContainer = document.getElementById('sanddance-container');
     const mermaidContainer = document.getElementById('mermaid-container');
     const sankeyContainer = document.getElementById('sankey-container');
+    const vegaContainer = document.getElementById('vega-container');
     const agentContainer = document.getElementById('agent-container');
-    const allContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, agentContainer];
+    const allContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer, agentContainer];
 
     const emptyStateContainer = document.getElementById('empty-state-container');
     const emptySetDataBtn = document.getElementById('empty-set-data-btn');
@@ -45,15 +54,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const lineupRoot = document.getElementById('lineup-root');
 
-    // Top Controls
+    // Top Controls & Categorized Dropdowns
     const fileInput = document.getElementById('csv-file-input');
+    const dataDropdownBtn = document.getElementById('data-dropdown-btn');
+    const dataDropdownMenu = document.getElementById('data-dropdown-menu');
+    const dataFilenameChip = document.getElementById('data-filename-chip');
+    const dataActiveDatasetText = document.getElementById('data-active-dataset-text');
+    const sessionDropdownBtn = document.getElementById('session-dropdown-btn');
+    const sessionDropdownMenu = document.getElementById('session-dropdown-menu');
+
     const setDataButton = document.getElementById('set-data-btn');
     const uploadButton = document.getElementById('upload-btn');
     const clipboardButton = document.getElementById('clipboard-btn');
     const dummyDataButton = document.getElementById('dummy-data-btn');
     const resetButton = document.getElementById('reset-btn');
+    const exportSessionBtn = document.getElementById('export-session-btn');
+    const loadSessionBtn = document.getElementById('load-session-btn');
+    const emptyLoadSessionBtn = document.getElementById('empty-load-session-btn');
 
-    // Set Data Modal Controls
+    // Dataset name tracking with first-k-characters truncation
+    let currentDatasetName = null;
+    const MAX_DATASET_NAME_CHARS = 12;
+
+    const formatDatasetName = (name, k = MAX_DATASET_NAME_CHARS) => {
+        if (!name) return '';
+        return name.length > k ? name.slice(0, k) + '…' : name;
+    };
+
+    const updateDatasetIndicator = (name, rowCount = 0) => {
+        currentDatasetName = name;
+        if (name && dataFilenameChip) {
+            dataFilenameChip.textContent = formatDatasetName(name);
+            dataFilenameChip.title = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
+            dataFilenameChip.classList.remove('hidden');
+        } else if (dataFilenameChip) {
+            dataFilenameChip.textContent = '';
+            dataFilenameChip.title = '';
+            dataFilenameChip.classList.add('hidden');
+        }
+
+        if (dataActiveDatasetText) {
+            if (name) {
+                dataActiveDatasetText.textContent = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
+            } else {
+                dataActiveDatasetText.textContent = 'No dataset loaded';
+            }
+        }
+    };
+
+    // Session Modal Controls
+    const sessionModal = document.getElementById('session-modal');
+    const sessionFileDropzone = document.getElementById('session-file-dropzone');
+    const sessionFileInput = document.getElementById('session-file-input');
+    const sessionFileInfo = document.getElementById('session-file-info');
+    const sessionDatasetStep = document.getElementById('session-dataset-step');
+    const sessionDatasetStatus = document.getElementById('session-dataset-status');
+    const sessionDatasetUploadPrompt = document.getElementById('session-dataset-upload-prompt');
+    const sessionDataDropzone = document.getElementById('session-data-dropzone');
+    const sessionDataInput = document.getElementById('session-data-input');
+    const cancelSessionBtn = document.getElementById('cancel-session-btn');
+    const applySessionBtn = document.getElementById('apply-session-btn');
+
+    // Load Data Modal Controls
     const setDataModal = document.getElementById('set-data-modal');
     const closeSetDataModalBtn = document.getElementById('close-set-data-modal-btn');
     const cancelSetDataBtn = document.getElementById('cancel-set-data-btn');
@@ -89,6 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
         getData
     });
 
+    const vegaMgr = new VegaManager({
+        getData
+    });
+
     const sanddanceMgr = new SandDanceManager({
         getData
     });
@@ -102,6 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
         onOpenMermaid: (code) => {
             if (mermaidMgr.textEditor) mermaidMgr.textEditor.value = code;
             showMermaid();
+        },
+        onOpenVega: (spec) => {
+            vegaMgr.loadSpec(spec);
+            showVega();
         }
     });
 
@@ -114,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize modules
     mermaidMgr.init();
     sankeyMgr.init();
+    vegaMgr.init();
     sanddanceMgr.init();
     graphicWalkerMgr.init();
     agentMgr.init();
@@ -139,9 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (setDataButton) setDataButton.classList.add('hidden');
-        if (dummyDataButton) dummyDataButton.classList.add('hidden');
         if (resetButton) resetButton.disabled = true;
+        if (exportSessionBtn) exportSessionBtn.disabled = true;
+        updateDatasetIndicator(null);
 
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
     }
@@ -163,10 +234,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.classList.remove('active');
             }
         });
+
+        // Free SVG DOM memory when leaving Sankey view
+        if (targetContainer !== sankeyContainer && sankeyMgr) {
+            sankeyMgr.teardown();
+        }
     }
+
+    let currentActiveView = 'lineup';
 
     function showLineup() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'lineup';
         setActiveView(lineupContainer, showLineupBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         if (lineupInstance) {
@@ -176,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showGraphicWalker() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'graphic-walker';
         setActiveView(graphicwalkerContainer, showGraphicwalkerBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
@@ -185,15 +265,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showSanddance() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'sanddance';
         setActiveView(sanddanceContainer, showSanddanceBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.remove('hidden');
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             sanddanceMgr.render();
-        }, 100);
+            setTimeout(() => {
+                sanddanceMgr.resize();
+            }, 80);
+        });
     }
 
     function showMermaid() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'mermaid';
         setActiveView(mermaidContainer, showMermaidBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
@@ -205,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showSankey() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'sankey';
         setActiveView(sankeyContainer, showSankeyBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
@@ -212,11 +298,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     }
 
+    function showVega() {
+        if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'vega';
+        setActiveView(vegaContainer, showVegaBtn);
+        if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
+        setTimeout(() => {
+            vegaMgr.initCollapseState();
+            vegaMgr.updateColumnOptions();
+            vegaMgr.refreshEditor();
+            if (!vegaMgr.getSpecText()?.trim()) {
+                vegaMgr.loadSensibleDefaults();
+            } else {
+                vegaMgr.renderChart();
+            }
+        }, 100);
+    }
+
     function showAgent() {
         if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'agent';
         setActiveView(agentContainer, showAgentBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => { if (agentMgr.chatInput) agentMgr.chatInput.focus(); }, 50);
+    }
+
+    function activateViewByName(viewName) {
+        switch (viewName) {
+            case 'graphic-walker':
+            case 'graphicwalker':
+                showGraphicWalker();
+                break;
+            case 'sanddance':
+                showSanddance();
+                break;
+            case 'mermaid':
+                showMermaid();
+                break;
+            case 'sankey':
+                showSankey();
+                break;
+            case 'vega':
+            case 'vega-lite':
+            case 'vega-online':
+                showVega();
+                break;
+            case 'agent':
+                showAgent();
+                break;
+            case 'lineup':
+            default:
+                showLineup();
+                break;
+        }
+    }
+
+    function restoreLineupWithDump(dump) {
+        if (!window.LineUpJS || !lineupRoot || !currentData || currentData.length === 0) return;
+        try {
+            if (lineupInstance) {
+                try { lineupInstance.destroy(); } catch (e) { }
+                lineupInstance = null;
+            }
+            if (lineupRoot) lineupRoot.innerHTML = '';
+
+            lineupInstance = LineUpJS.asLineUp(lineupRoot, currentData);
+            if (dump) {
+                if (typeof lineupInstance.restore === 'function') {
+                    lineupInstance.restore(dump);
+                } else if (lineupInstance.data && typeof lineupInstance.data.restore === 'function') {
+                    lineupInstance.data.restore(dump);
+                }
+            }
+            if (lineupInstance && typeof lineupInstance.update === 'function') {
+                lineupInstance.update();
+            }
+        } catch (err) {
+            console.error("Failed to restore LineUp with dump:", err);
+            try {
+                if (lineupInstance) {
+                    try { lineupInstance.destroy(); } catch (e) { }
+                    lineupInstance = null;
+                }
+                if (lineupRoot) lineupRoot.innerHTML = '';
+                lineupInstance = LineUpJS.asLineUp(lineupRoot, currentData);
+            } catch (e) { }
+        }
     }
 
     // View switcher button clicks
@@ -225,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showSanddanceBtn) showSanddanceBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSanddance(); });
     if (showMermaidBtn) showMermaidBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showMermaid(); });
     if (showSankeyBtn) showSankeyBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSankey(); });
+    if (showVegaBtn) showVegaBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showVega(); });
     if (showAgentBtn) showAgentBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showAgent(); });
 
     // --- CSV Import Modal & Parsing ---
@@ -339,32 +507,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const processAndRenderData = (data) => {
+    const processAndRenderData = (data, datasetName = null) => {
         currentData = data;
         window.currentData = data;
+        if (datasetName) {
+            currentDatasetName = datasetName;
+        } else if (!currentDatasetName) {
+            currentDatasetName = 'dataset.csv';
+        }
         if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
 
         allViewButtons.forEach(btn => {
             if (btn) btn.disabled = false;
         });
 
-        if (setDataButton) setDataButton.classList.remove('hidden');
-        if (dummyDataButton) dummyDataButton.classList.remove('hidden');
         if (resetButton) resetButton.disabled = false;
+        if (exportSessionBtn) exportSessionBtn.disabled = false;
+        updateDatasetIndicator(currentDatasetName, data ? data.length : 0);
 
         sanddanceMgr.updateOptions();
         sankeyMgr.updateColumnOptions();
         mermaidMgr.updateColumnOptions();
+        vegaMgr.updateColumnOptions();
 
         if (sankeyMgr.textEditor) {
-            sankeyMgr.textEditor.value = sankeyMgr.generateFromCSV();
+            sankeyMgr.textEditor.value = '';
         }
         if (mermaidMgr.presetSelect && mermaidMgr.presetSelect.value === 'xychart') {
             mermaidMgr.generateFromData();
         }
+        if (!vegaMgr.getSpecText()?.trim()) {
+            vegaMgr.loadSensibleDefaults();
+        }
 
         if (data && data.length > 0) {
             agentMgr.renderPreviewTable(data.slice(0, 5));
+            if (duckdbEngine) {
+                if (window._duckdbLoadedFromCSV) {
+                    window._duckdbLoadedFromCSV = false;
+                } else {
+                    duckdbEngine.loadJSON(data).catch(() => { });
+                }
+            }
         }
 
         allViewButtons.forEach(btn => {
@@ -384,9 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Failed to initialize LineUp:", err);
             }
 
-            // Always automatically pre-feed data into GraphicWalker so it's ready
-            graphicWalkerMgr.render(data);
-
             // Restore active view or default to LineUp
             if (showGraphicwalkerBtn && showGraphicwalkerBtn.classList.contains('active')) {
                 showGraphicWalker();
@@ -396,6 +577,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMermaid();
             } else if (showSankeyBtn && showSankeyBtn.classList.contains('active')) {
                 showSankey();
+            } else if (showVegaBtn && showVegaBtn.classList.contains('active')) {
+                showVega();
             } else if (showAgentBtn && showAgentBtn.classList.contains('active')) {
                 showAgent();
             } else {
@@ -423,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 active: Math.random() > 0.15
             });
         }
-        processAndRenderData(data);
+        processAndRenderData(data, 'demo_data.csv');
     };
 
     const resetView = () => {
@@ -439,7 +622,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentData = [];
         window.currentData = [];
+        if (window.duckdbEngine) {
+            window.duckdbEngine.clear().catch(() => { });
+        }
 
+        if (vegaMgr.textEditor) vegaMgr.textEditor.value = '';
+        if (vegaMgr.renderOutput) vegaMgr.renderOutput.innerHTML = '';
         agentMgr.resetPreview();
 
         if (lineupRoot) lineupRoot.innerHTML = '';
@@ -477,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (emptyClipboardBtn) emptyClipboardBtn.addEventListener('click', handleClipboardImport);
     if (emptyDemoBtn) emptyDemoBtn.addEventListener('click', renderDummyData);
 
-    // Set Data Modal Actions
+    // Load Data Modal Actions
     const openSetDataModal = () => {
         if (setDataModal) {
             setDataModal.classList.remove('hidden');
@@ -501,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeSetDataModalBtn) closeSetDataModalBtn.addEventListener('click', closeSetDataModal);
     if (cancelSetDataBtn) cancelSetDataBtn.addEventListener('click', closeSetDataModal);
 
-    // Tab Switching in Set Data Modal
+    // Tab Switching in Load Data Modal
     if (setDataTabUpload) {
         setDataTabUpload.addEventListener('click', () => {
             setDataTabUpload.classList.add('active');
@@ -523,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Dropzone for Set Data Modal
+    // Dropzone for Load Data Modal
     if (setDataDropzone) {
         setDataDropzone.addEventListener('click', () => {
             if (fileInput) fileInput.click();
@@ -554,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Clipboard and paste in Set Data Modal
+    // Clipboard and paste in Load Data Modal
     if (setDataClipboardBtn) {
         setDataClipboardBtn.addEventListener('click', async () => {
             try {
@@ -583,6 +771,56 @@ document.addEventListener('DOMContentLoaded', () => {
             openImportModal(file);
         });
     }
+
+    // Header Dropdown Menus (Variant 1)
+    const allDropdownMenus = [dataDropdownMenu, sessionDropdownMenu];
+    const allDropdownButtons = [dataDropdownBtn, sessionDropdownBtn];
+
+    function closeAllDropdowns() {
+        allDropdownMenus.forEach(m => m && m.classList.remove('show'));
+        allDropdownButtons.forEach(b => {
+            if (b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    function setupDropdown(triggerBtn, menuElem) {
+        if (!triggerBtn || !menuElem) return;
+        triggerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = menuElem.classList.contains('show');
+            closeAllDropdowns();
+            if (!isOpen) {
+                menuElem.classList.add('show');
+                triggerBtn.classList.add('active');
+                triggerBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+
+    setupDropdown(dataDropdownBtn, dataDropdownMenu);
+    setupDropdown(sessionDropdownBtn, sessionDropdownMenu);
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown-wrapper')) {
+            closeAllDropdowns();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllDropdowns();
+        }
+    });
+
+    // Close dropdowns when clicking any item
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            closeAllDropdowns();
+        });
+    });
 
     // Header buttons
     if (dummyDataButton) dummyDataButton.addEventListener('click', renderDummyData);
@@ -636,8 +874,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (importModal) importModal.classList.add('hidden');
             try {
+                const filename = pendingFile ? pendingFile.name : 'dataset.csv';
                 const data = await processFullCSV(pendingFile, { delimiter, decimalSeparator, types, selectedColumns }, toggleLoading);
-                processAndRenderData(data);
+                processAndRenderData(data, filename);
             } catch (error) {
                 console.error(error);
                 alert('Error processing file');
@@ -652,9 +891,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('resize', () => {
         if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-            sanddanceMgr.render();
+            sanddanceMgr.resize();
         } else if (sankeyContainer && !sankeyContainer.classList.contains('hidden')) {
             sankeyMgr.renderChart();
+        }
+    });
+
+    // Recover visualization layout on browser tab switch and window focus
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                sanddanceMgr.resize();
+            }
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+            sanddanceMgr.resize();
         }
     });
 
@@ -665,6 +919,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (banner) {
                 const isOpen = banner.classList.toggle('open');
                 btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                    setTimeout(() => sanddanceMgr.resize(), 160);
+                }
             }
         });
     });
@@ -676,6 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (banner) {
                 const isOpen = banner.classList.toggle('info-open');
                 btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
+                    setTimeout(() => sanddanceMgr.resize(), 160);
+                }
             }
         });
     });
@@ -718,7 +978,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await resp.json();
                     const rawMarkdown = data.content || `# No ${label} content found.`;
                     if (window.marked && window.DOMPurify) {
-                        const parsedHtml = DOMPurify.sanitize(marked.parse(rawMarkdown, { breaks: true, gfm: true }));
+                        const sanitized = rawMarkdown.replace(/(^|[\s\(\[\{])~([0-9\$\€\£\.\,\+\-])/g, '$1≈$2');
+                        const parsedHtml = DOMPurify.sanitize(marked.parse(sanitized, { breaks: true, gfm: true }));
                         modalBody.innerHTML = `<div class="docs-markdown-view">${parsedHtml}</div>`;
                     } else {
                         modalBody.innerHTML = `<pre style="white-space: pre-wrap; font-family: monospace;">${rawMarkdown}</pre>`;
@@ -784,6 +1045,246 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     initFooterComplianceLinks();
+
+    // --- Session Export & Restore Logic ---
+    let loadedSessionObj = null;
+    let sessionCandidateData = null;
+
+    function openSessionModal() {
+        loadedSessionObj = null;
+        sessionCandidateData = null;
+        if (sessionFileInput) sessionFileInput.value = '';
+        if (sessionDataInput) sessionDataInput.value = '';
+        if (sessionFileInfo) {
+            sessionFileInfo.classList.add('hidden');
+            sessionFileInfo.innerHTML = '';
+        }
+        if (sessionDatasetStep) sessionDatasetStep.classList.add('hidden');
+        if (sessionDatasetStatus) sessionDatasetStatus.innerHTML = '';
+        if (sessionDatasetUploadPrompt) sessionDatasetUploadPrompt.classList.add('hidden');
+        if (applySessionBtn) applySessionBtn.disabled = true;
+        if (sessionModal) sessionModal.classList.remove('hidden');
+    }
+
+    function closeSessionModal() {
+        if (sessionModal) sessionModal.classList.add('hidden');
+        loadedSessionObj = null;
+        sessionCandidateData = null;
+    }
+
+    function renderDatasetValidationResult(validation) {
+        if (!sessionDatasetStatus) return;
+        if (validation.valid) {
+            sessionDatasetStatus.className = 'session-status-card valid';
+            let rowNotice = '';
+            if (validation.rowCountDiff > 0) {
+                rowNotice = `<div style="margin-top: 4px; color: #b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Row count notice: dataset has ${validation.actualRowCount.toLocaleString()} rows (saved with ${validation.expectedRowCount.toLocaleString()}).</div>`;
+            }
+            sessionDatasetStatus.innerHTML = `
+                <div class="session-status-header">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Dataset Matches Session Schema</span>
+                </div>
+                <div>All required columns match (${validation.actualRowCount.toLocaleString()} rows ready).</div>
+                ${rowNotice}
+            `;
+            if (sessionDatasetUploadPrompt) sessionDatasetUploadPrompt.classList.add('hidden');
+            if (applySessionBtn) applySessionBtn.disabled = false;
+        } else {
+            sessionDatasetStatus.className = 'session-status-card invalid';
+            const missing = (validation.missingColumns || []).join(', ');
+            sessionDatasetStatus.innerHTML = `
+                <div class="session-status-header">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <span>Dataset Schema Mismatch</span>
+                </div>
+                <div>Missing columns required by session: <strong style="color: #dc2626;">${missing || 'Unknown'}</strong></div>
+            `;
+            if (sessionDatasetUploadPrompt) sessionDatasetUploadPrompt.classList.remove('hidden');
+            if (applySessionBtn) applySessionBtn.disabled = true;
+        }
+    }
+
+    function handleSessionFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const session = JSON.parse(e.target.result);
+                if (!session || session.format !== 'dataviz-agent-session') {
+                    alert('Invalid session file format. Expected "dataviz-agent-session".');
+                    return;
+                }
+                loadedSessionObj = session;
+
+                if (sessionFileInfo) {
+                    const cleanCols = (session.datasetSchema?.columns || []).filter(c => !isInternalColumn(c));
+                    const expCols = cleanCols.length;
+                    const expRows = session.datasetSchema?.rowCount || 0;
+                    const view = session.activeView || 'lineup';
+                    sessionFileInfo.innerHTML = `
+                        <div>
+                            <strong>Session Loaded</strong>
+                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                                Target View: <strong>${view}</strong> | Required Columns: <strong>${expCols}</strong> | Saved Rows: <strong>${expRows.toLocaleString()}</strong>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.2rem;"></i>
+                    `;
+                    sessionFileInfo.classList.remove('hidden');
+                }
+
+                if (sessionDatasetStep) sessionDatasetStep.classList.remove('hidden');
+
+                // Check if current workspace data satisfies session
+                if (currentData && currentData.length > 0) {
+                    const validation = validateDatasetForSession(loadedSessionObj, currentData);
+                    renderDatasetValidationResult(validation);
+                } else {
+                    if (sessionDatasetUploadPrompt) sessionDatasetUploadPrompt.classList.remove('hidden');
+                    if (sessionDatasetStatus) {
+                        const cleanCols = (loadedSessionObj.datasetSchema?.columns || []).filter(c => !isInternalColumn(c));
+                        sessionDatasetStatus.className = 'session-status-card';
+                        sessionDatasetStatus.innerHTML = `
+                            <div class="session-status-header">
+                                <i class="fa-solid fa-circle-info" style="color: var(--color-primary);"></i>
+                                <span>Dataset Required</span>
+                            </div>
+                            <div>Please upload the CSV dataset with columns: <code>${cleanCols.slice(0, 6).join(', ')}${cleanCols.length > 6 ? '...' : ''}</code></div>
+                        `;
+                    }
+                    if (applySessionBtn) applySessionBtn.disabled = true;
+                }
+            } catch (err) {
+                console.error('Error parsing session JSON:', err);
+                alert('Could not parse session JSON file.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async function handleSessionDataFile(file) {
+        if (!file || !loadedSessionObj) return;
+        toggleLoading(true);
+        try {
+            const data = await processFullCSV(file, { delimiter: '', decimalSeparator: 'auto' }, toggleLoading);
+            if (!data || data.length === 0) {
+                alert('Uploaded dataset is empty or unparseable.');
+                toggleLoading(false);
+                return;
+            }
+            sessionCandidateData = data;
+            const validation = validateDatasetForSession(loadedSessionObj, data);
+            renderDatasetValidationResult(validation);
+        } catch (err) {
+            console.error('Error parsing candidate dataset:', err);
+            alert('Failed to parse dataset CSV: ' + err.message);
+        } finally {
+            toggleLoading(false);
+        }
+    }
+
+    if (exportSessionBtn) {
+        exportSessionBtn.addEventListener('click', () => {
+            try {
+                exportSession({
+                    currentData,
+                    datasetName: currentDatasetName,
+                    activeView: currentActiveView,
+                    managers: {
+                        graphicWalker: graphicWalkerMgr,
+                        sanddance: sanddanceMgr,
+                        sankey: sankeyMgr,
+                        mermaid: mermaidMgr,
+                        vega: vegaMgr,
+                        agent: agentMgr
+                    },
+                    lineupInstance
+                });
+            } catch (err) {
+                alert(err.message || 'Failed to export session.');
+            }
+        });
+    }
+
+    if (loadSessionBtn) loadSessionBtn.addEventListener('click', openSessionModal);
+    if (emptyLoadSessionBtn) emptyLoadSessionBtn.addEventListener('click', openSessionModal);
+    if (cancelSessionBtn) cancelSessionBtn.addEventListener('click', closeSessionModal);
+
+    if (sessionFileDropzone && sessionFileInput) {
+        sessionFileDropzone.addEventListener('click', () => sessionFileInput.click());
+        sessionFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleSessionFile(e.target.files[0]);
+            }
+        });
+        sessionFileDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            sessionFileDropzone.classList.add('drag-over');
+        });
+        sessionFileDropzone.addEventListener('dragleave', () => sessionFileDropzone.classList.remove('drag-over'));
+        sessionFileDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            sessionFileDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleSessionFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
+
+    if (sessionDataDropzone && sessionDataInput) {
+        sessionDataDropzone.addEventListener('click', () => sessionDataInput.click());
+        sessionDataInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleSessionDataFile(e.target.files[0]);
+            }
+        });
+        sessionDataDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            sessionDataDropzone.classList.add('drag-over');
+        });
+        sessionDataDropzone.addEventListener('dragleave', () => sessionDataDropzone.classList.remove('drag-over'));
+        sessionDataDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            sessionDataDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleSessionDataFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
+
+    if (applySessionBtn) {
+        applySessionBtn.addEventListener('click', () => {
+            if (!loadedSessionObj) return;
+            toggleLoading(true);
+            try {
+                if (sessionCandidateData && sessionCandidateData.length > 0) {
+                    const sessionDatasetName = loadedSessionObj?.datasetSchema?.name || 'session_data.csv';
+                    processAndRenderData(sessionCandidateData, sessionDatasetName);
+                }
+                setTimeout(() => {
+                    restoreSessionState(loadedSessionObj, {
+                        managers: {
+                            graphicWalker: graphicWalkerMgr,
+                            sanddance: sanddanceMgr,
+                            sankey: sankeyMgr,
+                            mermaid: mermaidMgr,
+                            vega: vegaMgr,
+                            agent: agentMgr
+                        },
+                        restoreLineup: restoreLineupWithDump,
+                        activateView: activateViewByName
+                    });
+                    closeSessionModal();
+                    toggleLoading(false);
+                }, 150);
+            } catch (err) {
+                console.error('Error restoring session state:', err);
+                alert('Failed to restore session: ' + err.message);
+                toggleLoading(false);
+            }
+        });
+    }
 
     // Initial state
     resetView();

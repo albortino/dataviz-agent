@@ -9,8 +9,19 @@ import requests
 
 try:
     from src.agent import ReActAgent
+    from src.agent_skills import list_skills
+    from src.tools import execute_python_code
 except ImportError:
     from agent import ReActAgent
+    try:
+        from agent_skills import list_skills
+    except ImportError:
+        def list_skills():
+            return []
+    try:
+        from tools import execute_python_code
+    except ImportError:
+        execute_python_code = None
 
 app = FastAPI()
 
@@ -33,16 +44,25 @@ DEFAULT_MODEL_NAME = os.getenv("MODEL_NAME", os.getenv("LLM_MODEL", "deepseek-fl
 DEFAULT_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY") or ""
 
 class ChatRequest(BaseModel):
-    message: str
-    data: List[Any]
+    message: Optional[str] = None
+    data: Optional[List[Any]] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
+    active_skills: Optional[List[str]] = None
+    row_count: Optional[int] = None
+    dataset_profile: Optional[str] = None
+    messages: Optional[List[dict]] = None
+    tool_results: Optional[List[dict]] = None
 
 class ValidateKeyRequest(BaseModel):
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
+
+class ExecuteCodeRequest(BaseModel):
+    code: str
+    data: List[Any]
 
 def check_credentials_validity(api_key: str, base_url: str, model_name: str) -> dict:
     api_key = (api_key or "").strip()
@@ -189,8 +209,8 @@ def models():
 
 @app.post("/chat")
 def chat(request: ChatRequest):
-    if not request.data:
-        raise HTTPException(400, "No data provided")
+    if not request.data and not request.messages:
+        raise HTTPException(400, "No data or messages provided")
     
     api_key = (request.api_key or "").strip() or DEFAULT_API_KEY
     base_url = (request.base_url or "").strip() or DEFAULT_BASE_URL
@@ -203,17 +223,45 @@ def chat(request: ChatRequest):
         )
 
     try:
-        df = pd.DataFrame(request.data)
+        df = pd.DataFrame(request.data) if request.data else pd.DataFrame()
         agent = ReActAgent(
             df=df,
             api_key=api_key,
             base_url=base_url,
-            model_name=model_name
+            model_name=model_name,
+            active_skills=request.active_skills,
+            row_count=request.row_count,
+            dataset_profile=request.dataset_profile,
         )
-        result = agent.process_query(request.message)
+        result = agent.process_query(
+            user_query=request.message,
+            messages=request.messages,
+            tool_results=request.tool_results
+        )
         return result
     except Exception as e:
         raise HTTPException(500, f"Agent error: {str(e)}")
+
+@app.post("/execute_code")
+def execute_code_endpoint(request: ExecuteCodeRequest):
+    """Direct fast-path endpoint to execute Python code against active data."""
+    if not request.data:
+        raise HTTPException(400, "No data provided")
+    if not request.code or not request.code.strip():
+        raise HTTPException(400, "No code provided")
+    if execute_python_code is None:
+        raise HTTPException(500, "Code execution engine is unavailable.")
+    try:
+        df = pd.DataFrame(request.data)
+        result = execute_python_code(df, request.code)
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"Execution failed: {str(e)}")
+
+@app.get("/agent_skills")
+def agent_skills():
+    """Manifest of runtime agent skills for the frontend toggle UI."""
+    return {"skills": list_skills()}
 
 @app.get("/readme")
 def get_readme():

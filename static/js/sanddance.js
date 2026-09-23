@@ -35,11 +35,19 @@ export class SandDanceManager {
         this.exportBtn = document.getElementById('sanddance-export-btn');
         this.collapseBtn = document.getElementById('sanddance-controls-collapse-btn');
         this.expandBtn = document.getElementById('sanddance-controls-expand-btn');
+        this.canvasWrapper = document.getElementById('sanddance-canvas-wrapper');
+        this.panelContainer = document.getElementById('sanddance-panel-container');
+        this.panelGroup = document.getElementById('sanddance-panel-group');
+        this.mutationObserver = null;
+        this.resizeObserver = null;
+        this.resizeTimeout = null;
         this.hasRenderedData = false;
     }
 
     init() {
         this.initViewer();
+        this.setupPanelObserver();
+        this.setupResizeObserver();
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
         this.initCollapseState();
@@ -58,6 +66,71 @@ export class SandDanceManager {
         if (this.expandBtn) {
             this.expandBtn.classList.toggle('hidden', !collapsed);
         }
+        setTimeout(() => {
+            this.scheduleResize();
+        }, 300);
+    }
+
+    relocatePanel() {
+        if (!this.panelContainer) return;
+        const panel = (this.root && this.root.querySelector('.sanddance-panel')) ||
+            (this.canvasWrapper && this.canvasWrapper.querySelector('.sanddance-panel')) ||
+            document.querySelector('#sanddance-container .sanddance-panel');
+        if (panel && panel.parentElement !== this.panelContainer) {
+            this.panelContainer.appendChild(panel);
+            if (this.panelGroup) this.panelGroup.classList.remove('hidden');
+        }
+    }
+
+    setupPanelObserver() {
+        if (this.mutationObserver || !this.root) return;
+        this.mutationObserver = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList && node.classList.contains('sanddance-panel')) {
+                            this.relocatePanel();
+                            return;
+                        }
+                        if (node.querySelector && node.querySelector('.sanddance-panel')) {
+                            this.relocatePanel();
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        this.mutationObserver.observe(this.root, { childList: true, subtree: true });
+        if (this.canvasWrapper && this.canvasWrapper !== this.root) {
+            this.mutationObserver.observe(this.canvasWrapper, { childList: true });
+        }
+    }
+
+    setupResizeObserver() {
+        if (this.resizeObserver || !this.canvasWrapper || typeof ResizeObserver === 'undefined') return;
+        this.resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                if (width > 50 && height > 50 && this.hasRenderedData && this.container && !this.container.classList.contains('hidden')) {
+                    this.scheduleResize();
+                }
+            }
+        });
+        this.resizeObserver.observe(this.canvasWrapper);
+    }
+
+    scheduleResize() {
+        if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = setTimeout(() => {
+            this.resize();
+        }, 80);
+    }
+
+    resize() {
+        if (!this.viewer || !this.hasRenderedData || !this.container || this.container.classList.contains('hidden')) {
+            return;
+        }
+        this.render();
     }
 
     initViewer() {
@@ -65,6 +138,7 @@ export class SandDanceManager {
             try {
                 SandDance.use(vega);
                 this.viewer = new SandDance.Viewer(this.root);
+                this.relocatePanel();
             } catch (err) {
                 console.error("SandDance initialization error:", err);
             }
@@ -95,6 +169,7 @@ export class SandDanceManager {
         if (this.disaggregateCheck) this.disaggregateCheck.checked = false;
         if (this.disaggregateContainer) this.disaggregateContainer.classList.add('hidden');
         if (this.disaggregateInfo) this.disaggregateInfo.textContent = 'Unrolls rows by numerical count';
+        if (this.panelContainer) this.panelContainer.innerHTML = '';
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
     }
@@ -198,11 +273,11 @@ export class SandDanceManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return [];
         if (!this.disaggregateCheck || !this.disaggregateCheck.checked) {
-            return currentData;
+            return currentData.map(r => ({ ...r }));
         }
 
         const disaggCol = this.disaggregateCol ? this.disaggregateCol.value : '';
-        if (!disaggCol) return currentData;
+        if (!disaggCol) return currentData.map(r => ({ ...r }));
 
         const maxTotalPoints = 60000;
         let totalCount = 0;
@@ -325,10 +400,30 @@ export class SandDanceManager {
             scheme = (type === 'Number' || type === 'Date' || type === 'DateTime') ? 'viridis' : 'category10';
         }
 
-        const rootRect = this.root ? this.root.getBoundingClientRect() : { width: 0, height: 0 };
+        // Determine available render dimensions based on actual canvas wrapper viewport
+        const wrapper = this.canvasWrapper || document.getElementById('sanddance-canvas-wrapper');
+        const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : { width: 0, height: 0 };
         const containerRect = this.container ? this.container.getBoundingClientRect() : { width: 0, height: 0 };
-        const width = Math.max(Math.floor(rootRect.width || (containerRect.width ? containerRect.width - 270 : 0) || window.innerWidth - 334), 400);
-        const height = Math.max(Math.floor(rootRect.height || containerRect.height || window.innerHeight - 200), 400);
+
+        const isCollapsed = this.toolbar && this.toolbar.classList.contains('collapsed');
+        const toolbarWidth = isCollapsed ? 0 : 270;
+
+        const availWidth = Math.floor(
+            (wrapper && wrapper.clientWidth > 0 ? wrapper.clientWidth : 0) ||
+            wrapperRect.width ||
+            (containerRect.width > toolbarWidth ? containerRect.width - toolbarWidth : 0) ||
+            (window.innerWidth > toolbarWidth + 60 ? window.innerWidth - toolbarWidth - 60 : 600)
+        );
+
+        const availHeight = Math.floor(
+            (wrapper && wrapper.clientHeight > 0 ? wrapper.clientHeight : 0) ||
+            wrapperRect.height ||
+            (containerRect.height > 100 ? containerRect.height - 100 : 0) ||
+            Math.max(window.innerHeight - 210, 400)
+        );
+
+        const width = Math.max(availWidth, 300);
+        const height = Math.max(availHeight, 300);
 
         const chartType = (this.chartSelect && this.chartSelect.value) || 'density';
         const xVal = (this.xSelect && this.xSelect.value) || undefined;
@@ -394,11 +489,13 @@ export class SandDanceManager {
             if (p && typeof p.then === 'function') {
                 p.then(() => {
                     this.hasRenderedData = true;
+                    this.relocatePanel();
                 }).catch(renderErr => {
                     console.warn("SandDance render notice:", renderErr);
                 });
             } else {
                 this.hasRenderedData = true;
+                this.relocatePanel();
             }
         } catch (renderErr) {
             console.error("SandDance render error:", renderErr);
@@ -468,5 +565,43 @@ export class SandDanceManager {
                 }
             });
         }
+    }
+
+    exportState() {
+        return {
+            chart: (this.chartSelect && this.chartSelect.value) || 'density',
+            x: (this.xSelect && this.xSelect.value) || '',
+            y: (this.ySelect && this.ySelect.value) || '',
+            color: (this.colorSelect && this.colorSelect.value) || '',
+            sort: (this.sortSelect && this.sortSelect.value) || '',
+            facet: (this.facetSelect && this.facetSelect.value) || '',
+            totalStyle: (this.totalStyleSelect && this.totalStyleSelect.value) || '',
+            disaggregate: !!(this.disaggregateCheck && this.disaggregateCheck.checked),
+            disaggregateCol: (this.disaggregateCol && this.disaggregateCol.value) || ''
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        this.updateOptions();
+        if (state.chart && this.chartSelect) this.chartSelect.value = state.chart;
+        if (state.x && this.xSelect) this.xSelect.value = state.x;
+        if (state.y && this.ySelect) this.ySelect.value = state.y;
+        if (state.color !== undefined && this.colorSelect) this.colorSelect.value = state.color;
+        if (state.sort !== undefined && this.sortSelect) this.sortSelect.value = state.sort;
+        if (state.facet !== undefined && this.facetSelect) this.facetSelect.value = state.facet;
+        if (state.totalStyle !== undefined && this.totalStyleSelect) this.totalStyleSelect.value = state.totalStyle;
+        if (this.disaggregateCheck) {
+            this.disaggregateCheck.checked = !!state.disaggregate;
+            if (this.disaggregateContainer) {
+                this.disaggregateContainer.classList.toggle('hidden', !state.disaggregate);
+            }
+        }
+        if (state.disaggregateCol && this.disaggregateCol) {
+            this.disaggregateCol.value = state.disaggregateCol;
+        }
+        this.updateLabelsForChartType();
+        this.updateTotalStyleVisibility();
+        this.render();
     }
 }

@@ -5,6 +5,7 @@
  */
 
 import { aggregateValues, detectType } from './data-transform.js';
+import { formatSankeySyntax } from './spec-formatter.js';
 
 export const PALETTES = {
     category10: d3.schemeCategory10,
@@ -27,6 +28,7 @@ export class SankeyManager {
         this.sidebar = document.getElementById('sankey-sidebar');
         this.collapseBtn = document.getElementById('sankey-collapse-btn');
         this.expandBtn = document.getElementById('sankey-expand-btn');
+        this.formatBtn = document.getElementById('sankey-format-btn');
         this.textEditor = document.getElementById('sankey-text-editor');
         this.sourceCol = document.getElementById('sankey-source-col');
         this.targetCol = document.getElementById('sankey-target-col');
@@ -70,7 +72,16 @@ export class SankeyManager {
         setTimeout(() => this.renderChart(), 230);
     }
 
+    teardown() {
+        if (this.svg) {
+            this.svg.selectAll('*').remove();
+        }
+        this.graphData = null;
+        this.selectedNode = null;
+    }
+
     reset() {
+        this.teardown();
         this.customNodeColors = {};
         this.annotations = [];
         this.selectedNode = null;
@@ -131,14 +142,29 @@ export class SankeyManager {
             }
         });
 
+        const MAX_PARSED_LINKS = 100;
+        let finalLinks = links;
+        let finalNodes = Array.from(nodesMap.values());
+
+        if (links.length > MAX_PARSED_LINKS) {
+            links.sort((a, b) => b.value - a.value);
+            finalLinks = links.slice(0, MAX_PARSED_LINKS);
+            const activeNodeNames = new Set();
+            finalLinks.forEach(l => {
+                activeNodeNames.add(l.source);
+                activeNodeNames.add(l.target);
+            });
+            finalNodes = finalNodes.filter(n => activeNodeNames.has(n.name));
+        }
+
         return {
-            nodes: Array.from(nodesMap.values()),
-            links,
+            nodes: finalNodes,
+            links: finalLinks,
             colors
         };
     }
 
-    generateFromCSV() {
+    async generateFromCSV() {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return '';
         const srcCol = this.sourceCol?.value;
@@ -149,6 +175,36 @@ export class SankeyManager {
 
         if (!srcCol || !tgtCol || srcCol === tgtCol) {
             return `// SankeyMatic Flow Example\nRevenue [120] Operating Expenses\nRevenue [80] Profit\nOperating Expenses [50] Salaries\nOperating Expenses [40] Marketing\nOperating Expenses [30] R&D\nProfit [20] Taxes\nProfit [60] Net Income\n:Revenue #2563eb\n:Profit #16a34a`;
+        }
+
+        // Fast Path: Zero-copy DuckDB-Wasm columnar aggregation in WebWorker
+        if (window.duckdbEngine && window.duckdbEngine.isReady()) {
+            try {
+                const res = await window.duckdbEngine.aggregateSankeyFlows(srcCol, tgtCol, valCol, aggFunc, 50);
+                if (res && res.topFlows && res.topFlows.length > 0) {
+                    let text = `// Generated from ${srcCol} -> ${tgtCol} (${aggFunc.toUpperCase()} ${valCol || 'rows'}) [DuckDB-Wasm]\n`;
+                    if (res.remainingSum > 0) {
+                        text += `// Note: Displaying top 50 of ${res.totalFlows} flows for performance and readability\n`;
+                    }
+                    res.topFlows.forEach(item => {
+                        let s = item.source;
+                        let t = item.target;
+                        if (disambiguate) {
+                            s = `${s} (${srcCol})`;
+                            t = `${t} (${tgtCol})`;
+                        }
+                        text += `${s} [${Math.round(item.value * 100) / 100}] ${t}\n`;
+                    });
+                    if (res.remainingSum > 0) {
+                        const otherSource = disambiguate ? `Other (${srcCol})` : 'Other';
+                        const otherTarget = disambiguate ? `Other (${tgtCol})` : 'Other';
+                        text += `${otherSource} [${Math.round(res.remainingSum * 100) / 100}] ${otherTarget}\n`;
+                    }
+                    return text;
+                }
+            } catch (err) {
+                console.warn('[DuckDB] Failed to aggregate flows, using in-memory JS:', err);
+            }
         }
 
         const srcValues = new Set();
@@ -184,8 +240,7 @@ export class SankeyManager {
             flowAgg[key].push(val);
         });
 
-        let text = `// Generated from ${srcCol} -> ${tgtCol} (${aggFunc.toUpperCase()} ${valCol || 'rows'})\n`;
-        Object.entries(flowAgg).forEach(([key, vals]) => {
+        const flowList = Object.entries(flowAgg).map(([key, vals]) => {
             const [s, t] = key.split('___');
             let computedVal;
             if (aggFunc === 'none') {
@@ -193,10 +248,32 @@ export class SankeyManager {
             } else {
                 computedVal = aggregateValues(vals, aggFunc);
             }
-            if (computedVal > 0) {
-                text += `${s} [${Math.round(computedVal * 100) / 100}] ${t}\n`;
-            }
+            return { s, t, val: computedVal };
+        }).filter(item => item.val > 0);
+
+        flowList.sort((a, b) => b.val - a.val);
+
+        const MAX_FLOWS = 50;
+        const topFlows = flowList.slice(0, MAX_FLOWS);
+        const remainingFlows = flowList.slice(MAX_FLOWS);
+
+        let text = `// Generated from ${srcCol} -> ${tgtCol} (${aggFunc.toUpperCase()} ${valCol || 'rows'})\n`;
+        if (remainingFlows.length > 0) {
+            text += `// Note: Displaying top ${MAX_FLOWS} of ${flowList.length} flows for performance and readability\n`;
+        }
+
+        topFlows.forEach(item => {
+            text += `${item.s} [${Math.round(item.val * 100) / 100}] ${item.t}\n`;
         });
+
+        if (remainingFlows.length > 0) {
+            const otherVal = remainingFlows.reduce((sum, item) => sum + item.val, 0);
+            if (otherVal > 0) {
+                const otherSource = shouldDisambiguate ? `Other (${srcCol})` : 'Other';
+                const otherTarget = shouldDisambiguate ? `Other (${tgtCol})` : 'Other';
+                text += `${otherSource} [${Math.round(otherVal * 100) / 100}] ${otherTarget}\n`;
+            }
+        }
 
         return text;
     }
@@ -236,12 +313,12 @@ export class SankeyManager {
         });
     }
 
-    renderChart() {
+    async renderChart() {
         if (!window.d3 || !d3.sankey) return;
 
         let text = this.textEditor ? this.textEditor.value.trim() : '';
         if (!text) {
-            text = this.generateFromCSV();
+            text = await this.generateFromCSV();
             if (this.textEditor) this.textEditor.value = text;
         }
 
@@ -485,13 +562,21 @@ export class SankeyManager {
     bindEvents() {
         if (this.collapseBtn) this.collapseBtn.addEventListener('click', () => this.setSidebarCollapsed(true));
         if (this.expandBtn) this.expandBtn.addEventListener('click', () => this.setSidebarCollapsed(false));
+        if (this.formatBtn) {
+            this.formatBtn.addEventListener('click', () => {
+                if (this.textEditor) {
+                    this.textEditor.value = formatSankeySyntax(this.textEditor.value);
+                    this.renderChart();
+                }
+            });
+        }
         if (this.controlsCollapseBtn) this.controlsCollapseBtn.addEventListener('click', () => this.setControlsCollapsed(true));
         if (this.controlsExpandBtn) this.controlsExpandBtn.addEventListener('click', () => this.setControlsCollapsed(false));
 
         [this.sourceCol, this.targetCol, this.valCol, this.aggFunc, this.disambiguateNodes].forEach(el => {
             if (el) {
-                el.addEventListener('change', () => {
-                    if (this.textEditor) this.textEditor.value = this.generateFromCSV();
+                el.addEventListener('change', async () => {
+                    if (this.textEditor) this.textEditor.value = await this.generateFromCSV();
                     this.renderChart();
                 });
             }
@@ -613,5 +698,48 @@ export class SankeyManager {
                 document.body.removeChild(link);
             });
         }
+    }
+
+    exportState() {
+        return {
+            text: (this.textEditor && this.textEditor.value) || '',
+            sourceCol: (this.sourceCol && this.sourceCol.value) || '',
+            targetCol: (this.targetCol && this.targetCol.value) || '',
+            valCol: (this.valCol && this.valCol.value) || '',
+            aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
+            disambiguateNodes: !!(this.disambiguateNodes && this.disambiguateNodes.checked),
+            palette: (this.palette && this.palette.value) || 'category10',
+            nodeAlign: (this.nodeAlign && this.nodeAlign.value) || 'justify',
+            autoFit: !!(this.autoFitCheckbox && this.autoFitCheckbox.checked),
+            customWidth: (this.customWidthInput && this.customWidthInput.value) || '',
+            customHeight: (this.customHeightInput && this.customHeightInput.value) || '',
+            customNodeColors: { ...this.customNodeColors },
+            annotations: Array.isArray(this.annotations) ? [...this.annotations] : []
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        this.updateColumnOptions();
+        if (state.sourceCol && this.sourceCol) this.sourceCol.value = state.sourceCol;
+        if (state.targetCol && this.targetCol) this.targetCol.value = state.targetCol;
+        if (state.valCol && this.valCol) this.valCol.value = state.valCol;
+        if (state.aggFunc && this.aggFunc) this.aggFunc.value = state.aggFunc;
+        if (this.disambiguateNodes && state.disambiguateNodes !== undefined) {
+            this.disambiguateNodes.checked = !!state.disambiguateNodes;
+        }
+        if (state.palette && this.palette) this.palette.value = state.palette;
+        if (state.nodeAlign && this.nodeAlign) this.nodeAlign.value = state.nodeAlign;
+        if (this.autoFitCheckbox && state.autoFit !== undefined) {
+            this.autoFitCheckbox.checked = !!state.autoFit;
+        }
+        if (state.customWidth && this.customWidthInput) this.customWidthInput.value = state.customWidth;
+        if (state.customHeight && this.customHeightInput) this.customHeightInput.value = state.customHeight;
+        if (state.customNodeColors) this.customNodeColors = { ...state.customNodeColors };
+        if (Array.isArray(state.annotations)) this.annotations = [...state.annotations];
+        if (state.text !== undefined && this.textEditor) {
+            this.textEditor.value = state.text;
+        }
+        this.renderChart();
     }
 }
