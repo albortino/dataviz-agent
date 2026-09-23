@@ -14,6 +14,7 @@ import {
     setPath,
     deletePath
 } from './mermaid-config.js';
+import { formatMermaidSyntax } from './spec-formatter.js';
 
 export const MERMAID_DEMOS = {
     sankey: `sankey-beta
@@ -135,6 +136,7 @@ export class MermaidManager {
         this.sidebar = document.getElementById('mermaid-sidebar');
         this.collapseBtn = document.getElementById('mermaid-collapse-btn');
         this.expandBtn = document.getElementById('mermaid-expand-btn');
+        this.formatBtn = document.getElementById('mermaid-format-btn');
         this.textEditor = document.getElementById('mermaid-text-editor');
         this.presetSelect = document.getElementById('mermaid-chart-preset');
         this.chartTitleInput = document.getElementById('mermaid-chart-title');
@@ -150,7 +152,6 @@ export class MermaidManager {
         this.demoBtn = document.getElementById('mermaid-demo-btn');
         this.aiBtn = document.getElementById('mermaid-ai-btn');
         this.configPanel = document.getElementById('mermaid-config-panel');
-        this.configGroup = document.getElementById('mermaid-config-group');
         this.col1Group = document.getElementById('mermaid-col1-group');
         this.col2Group = document.getElementById('mermaid-col2-group');
         this.valGroup = document.getElementById('mermaid-val-group');
@@ -342,69 +343,109 @@ export class MermaidManager {
         }
     }
 
-    /** Rebuild the per-chart config toggle panel from the diagram's frontmatter. */
+    /** Rebuild the per-chart config panels clustered by category from frontmatter. */
     renderConfigPanel() {
         if (!this.configPanel || !this.presetSelect) return;
         const options = MERMAID_CONFIG_OPTIONS[this.presetSelect.value] || [];
         const { config } = splitFrontmatter(this.textEditor ? this.textEditor.value : '');
 
+        const openCategories = new Set();
+        this.configPanel.querySelectorAll('.mermaid-config-details[open]').forEach(el => {
+            if (el.dataset.category) openCategories.add(el.dataset.category);
+        });
+
         this.configPanel.innerHTML = '';
-        if (options.length === 0) {
+        const allOptions = [...SHARED_CONFIG_OPTIONS, ...options];
+        if (allOptions.length === 0) {
             this.configPanel.innerHTML = '<span class="mermaid-config-hint">No tunable options for this diagram.</span>';
             return;
         }
 
-        [...SHARED_CONFIG_OPTIONS, ...options].forEach(opt => {
-            const current = getPath(config, opt.path);
-            const item = document.createElement('div');
-            item.className = 'mermaid-config-item';
-            item.dataset.path = opt.path.join('.');
-            item.dataset.type = opt.type;
-            item.dataset.key = opt.key;
+        const categories = [
+            { id: 'styling', label: 'Style & Theme' },
+            { id: 'labels', label: 'Labels & Text' },
+            { id: 'layout', label: 'Axes & Layout' }
+        ];
 
-            if (opt.type === 'toggle') {
-                const head = document.createElement('label');
-                head.className = 'mermaid-config-option';
-                const control = document.createElement('input');
-                control.type = 'checkbox';
-                control.className = 'cfg-control';
-                if (opt.key === 'yAxisZero') {
-                    const yMatch = (this.textEditor ? this.textEditor.value : '').match(/^\s*y-axis\s*(?:"([^"]*)")?\s*(?:(-?\d+(?:\.\d+)?)\s*-->\s*(-?\d+(?:\.\d+)?))?/m);
-                    if (yMatch) {
-                        control.checked = yMatch[2] !== undefined ? Number(yMatch[2]) === 0 : false;
-                    } else {
-                        control.checked = false;
-                    }
-                } else {
-                    control.checked = current !== undefined ? Boolean(current) : false;
-                }
-                control.addEventListener('change', () => this.applyConfig());
+        categories.forEach(cat => {
+            const catOptions = allOptions.filter(opt => (opt.category || 'styling') === cat.id);
+            if (catOptions.length === 0) return;
 
-                head.appendChild(control);
-                head.appendChild(document.createTextNode(opt.label));
-                item.appendChild(head);
-            } else {
-                const head = document.createElement('label');
-                head.className = 'mermaid-config-option';
-                const enable = document.createElement('input');
-                enable.type = 'checkbox';
-                enable.className = 'cfg-enable';
-                enable.checked = current !== undefined;
-
-                const control = this.buildConfigControl(opt, current !== undefined ? current : opt.default);
-                control.disabled = !enable.checked;
-                enable.addEventListener('change', () => {
-                    control.disabled = !enable.checked;
-                    this.applyConfig();
-                });
-                control.addEventListener('change', () => this.applyConfig());
-
-                head.appendChild(enable);
-                head.appendChild(document.createTextNode(opt.label));
-                item.appendChild(head);
-                item.appendChild(control);
+            const details = document.createElement('details');
+            details.className = 'control-group mermaid-config-details';
+            details.dataset.category = cat.id;
+            if (openCategories.has(cat.id)) {
+                details.open = true;
             }
-            this.configPanel.appendChild(item);
+
+            const summary = document.createElement('summary');
+            summary.className = 'mermaid-config-summary';
+            summary.innerHTML = `<label class="cursor-pointer-no-margin">${cat.label}</label><i class="fa-solid fa-chevron-down details-chevron"></i>`;
+
+            const content = document.createElement('div');
+            content.className = 'vega-section-content';
+
+            catOptions.forEach(opt => {
+                const current = getPath(config, opt.path);
+                const item = document.createElement('div');
+                item.className = 'mermaid-config-item';
+                item.dataset.path = opt.path.join('.');
+                item.dataset.type = opt.type;
+                item.dataset.key = opt.key;
+
+                if (opt.type === 'toggle') {
+                    const head = document.createElement('label');
+                    head.className = 'curves-checkbox-item';
+                    const control = document.createElement('input');
+                    control.type = 'checkbox';
+                    control.className = 'cfg-control';
+                    if (opt.key === 'yAxisZero') {
+                        const yMatch = (this.textEditor ? this.textEditor.value : '').match(/^\s*y-axis\s*(?:"([^"]*)")?\s*(?:(-?\d+(?:\.\d+)?)\s*-->\s*(-?\d+(?:\.\d+)?))?/m);
+                        if (yMatch) {
+                            control.checked = yMatch[2] !== undefined ? Number(yMatch[2]) === 0 : false;
+                        } else {
+                            control.checked = false;
+                        }
+                    } else {
+                        control.checked = current !== undefined ? Boolean(current) : false;
+                    }
+                    control.addEventListener('change', () => this.applyConfig());
+
+                    head.appendChild(control);
+                    const span = document.createElement('span');
+                    span.textContent = opt.label;
+                    head.appendChild(span);
+                    item.appendChild(head);
+                } else {
+                    const head = document.createElement('label');
+                    head.className = 'curves-checkbox-item';
+                    const enable = document.createElement('input');
+                    enable.type = 'checkbox';
+                    enable.className = 'cfg-enable';
+                    enable.checked = current !== undefined;
+
+                    const span = document.createElement('span');
+                    span.textContent = opt.label;
+                    head.appendChild(enable);
+                    head.appendChild(span);
+
+                    const control = this.buildConfigControl(opt, current !== undefined ? current : opt.default);
+                    control.disabled = !enable.checked;
+                    enable.addEventListener('change', () => {
+                        control.disabled = !enable.checked;
+                        this.applyConfig();
+                    });
+                    control.addEventListener('change', () => this.applyConfig());
+
+                    item.appendChild(head);
+                    item.appendChild(control);
+                }
+                content.appendChild(item);
+            });
+
+            details.appendChild(summary);
+            details.appendChild(content);
+            this.configPanel.appendChild(details);
         });
     }
 
@@ -413,6 +454,7 @@ export class MermaidManager {
         let el;
         if (opt.type === 'select') {
             el = document.createElement('select');
+            el.className = 'control-select cfg-control';
             opt.options.forEach(o => {
                 const option = document.createElement('option');
                 option.value = o;
@@ -422,11 +464,11 @@ export class MermaidManager {
             el.value = String(value);
         } else {
             el = document.createElement('input');
+            el.className = 'control-input cfg-control';
             el.type = opt.type === 'number' ? 'number' : 'text';
             if (opt.step) el.step = String(opt.step);
             el.value = value === undefined || value === null ? '' : String(value);
         }
-        el.classList.add('cfg-control');
         return el;
     }
 
@@ -1043,6 +1085,14 @@ export class MermaidManager {
     bindEvents() {
         if (this.collapseBtn) this.collapseBtn.addEventListener('click', () => this.setSidebarCollapsed(true));
         if (this.expandBtn) this.expandBtn.addEventListener('click', () => this.setSidebarCollapsed(false));
+        if (this.formatBtn) {
+            this.formatBtn.addEventListener('click', () => {
+                if (this.textEditor) {
+                    this.textEditor.value = formatMermaidSyntax(this.textEditor.value);
+                    this.renderChart();
+                }
+            });
+        }
         if (this.controlsCollapseBtn) this.controlsCollapseBtn.addEventListener('click', () => this.setControlsCollapsed(true));
         if (this.controlsExpandBtn) this.controlsExpandBtn.addEventListener('click', () => this.setControlsCollapsed(false));
 
@@ -1214,5 +1264,41 @@ export class MermaidManager {
                 document.body.removeChild(link);
             });
         }
+    }
+
+    exportState() {
+        return {
+            text: (this.textEditor && this.textEditor.value) || '',
+            preset: (this.presetSelect && this.presetSelect.value) || 'flowchart',
+            title: (this.chartTitleInput && this.chartTitleInput.value) || '',
+            sourceCol: (this.sourceCol && this.sourceCol.value) || '',
+            targetCol: (this.targetCol && this.targetCol.value) || '',
+            valCol: (this.valCol && this.valCol.value) || '',
+            aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
+            zoomLevel: this.zoomLevel || 1.75
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        this.updateColumnOptions();
+        if (state.preset && this.presetSelect) {
+            this.presetSelect.value = state.preset;
+        }
+        this.updateUIControls();
+        if (state.title !== undefined && this.chartTitleInput) this.chartTitleInput.value = state.title;
+        if (state.sourceCol && this.sourceCol) this.sourceCol.value = state.sourceCol;
+        if (state.targetCol && this.targetCol) this.targetCol.value = state.targetCol;
+        if (state.valCol && this.valCol) this.valCol.value = state.valCol;
+        if (state.aggFunc && this.aggFunc) this.aggFunc.value = state.aggFunc;
+        if (typeof state.zoomLevel === 'number') {
+            this.zoomLevel = state.zoomLevel;
+            this.applyZoom();
+        }
+        if (state.text !== undefined && this.textEditor) {
+            this.textEditor.value = state.text;
+        }
+        this.renderConfigPanel();
+        this.renderChart();
     }
 }

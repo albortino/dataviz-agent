@@ -151,6 +151,7 @@ docker run -d --name dataviz-agent -p 8000:8000 \
 ---
 
 ### Option 2: Local Python Environment
+Useful for local development and testing.
 
 **Requirements:** Python 3.10+ (Tested on Python 3.10 – 3.14)
 
@@ -167,7 +168,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Start the application
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn src.main:app --host localhost --port 8000 --reload
 ```
 
 ---

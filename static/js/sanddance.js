@@ -273,11 +273,11 @@ export class SandDanceManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return [];
         if (!this.disaggregateCheck || !this.disaggregateCheck.checked) {
-            return currentData;
+            return currentData.map(r => ({ ...r }));
         }
 
         const disaggCol = this.disaggregateCol ? this.disaggregateCol.value : '';
-        if (!disaggCol) return currentData;
+        if (!disaggCol) return currentData.map(r => ({ ...r }));
 
         const maxTotalPoints = 60000;
         let totalCount = 0;
@@ -565,5 +565,43 @@ export class SandDanceManager {
                 }
             });
         }
+    }
+
+    exportState() {
+        return {
+            chart: (this.chartSelect && this.chartSelect.value) || 'density',
+            x: (this.xSelect && this.xSelect.value) || '',
+            y: (this.ySelect && this.ySelect.value) || '',
+            color: (this.colorSelect && this.colorSelect.value) || '',
+            sort: (this.sortSelect && this.sortSelect.value) || '',
+            facet: (this.facetSelect && this.facetSelect.value) || '',
+            totalStyle: (this.totalStyleSelect && this.totalStyleSelect.value) || '',
+            disaggregate: !!(this.disaggregateCheck && this.disaggregateCheck.checked),
+            disaggregateCol: (this.disaggregateCol && this.disaggregateCol.value) || ''
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        this.updateOptions();
+        if (state.chart && this.chartSelect) this.chartSelect.value = state.chart;
+        if (state.x && this.xSelect) this.xSelect.value = state.x;
+        if (state.y && this.ySelect) this.ySelect.value = state.y;
+        if (state.color !== undefined && this.colorSelect) this.colorSelect.value = state.color;
+        if (state.sort !== undefined && this.sortSelect) this.sortSelect.value = state.sort;
+        if (state.facet !== undefined && this.facetSelect) this.facetSelect.value = state.facet;
+        if (state.totalStyle !== undefined && this.totalStyleSelect) this.totalStyleSelect.value = state.totalStyle;
+        if (this.disaggregateCheck) {
+            this.disaggregateCheck.checked = !!state.disaggregate;
+            if (this.disaggregateContainer) {
+                this.disaggregateContainer.classList.toggle('hidden', !state.disaggregate);
+            }
+        }
+        if (state.disaggregateCol && this.disaggregateCol) {
+            this.disaggregateCol.value = state.disaggregateCol;
+        }
+        this.updateLabelsForChartType();
+        this.updateTotalStyleVisibility();
+        this.render();
     }
 }

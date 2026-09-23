@@ -3,6 +3,8 @@
  * Handles type detection, value parsing, aggregation, and full CSV processing.
  */
 
+import { duckdbEngine, tableToObjects } from './duckdb-engine.js';
+
 export const detectType = (value) => {
     if (value === null || value === undefined) return 'String';
     const cleanVal = String(value).trim();
@@ -117,8 +119,31 @@ export const aggregateValues = (values, func) => {
     }
 };
 
-export const processFullCSV = (file, config, onLoadingChange) => {
+export const processFullCSV = async (file, config, onLoadingChange) => {
     if (typeof onLoadingChange === 'function') onLoadingChange(true);
+
+    // 1. Primary Engine: DuckDB-Wasm in Web Worker
+    try {
+        await duckdbEngine.loadCSV(file, {
+            delimiter: config.delimiter,
+            decimalSeparator: config.decimalSeparator
+        });
+        window.duckdbEngine = duckdbEngine;
+        window._duckdbLoadedFromCSV = true;
+
+        const selectedCols = config.selectedColumns || (config.types ? Object.keys(config.types) : null);
+        const safeSelect = (selectedCols && selectedCols.length > 0)
+            ? selectedCols.map(c => `"${c.replace(/"/g, '""')}"`).join(', ')
+            : '*';
+
+        const table = await duckdbEngine.query(`SELECT ${safeSelect} FROM dataset;`);
+        const processedData = tableToObjects(table);
+        return processedData;
+    } catch (err) {
+        console.warn('[DuckDB] Failed to load into DuckDB-Wasm, falling back to PapaParse:', err);
+    }
+
+    // 2. Fallback Engine: PapaParse
     return new Promise((resolve, reject) => {
         if (!window.Papa) {
             reject(new Error("PapaParse library is not loaded"));
@@ -129,15 +154,21 @@ export const processFullCSV = (file, config, onLoadingChange) => {
             skipEmptyLines: true,
             delimiter: config.delimiter,
             complete: (results) => {
-                const selectedCols = config.selectedColumns || Object.keys(config.types);
-                const processedData = results.data.map(row => {
+                const selectedCols = config.selectedColumns || (config.types ? Object.keys(config.types) : []);
+                const rawData = results.data || [];
+                const len = rawData.length;
+                const processedData = new Array(len);
+                for (let i = 0; i < len; i++) {
+                    const row = rawData[i];
                     const newRow = {};
-                    selectedCols.forEach(col => {
-                        const type = config.types[col] || 'String';
+                    for (let j = 0; j < selectedCols.length; j++) {
+                        const col = selectedCols[j];
+                        const type = (config.types && config.types[col]) || 'String';
                         newRow[col] = parseValue(row[col], type, config.decimalSeparator);
-                    });
-                    return newRow;
-                });
+                    }
+                    processedData[i] = newRow;
+                }
+                results.data = null;
                 resolve(processedData);
             },
             error: (error) => reject(error),

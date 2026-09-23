@@ -17,6 +17,8 @@ export class GraphicWalkerManager {
         this.hasRenderedData = false;
         this.lastDataRef = null;
         this.lastDataLength = 0;
+        this.storeRef = { current: null };
+        this.pendingSpec = null;
     }
 
     init() {
@@ -188,14 +190,16 @@ export class GraphicWalkerManager {
     /**
      * Render or update dataset in GraphicWalker
      */
-    async render(forcedData = null) {
+    async render(forcedData = null, initialSpec = null) {
         const rawData = forcedData || this.getData();
         if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
             return;
         }
 
-        // Avoid re-rendering if data reference and length are identical (e.g. repeated tab clicks)
-        if (this.hasRenderedData && this.lastDataRef === rawData && this.lastDataLength === rawData.length) {
+        const targetSpec = initialSpec || this.pendingSpec;
+
+        // Avoid re-rendering if data reference, length, and spec haven't changed
+        if (this.hasRenderedData && this.lastDataRef === rawData && this.lastDataLength === rawData.length && !targetSpec) {
             return;
         }
 
@@ -209,13 +213,36 @@ export class GraphicWalkerManager {
             // Clear previous instance/DOM
             this.root.innerHTML = '';
 
-            // Directly pass clean tabular data and inferred field schemas
-            this.instance = embed(this.root, {
+            const props = {
                 dataSource: cleanData,
                 rawFields: rawFields,
                 appearance: 'light',
-                hideDataSourceConfig: false
-            });
+                hideDataSourceConfig: false,
+                storeRef: this.storeRef
+            };
+
+            if (targetSpec) {
+                props.chart = targetSpec;
+                props.spec = targetSpec;
+                this.pendingSpec = targetSpec;
+            }
+
+            // Directly pass clean tabular data and inferred field schemas
+            this.instance = embed(this.root, props);
+
+            if (targetSpec) {
+                setTimeout(() => {
+                    try {
+                        if (this.storeRef && this.storeRef.current && typeof this.storeRef.current.importCode === 'function') {
+                            this.storeRef.current.importCode(targetSpec);
+                        } else if (this.storeRef && this.storeRef.current && this.storeRef.current.store && typeof this.storeRef.current.store.importCode === 'function') {
+                            this.storeRef.current.store.importCode(targetSpec);
+                        }
+                    } catch (e) {
+                        console.warn('Could not apply Graphic-Walker spec via storeRef:', e);
+                    }
+                }, 100);
+            }
 
             this.hasRenderedData = true;
             this.lastDataRef = rawData;
@@ -253,8 +280,52 @@ export class GraphicWalkerManager {
         this.lastDataRef = null;
         this.lastDataLength = 0;
         this.instance = null;
+        this.storeRef = { current: null };
+        this.pendingSpec = null;
         if (this.root) {
             this.root.innerHTML = '';
+        }
+    }
+
+    exportState() {
+        try {
+            if (this.storeRef && this.storeRef.current) {
+                if (typeof this.storeRef.current.exportCode === 'function') {
+                    return { spec: this.storeRef.current.exportCode() };
+                }
+                if (this.storeRef.current.store && typeof this.storeRef.current.store.exportCode === 'function') {
+                    return { spec: this.storeRef.current.store.exportCode() };
+                }
+            }
+            if (this.instance) {
+                if (typeof this.instance.exportCode === 'function') {
+                    return { spec: this.instance.exportCode() };
+                }
+                if (this.instance.store && typeof this.instance.store.exportCode === 'function') {
+                    return { spec: this.instance.store.exportCode() };
+                }
+            }
+        } catch (e) {
+            console.warn('Could not export Graphic-Walker spec:', e);
+        }
+        return this.pendingSpec ? { spec: this.pendingSpec } : null;
+    }
+
+    importState(state) {
+        if (!state || !state.spec) return;
+        this.pendingSpec = state.spec;
+        if (this.storeRef && this.storeRef.current && typeof this.storeRef.current.importCode === 'function') {
+            try {
+                this.storeRef.current.importCode(state.spec);
+                return;
+            } catch (err) {
+                console.warn('Error applying spec to active Graphic-Walker store:', err);
+            }
+        }
+        const rawData = this.getData();
+        if (rawData && rawData.length > 0) {
+            this.hasRenderedData = false;
+            this.render(rawData, state.spec);
         }
     }
 }

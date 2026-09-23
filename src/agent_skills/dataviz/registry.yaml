@@ -1,0 +1,53 @@
+# Deterministic intent -> chart matrix with Seaborn primary functions.
+intents:
+  - intent: ranking
+    structure: "1 categorical (k>5) + 1 numeric"
+    primary: "sns.barplot(data=df_sorted, x=num, y=cat, color=VK_PRIMARY)"
+    secondary: "lollipop (low ink)"
+    banned: ["pie", "vertical bars with angled labels", "unsorted categories"]
+  - intent: trend
+    structure: "1 temporal + 1-4 series"
+    primary: "sns.lineplot(data=df, x=time, y=num, hue=series) + VK_direct_label_last"
+    secondary: "slope chart for exactly 2 time points"
+    banned: ["dense bars at high frequency", "3d", "disconnected legend for 1-2 lines"]
+  - intent: distribution
+    structure: "1 numeric, N>500"
+    primary: "sns.histplot(data=df, x=num, kde=True, color=VK_PRIMARY)"
+    secondary: "sns.ecdfplot(data=df, x=num, color=VK_PRIMARY)"
+    banned: ["pie", "dynamite plot (bar+error whisker)"]
+  - intent: group_compare
+    structure: "1 categorical + 1 numeric"
+    primary: "sns.boxplot(data=df, x=cat, y=num, color=VK_PRIMARY)"
+    secondary: "sns.violinplot(data=df, x=cat, y=num, inner='quartile')"
+    banned: ["dynamite plot", "rainbow bars without meaning"]
+  - intent: relation
+    structure: "2 numeric, N<5000"
+    primary: "sns.scatterplot(data=df, x=num1, y=num2, alpha=0.7, color=VK_PRIMARY) + sns.regplot"
+    secondary: "sns.jointplot(data=df, x=num1, y=num2, kind='hex')"
+    banned: ["3d scatter", "no-alpha cloud"]
+  - intent: part_whole
+    structure: "1 categorical (k<=4), sums to ~100%"
+    primary: "100% stacked horizontal bar"
+    secondary: "donut only with large gaps"
+    banned: ["pie with >5 slices", "3d pie", "rainbow donuts"]
+  - intent: correlation
+    structure: "m numeric vars"
+    primary: "sns.heatmap(df.corr(), cmap='Blues', annot=True, fmt='.2f', cbar=False)"
+    secondary: "sns.pairplot(df, corner=True)"
+    banned: ["unsorted matrix with excessive colors"]
+  - intent: change_2pt
+    structure: "k categories x 2 periods"
+    primary: "slope chart with direct labels"
+    secondary: "dumbbell chart"
+    banned: ["grouped bars with rhythm overlap"]
+modes:
+  exploration: "diagnostic density allowed"
+  editorial: "minimal, horizontal grid, direct labels"
+  narrative: "full-sentence action title + callout, one highlight color"
+integrity:
+  - "length marks start at 0"
+  - "single series needs no legend"
+  - "title states takeaway with a number"
+  - "sort categorical charts by metric value"
+  - "use 1 functional hue, accent only for driver, gray for background"
+  - "annotate key values directly on bars/endpoints"

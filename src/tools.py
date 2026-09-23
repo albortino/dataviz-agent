@@ -17,6 +17,40 @@ import time
 import signal
 import threading
 
+try:
+    from src.vizkit import (
+        TOKENS as _VK_TOKENS,
+        CATEGORICAL as _VK_CATEGORICAL,
+        SINGLE_SERIES_COLOR as _VK_SINGLE,
+        HIGHLIGHT_COLOR as _VK_ACCENT,
+        BASE_GRAY as _VK_GRAY,
+        palette as _vk_palette,
+        apply_clean_layout as _vk_clean,
+        apply_narrative_layout as _vk_narrative,
+        direct_label_last as _vk_direct,
+        label_bars as _vk_label_bars,
+        inspect as _vk_inspect,
+    )
+except ImportError:
+    try:
+        from vizkit import (
+            TOKENS as _VK_TOKENS,
+            CATEGORICAL as _VK_CATEGORICAL,
+            SINGLE_SERIES_COLOR as _VK_SINGLE,
+            HIGHLIGHT_COLOR as _VK_ACCENT,
+            BASE_GRAY as _VK_GRAY,
+            palette as _vk_palette,
+            apply_clean_layout as _vk_clean,
+            apply_narrative_layout as _vk_narrative,
+            direct_label_last as _vk_direct,
+            label_bars as _vk_label_bars,
+            inspect as _vk_inspect,
+        )
+    except ImportError:
+        _VK_TOKENS = _VK_CATEGORICAL = None
+        _VK_SINGLE = _VK_ACCENT = _VK_GRAY = None
+        _vk_palette = _vk_clean = _vk_narrative = _vk_direct = _vk_label_bars = _vk_inspect = None
+
 # Forbidden function and builtin calls that can bypass sandboxing or perform harmful actions
 FORBIDDEN_CALLS = frozenset({
     'exec', 'eval', 'compile', '__import__', 'open',
@@ -32,6 +66,54 @@ FORBIDDEN_ATTRS = frozenset({
     '__dict__', '__loader__', '__spec__', '__package__',
     '__reduce__', '__reduce_ex__', '__getattribute__'
 })
+
+import types
+
+# Create virtual 'helpers' module for agent sandbox compatibility
+_helpers_module = types.ModuleType("helpers")
+_helpers_module.__doc__ = "Visualization helper functions and visual tokens."
+_helpers_module.VK_apply_clean_layout = _helpers_module.apply_clean_layout = _vk_clean
+_helpers_module.VK_apply_narrative_layout = _helpers_module.apply_narrative_layout = _vk_narrative
+_helpers_module.VK_direct_label_last = _helpers_module.direct_label_last = _vk_direct
+_helpers_module.VK_label_bars = _helpers_module.label_bars = _vk_label_bars
+_helpers_module.VK_palette = _helpers_module.palette = _vk_palette
+_helpers_module.VK_ACCENT = _helpers_module.HIGHLIGHT_COLOR = _VK_ACCENT
+_helpers_module.VK_PRIMARY = _helpers_module.SINGLE_SERIES_COLOR = _VK_SINGLE
+_helpers_module.VK_GRAY = _helpers_module.BASE_GRAY = _VK_GRAY
+_helpers_module.VK_TOKENS = _helpers_module.TOKENS = _VK_TOKENS
+_helpers_module.VK_CATEGORICAL = _helpers_module.CATEGORICAL = _VK_CATEGORICAL
+_helpers_module.inspect = _vk_inspect
+
+sys.modules["helpers"] = _helpers_module
+
+# Allowed module roots for safe sandboxed data science and visualization execution
+ALLOWED_ROOT_MODULES = frozenset({
+    'pandas', 'numpy', 'matplotlib', 'seaborn',
+    'math', 'datetime', 'scipy', 'collections',
+    'itertools', 'functools', 're', 'json',
+    'vizkit', 'helpers', 'src'
+})
+
+def _check_module_allowed(mod_name: str) -> bool:
+    if not mod_name:
+        return False
+    root = mod_name.split('.')[0]
+    if root in {'pandas', 'numpy', 'matplotlib', 'seaborn', 'math', 'datetime', 'scipy', 'collections', 'itertools', 'functools', 're', 'json', 'vizkit', 'helpers'}:
+        return True
+    if root.startswith('VK_') or root.startswith('vk_'):
+        return True
+    if mod_name == 'src' or mod_name == 'src.vizkit' or mod_name.startswith('src.vizkit.'):
+        return True
+    return False
+
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if level != 0:
+        raise ImportError("Relative imports are not permitted.")
+    if not _check_module_allowed(name):
+        raise ImportError(f"Importing module '{name}' is not permitted. Only safe data science and visualization libraries are allowed.")
+    if name == 'helpers' or name.startswith('VK_') or name.startswith('vk_'):
+        return sys.modules.get('helpers') or __import__(name, globals, locals, fromlist, level)
+    return __import__(name, globals, locals, fromlist, level)
 
 # Curated safe builtins dictionary (excluding dangerous I/O, compilation, and evaluation builtins)
 SAFE_BUILTIN_NAMES = [
@@ -52,6 +134,7 @@ _builtins_source = __builtins__ if isinstance(__builtins__, dict) else vars(__bu
 SAFE_BUILTINS = {
     k: _builtins_source[k] for k in SAFE_BUILTIN_NAMES if k in _builtins_source
 }
+SAFE_BUILTINS['__import__'] = _safe_import
 
 
 class TimeoutTransformer(ast.NodeTransformer):
@@ -84,7 +167,7 @@ class TimeoutTransformer(ast.NodeTransformer):
 def _validate_and_compile(code: str, timeout_seconds: float = 10.0):
     """
     Parses and verifies untrusted Python code using AST traversal before compilation.
-    Rejects imports, dangerous calls, and introspection access.
+    Enforces whitelisted imports (no wildcard imports), blocks dangerous calls and introspection.
     Injects a loop/recursion execution timeout watchdog.
     """
     try:
@@ -93,10 +176,19 @@ def _validate_and_compile(code: str, timeout_seconds: float = 10.0):
         raise ValueError(f"Syntax error in code: {e}")
 
     for node in ast.walk(tree):
-        # 1. Reject any import statements
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            mod = getattr(node, 'module', None) or ', '.join(a.name for a in node.names)
-            raise ValueError(f"Importing modules is not allowed ({mod}). Use pre-imported pd, np, plt, sns.")
+        # 1. Check import statements against whitelist
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if not _check_module_allowed(alias.name):
+                    raise ValueError(f"Importing module '{alias.name}' is not allowed. Only safe data science and vizkit/helpers libraries ({', '.join(sorted(ALLOWED_ROOT_MODULES))}) are permitted.")
+        elif isinstance(node, ast.ImportFrom):
+            if node.level != 0:
+                raise ValueError("Relative imports are not permitted.")
+            if not node.module or not _check_module_allowed(node.module):
+                raise ValueError(f"Importing from module '{node.module}' is not allowed. Only safe data science and vizkit/helpers libraries ({', '.join(sorted(ALLOWED_ROOT_MODULES))}) are permitted.")
+            for alias in node.names:
+                if alias.name == '*':
+                    raise ValueError("Wildcard imports ('from ... import *') are not permitted.")
 
         # 2. Reject calls to forbidden builtins/functions
         if isinstance(node, ast.Call):
@@ -117,11 +209,55 @@ def _validate_and_compile(code: str, timeout_seconds: float = 10.0):
     return compile(tree, '<agent-code>', 'exec')
 
 
+def audit_dataset(df: pd.DataFrame) -> str:
+    """Pandas-only health check: missingness, skew, cardinality, id-like cols."""
+    try:
+        lines = [f"DataHealthReport: {df.shape[0]} rows x {df.shape[1]} cols"]
+        miss = df.isna().mean().sort_values(ascending=False)
+        for col, frac in miss.items():
+            if frac > 0:
+                flag = " FLAG >30% missing" if frac > 0.30 else ""
+                lines.append(f"- missing {col}: {frac:.1%}{flag}")
+        for col in df.select_dtypes(include=[np.number]).columns:
+            s = df[col].dropna()
+            if len(s) == 0:
+                continue
+            std = s.std()
+            skew = ((s.mean() - s.median()) / std) if std else 0.0
+            zero_share = float((s == 0).mean())
+            extra = []
+            if abs(skew) > 1:
+                extra.append(f"skew={skew:.2f}, prefer median/log")
+            if zero_share > 0.2:
+                extra.append(f"{zero_share:.0%} zeros")
+            if s.nunique() <= 1:
+                extra.append("constant")
+            if extra:
+                lines.append(f"- numeric {col}: " + "; ".join(extra))
+        for col in df.select_dtypes(exclude=[np.number]).columns:
+            k = int(df[col].nunique(dropna=True))
+            if k > 50:
+                lines.append(f"- high-cardinality {col}: k={k}, avoid raw grouping")
+            elif k <= 1:
+                lines.append(f"- constant {col}: single value")
+        id_like = [c for c in df.columns
+                   if any(t in c.lower() for t in ("id", "code", "zip", "phone"))
+                   or (pd.api.types.is_integer_dtype(df[c]) and df[c].nunique() == len(df))]
+        for col in id_like:
+            lines.append(f"- id-like {col}: do not average/sum")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
 def execute_python_code(df: pd.DataFrame, code: str) -> dict:
     """
     Executes sandboxed Python code with access to pd, np, plt, sns, and df.
     Restricts builtins, blocks imports/introspection, enforces a 10s execution timeout,
     and captures stdout, stderr, and any matplotlib figures created.
+    Pre-loaded visual helpers: VK_apply_clean_layout, VK_apply_narrative_layout,
+    VK_direct_label_last, VK_palette, VK_ACCENT, VK_PRIMARY, VK_GRAY.
+    Figures are linted for baseline/legend/title integrity before export.
     """
     stdout_buf = io.StringIO()
     old_stdout = sys.stdout
@@ -146,7 +282,18 @@ def execute_python_code(df: pd.DataFrame, code: str) -> dict:
         'np': np,
         'plt': plt,
         'sns': sns,
-        'df': df.copy()
+        'df': df.copy(),
+        # Pre-loaded deterministic visual helpers (no imports needed in agent code).
+        'VK_TOKENS': _VK_TOKENS,
+        'VK_CATEGORICAL': _VK_CATEGORICAL,
+        'VK_ACCENT': _VK_ACCENT,
+        'VK_PRIMARY': _VK_SINGLE,
+        'VK_GRAY': _VK_GRAY,
+        'VK_palette': _vk_palette,
+        'VK_apply_clean_layout': _vk_clean,
+        'VK_apply_narrative_layout': _vk_narrative,
+        'VK_direct_label_last': _vk_direct,
+        'VK_label_bars': _vk_label_bars,
     }
 
     # Signal alarm fallback if executed in main thread
@@ -166,6 +313,19 @@ def execute_python_code(df: pd.DataFrame, code: str) -> dict:
             warnings.simplefilter("ignore")
             exec(compiled_code, exec_globals)
 
+        # Deterministic lint gate: inspect each axes before PNG export.
+        # Warnings are returned as text so the ReAct loop can self-correct.
+        lint_notes = []
+        if _vk_inspect is not None:
+            try:
+                import matplotlib.pyplot as _plt_check
+                for _fig_num in _plt_check.get_fignums():
+                    _fig = _plt_check.figure(_fig_num)
+                    for _ax in _fig.axes:
+                        lint_notes.extend(_vk_inspect(_ax))
+            except Exception:
+                pass
+
         # Check if figures were created
         fig_nums = plt.get_fignums()
         if fig_nums:
@@ -180,6 +340,9 @@ def execute_python_code(df: pd.DataFrame, code: str) -> dict:
 
         captured = stdout_buf.getvalue()
         output_msg = captured.strip() if captured else ""
+        if lint_notes:
+            seen = list(dict.fromkeys(lint_notes))
+            output_msg = (output_msg + "\n" if output_msg else "") + "\n".join(seen)
         if images:
             if output_msg:
                 output_msg = f"Generated {len(images)} plot(s) successfully.\nOutput:\n{output_msg}"
@@ -228,31 +391,113 @@ def get_info(df: pd.DataFrame) -> str:
     """Returns dataframe info."""
     return f"Shape: {df.shape[0]} rows × {df.shape[1]} columns\nColumns: {list(df.columns)}\nDtypes: {df.dtypes.to_dict()}"
 
-def calculate_mean(df: pd.DataFrame, column: str) -> str:
-    """Calculates mean of a column."""
+def summarize_dataset(df: pd.DataFrame) -> str:
+    """Comprehensive dataset summary: shape, dtypes, nulls, numeric stats, top categories, and head preview."""
     try:
-        if not pd.api.types.is_numeric_dtype(df[column]):
-            return f"Error: Column '{column}' is not numeric"
-        mean_val = df[column].mean()
-        return f"Mean of '{column}': {mean_val:.4f}"
+        lines = [f"=== DATASET OVERVIEW ({df.shape[0]} rows × {df.shape[1]} columns) ==="]
+        
+        # Column data types and non-null counts
+        lines.append("\n[COLUMNS & DATA TYPES]")
+        for col in df.columns:
+            non_null = int(df[col].notna().sum())
+            pct_null = (df[col].isna().mean()) * 100
+            null_str = f" ({pct_null:.1f}% missing)" if pct_null > 0 else ""
+            lines.append(f"- {col}: {df[col].dtype} | {non_null}/{len(df)} non-null{null_str}")
+
+        # Numeric column statistics
+        num_cols = df.select_dtypes(include=[np.number]).columns
+        if len(num_cols) > 0:
+            lines.append("\n[NUMERIC SUMMARY]")
+            desc = df[num_cols].describe().round(2)
+            lines.append(desc.to_string())
+
+        # Categorical / Object columns top values
+        cat_cols = df.select_dtypes(exclude=[np.number]).columns
+        if len(cat_cols) > 0:
+            lines.append("\n[CATEGORICAL SUMMARY]")
+            for col in cat_cols:
+                n_uniq = int(df[col].nunique(dropna=True))
+                top_counts = df[col].value_counts(dropna=True).head(3).to_dict()
+                top_str = ", ".join(f"{k}: {v}" for k, v in top_counts.items())
+                lines.append(f"- {col} (k={n_uniq} unique): top [{top_str}]")
+
+        # Head preview
+        lines.append("\n[SAMPLE DATA (first 5 rows)]")
+        lines.append(df.head(5).to_string())
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error summarizing dataset: {str(e)}"
+
+def calculate_mean(df: pd.DataFrame, column: str = None, columns: list = None) -> str:
+    """Calculates mean of one or multiple numeric columns."""
+    try:
+        target_cols = []
+        if columns:
+            target_cols = columns if isinstance(columns, list) else [columns]
+        elif column:
+            target_cols = [column] if isinstance(column, str) else list(column)
+        else:
+            target_cols = list(df.select_dtypes(include=[np.number]).columns)
+
+        valid_cols = [c for c in target_cols if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+        if not valid_cols:
+            return "Error: No valid numeric columns found."
+        if len(valid_cols) == 1:
+            return f"Mean of '{valid_cols[0]}': {df[valid_cols[0]].mean():.4f}"
+        means = df[valid_cols].mean().round(4).to_dict()
+        return "Means: " + ", ".join(f"'{k}': {v}" for k, v in means.items())
     except Exception as e:
         return f"Error: {str(e)}"
 
-def calculate_sum(df: pd.DataFrame, column: str) -> str:
-    """Calculates sum of a column."""
+def calculate_sum(df: pd.DataFrame, column: str = None, columns: list = None) -> str:
+    """Calculates sum of one or multiple numeric columns."""
     try:
-        if not pd.api.types.is_numeric_dtype(df[column]):
-            return f"Error: Column '{column}' is not numeric"
-        sum_val = df[column].sum()
-        return f"Sum of '{column}': {sum_val:.4f}"
+        target_cols = []
+        if columns:
+            target_cols = columns if isinstance(columns, list) else [columns]
+        elif column:
+            target_cols = [column] if isinstance(column, str) else list(column)
+        else:
+            target_cols = list(df.select_dtypes(include=[np.number]).columns)
+
+        valid_cols = [c for c in target_cols if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+        if not valid_cols:
+            return "Error: No valid numeric columns found."
+        if len(valid_cols) == 1:
+            return f"Sum of '{valid_cols[0]}': {df[valid_cols[0]].sum():.4f}"
+        sums = df[valid_cols].sum().round(4).to_dict()
+        return "Sums: " + ", ".join(f"'{k}': {v}" for k, v in sums.items())
     except Exception as e:
         return f"Error: {str(e)}"
 
-def get_unique_values(df: pd.DataFrame, column: str) -> str:
-    """Gets unique values in a column."""
+def get_unique_values(df: pd.DataFrame, column: str = None, columns: list = None) -> str:
+    """Gets unique values for one or multiple columns."""
     try:
-        unique = df[column].unique()
-        return f"Unique values in '{column}': {list(unique)[:20]}"  # Limit to 20
+        target_cols = []
+        if columns:
+            target_cols = columns if isinstance(columns, list) else [columns]
+        elif column:
+            target_cols = [column] if isinstance(column, str) else list(column)
+        else:
+            target_cols = list(df.select_dtypes(exclude=[np.number]).columns)
+            if not target_cols:
+                target_cols = list(df.columns)
+
+        valid_cols = [c for c in target_cols if c in df.columns]
+        if not valid_cols:
+            return f"Error: None of specified columns {target_cols} were found in dataset."
+
+        if len(valid_cols) == 1:
+            col = valid_cols[0]
+            unique = list(df[col].unique())
+            return f"Unique values in '{col}' ({len(unique)} total): {unique[:25]}"
+
+        lines = []
+        for col in valid_cols:
+            unique = list(df[col].unique())
+            lines.append(f"- '{col}' ({len(unique)} unique): {unique[:15]}")
+        return "\n".join(lines)
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -271,17 +516,28 @@ def apply_filter(df: pd.DataFrame, column: str, value: str, operator: str = "=="
     except Exception as e:
         return df
 
-def get_group_summary(df: pd.DataFrame, group_col: str, agg_col: str, agg_func: str = "mean") -> str:
-    """Groups by column and aggregates."""
+def get_group_summary(df: pd.DataFrame, group_col: str, agg_col: str = None, agg_cols: list = None, agg_func: str = "mean") -> str:
+    """Groups by column and aggregates one or multiple columns (mean, sum, count, median, min, max)."""
     try:
-        if agg_func == "mean":
-            res = df.groupby(group_col)[agg_col].mean()
-        elif agg_func == "sum":
-            res = df.groupby(group_col)[agg_col].sum()
-        elif agg_func == "count":
-            res = df.groupby(group_col)[agg_col].count()
+        if group_col not in df.columns:
+            return f"Error: Group column '{group_col}' not found."
+        
+        target_cols = []
+        if agg_cols:
+            target_cols = agg_cols if isinstance(agg_cols, list) else [agg_cols]
+        elif agg_col:
+            target_cols = [agg_col] if isinstance(agg_col, str) else list(agg_col)
         else:
-            return "Error: Use mean, sum, or count"
+            target_cols = list(df.select_dtypes(include=[np.number]).columns)
+
+        valid_cols = [c for c in target_cols if c in df.columns]
+        if not valid_cols:
+            return "Error: No valid aggregation columns found."
+
+        if agg_func not in ("mean", "sum", "count", "median", "min", "max"):
+            return "Error: Use mean, sum, count, median, min, or max"
+
+        res = df.groupby(group_col)[valid_cols[0] if len(valid_cols) == 1 else valid_cols].agg(agg_func)
         return res.to_string()
     except Exception as e:
         return f"Error: {str(e)}"
@@ -296,10 +552,21 @@ def calculate_correlation(df: pd.DataFrame, col_a: str, col_b: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
-def get_statistics(df: pd.DataFrame, column: str) -> str:
-    """Returns descriptive statistics."""
+def get_statistics(df: pd.DataFrame, column: str = None, columns: list = None) -> str:
+    """Returns summary descriptive statistics for one or multiple numeric columns."""
     try:
-        return df[column].describe().to_string()
+        target_cols = []
+        if columns:
+            target_cols = columns if isinstance(columns, list) else [columns]
+        elif column:
+            target_cols = [column] if isinstance(column, str) else list(column)
+        else:
+            target_cols = list(df.select_dtypes(include=[np.number]).columns)
+
+        valid_cols = [c for c in target_cols if c in df.columns]
+        if not valid_cols:
+            return f"Error: None of specified columns {target_cols} were found."
+        return df[valid_cols].describe().round(4).to_string()
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -557,9 +824,25 @@ def generate_mermaid_treemap(df: pd.DataFrame, cat_col: str, subcat_col: str = N
     except Exception as e:
         return f"Error: {str(e)}"
 
+def execute_sql(df: pd.DataFrame = None, query: str = "") -> str:
+    """Executes SQL query on dataset (fallback in Python)."""
+    try:
+        if df is not None and len(df) > 0:
+            import sqlite3
+            conn = sqlite3.connect(":memory:")
+            df.to_sql("dataset", conn, if_exists="replace", index=False)
+            res = pd.read_sql_query(query, conn)
+            return res.to_json(orient="records", indent=2)
+        return "Error: No dataset available for SQL execution."
+    except Exception as e:
+        return f"SQL Error: {str(e)}"
+
 AVAILABLE_TOOLS = {
+    "execute_sql": execute_sql,
     "list_columns": list_columns,
     "get_info": get_info,
+    "summarize_dataset": summarize_dataset,
+    "audit_dataset": audit_dataset,
     "calculate_mean": calculate_mean,
     "calculate_sum": calculate_sum,
     "get_unique_values": get_unique_values,
@@ -576,18 +859,27 @@ AVAILABLE_TOOLS = {
     "execute_python_code": execute_python_code
 }
 
+CLIENT_DELEGATED_TOOLS = frozenset({
+    "execute_sql", "audit_dataset", "summarize_dataset", "get_info", "list_columns",
+    "calculate_mean", "calculate_sum", "get_statistics", "get_unique_values",
+    "calculate_correlation", "get_group_summary"
+})
+
 # Tool descriptions for LLM (fallback textual prompt)
 TOOL_DESCRIPTIONS = """
+execute_sql(query): Execute a SQL query on the full dataset in DuckDB (table name is 'dataset')
 list_columns(): Get all column names
 get_info(): Get shape and dtypes
-calculate_mean(column): Mean of numeric column
-calculate_sum(column): Sum of numeric column
-get_unique_values(column): Unique values
-get_statistics(column): Summary stats
+summarize_dataset(): Comprehensive overview (shape, dtypes, null counts, numeric statistics, categorical frequencies, head sample)
+audit_dataset(): Health check (missingness, skew, cardinality, id-like columns)
+calculate_mean(column, columns): Mean of one or multiple numeric columns
+calculate_sum(column, columns): Sum of one or multiple numeric columns
+get_unique_values(column, columns): Unique values for one, multiple, or all categorical columns
+get_statistics(column, columns): Summary stats (describe) for one, multiple, or all numeric columns
 apply_filter(column, value, operator): Filter data (==, >, <, contains)
-get_group_summary(group_col, agg_col, agg_func): Group by and agg (mean, sum, count)
+get_group_summary(group_col, agg_col, agg_cols, agg_func): Group by and aggregate one or multiple numeric columns (mean, sum, count, median, min, max)
 calculate_correlation(col_a, col_b): Pearson correlation
-execute_python_code(code): Execute Python code with access to pd, np, plt (matplotlib), sns (seaborn), and df. Create plots using plt and sns - any open figures will be automatically rendered in chat.
+execute_python_code(code): Execute Python code with access to pd, np, plt, sns (seaborn - prioritized), and df. Create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, etc.) targeting ax. Figures are automatically captured and rendered in chat.
 generate_mermaid_pie(column, title, top_n): Generate Mermaid pie chart for category distribution
 generate_mermaid_flowchart(source_col, target_col, agg_col, agg_func, direction): Generate Mermaid flowchart between columns
 generate_mermaid_xy_chart(x_col, y_col, chart_type, title): Generate Mermaid xychart-beta (bar or line)
@@ -598,6 +890,23 @@ generate_mermaid_treemap(cat_col, subcat_col, val_col, agg_func, title): Generat
 
 # Native OpenAI Tool Definitions
 OPENAI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_sql",
+            "description": "Executes a SQL query on the full 100% dataset table 'dataset' in DuckDB. Supports all standard SQL: SELECT, WHERE, GROUP BY, ORDER BY, LIMIT, joins, and aggregates (SUM, AVG, MIN, MAX, COUNT, MEDIAN, STDDEV, QUANTILE_CONT). Always use this for aggregations, metrics, and exact calculations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "SQL query to execute against table 'dataset'."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
     {
         "type": "function",
         "function": {
@@ -625,14 +934,39 @@ OPENAI_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "summarize_dataset",
+            "description": "Returns a comprehensive dataset summary including shape, dtypes, null counts, statistical describe() for numbers, top categories, and head sample preview.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "audit_dataset",
+            "description": "Pandas-only health check: missingness, skew, cardinality, id-like columns. Call first on vague EDA prompts.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "calculate_mean",
-            "description": "Calculates the mean (average) of a numeric column.",
+            "description": "Calculates the mean (average) of one or multiple numeric columns.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "column": {"type": "string", "description": "The name of the column to calculate mean for."}
+                    "column": {"type": "string", "description": "Single column name."},
+                    "columns": {"type": "array", "items": {"type": "string"}, "description": "List of column names."}
                 },
-                "required": ["column"]
+                "required": []
             }
         }
     },
@@ -640,13 +974,14 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "calculate_sum",
-            "description": "Calculates the sum of a numeric column.",
+            "description": "Calculates the sum of one or multiple numeric columns.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "column": {"type": "string", "description": "The name of the column to sum."}
+                    "column": {"type": "string", "description": "Single column name."},
+                    "columns": {"type": "array", "items": {"type": "string"}, "description": "List of column names."}
                 },
-                "required": ["column"]
+                "required": []
             }
         }
     },
@@ -654,13 +989,14 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_unique_values",
-            "description": "Gets unique values (sample up to 20) for a column.",
+            "description": "Gets unique values for one, multiple, or all categorical columns in a single call.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "column": {"type": "string", "description": "The column name."}
+                    "column": {"type": "string", "description": "Single column name."},
+                    "columns": {"type": "array", "items": {"type": "string"}, "description": "List of column names (e.g. ['department', 'region', 'project'])."}
                 },
-                "required": ["column"]
+                "required": []
             }
         }
     },
@@ -668,13 +1004,14 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_statistics",
-            "description": "Returns summary descriptive statistics (count, mean, std, min, max, quantiles) for a column.",
+            "description": "Returns summary descriptive statistics (count, mean, std, min, max, quantiles) for one, multiple, or all numeric columns in a single call.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "column": {"type": "string", "description": "The column name."}
+                    "column": {"type": "string", "description": "Single column name."},
+                    "columns": {"type": "array", "items": {"type": "string"}, "description": "List of column names (e.g. ['budget_k', 'headcount'])."}
                 },
-                "required": ["column"]
+                "required": []
             }
         }
     },
@@ -698,15 +1035,16 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_group_summary",
-            "description": "Groups the dataset by one column and aggregates another column using mean, sum, or count.",
+            "description": "Groups the dataset by one column and aggregates one or multiple columns using mean, sum, count, median, min, or max in a single call.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "group_col": {"type": "string", "description": "Column to group by."},
-                    "agg_col": {"type": "string", "description": "Column to aggregate."},
-                    "agg_func": {"type": "string", "enum": ["mean", "sum", "count"], "description": "Aggregation function (mean, sum, count)."}
+                    "agg_col": {"type": "string", "description": "Single column to aggregate."},
+                    "agg_cols": {"type": "array", "items": {"type": "string"}, "description": "List of columns to aggregate (e.g. ['budget_k', 'headcount'])."},
+                    "agg_func": {"type": "string", "enum": ["mean", "sum", "count", "median", "min", "max"], "description": "Aggregation function (default 'mean')."}
                 },
-                "required": ["group_col", "agg_col"]
+                "required": ["group_col"]
             }
         }
     },
@@ -837,13 +1175,13 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python data analysis or visualization code. You have access to pd (pandas), np (numpy), plt (matplotlib.pyplot), sns (seaborn), and df (pandas DataFrame). Any plots created with plt/sns will automatically be captured and rendered directly in the user's chat.",
+            "description": "Executes Python data visualization or analysis code. You have access to pd, np, plt, sns, df, and pre-loaded VK_* visual helpers (VK_apply_clean_layout, VK_apply_narrative_layout, VK_direct_label_last, VK_label_bars, VK_palette, VK_ACCENT, VK_PRIMARY, VK_GRAY). Always create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, sns.histplot, sns.boxplot, sns.heatmap) targeting ax.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "Python code to execute. Can calculate metrics or generate matplotlib/seaborn plots (e.g., plt.figure(), sns.barplot(), plt.title(), etc.). Do not call plt.show(); figures are automatically captured."
+                        "description": "Python code to execute. For charts: PRIORITIZE Seaborn (e.g. sns.barplot(data=df_sorted, x=..., y=..., ax=ax, palette=[...])) instead of raw ax.bar/ax.barh/ax.plot. Sort categorical data by value, start bar axes at 0, label bars with VK_label_bars(ax, fmt='%.1f') or VK_label_bars(ax, fmt='%d'), apply VK_apply_clean_layout(ax, takeaway_title, subtitle) or VK_apply_narrative_layout(ax, action_title, callout). Do not call ax.set_title() or manual ax.text() for bar labels. Do not call plt.show()."
                     }
                 },
                 "required": ["code"]

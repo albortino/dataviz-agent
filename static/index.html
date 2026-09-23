@@ -12,8 +12,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/static/variables.css?v=20260908_1410">
-    <link rel="stylesheet" href="/static/style.css?v=20260915_1133">
+    <link rel="stylesheet" href="/static/variables.css">
+    <link rel="stylesheet" href="/static/style.css">
     <!-- LineUp.js CSS and JS from a CDN -->
     <link rel="stylesheet" href="https://unpkg.com/lineupjs/build/LineUpJS.css">
     <!-- Font Awesome for Icons -->
@@ -21,7 +21,17 @@
     <script src="https://unpkg.com/lineupjs/build/LineUpJS.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse/papaparse.min.js"></script>
     <!-- SandDance dependencies (Vega pinned to v5.22 for SandDance v4 compatibility) -->
-    <script src="https://unpkg.com/vega@^5.22/build/vega.js" charset="utf-8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.22/build/vega.min.js" charset="utf-8"></script>
+    <!-- Vega-Lite & Vega-Embed for Vega Studio -->
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <!-- Prettier Standalone for Spec & Syntax Formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/prettier@2.8.8/standalone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@2.8.8/parser-babel.js"></script>
+    <!-- CodeMirror for Color Syntax Highlighting & Line Numbers -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
     <script src="https://unpkg.com/@msrvida/sanddance@^4/dist/umd/sanddance.js"></script>
     <!-- D3.js and d3-sankey for Sankey Visualization -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -60,12 +70,41 @@
                 <i class="fa-solid fa-cubes-stacked"></i><span>SandDance</span>
             </button>
             <div class="nav-separator-dot"></div>
-            <button id="show-mermaid-btn" class="button icon-button" disabled title="Upload data to explore Mermaid">
-                <i class="fa-solid fa-code-fork"></i><span>Mermaid</span>
-            </button>
-            <button id="show-sankey-btn" class="button icon-button" disabled title="Upload data to explore Sankey">
-                <i class="fa-solid fa-diagram-project"></i><span>Sankey</span>
-            </button>
+            <!-- Split Hub for Plots & Diagrams (Mermaid, Sankey, Vega) -->
+            <div id="plots-split-hub" class="split-hub-wrapper">
+                <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
+                    title="Upload data to explore Plots">
+                    <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
+                    <span id="plots-primary-label">Vega</span>
+                </button>
+                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" disabled
+                    aria-expanded="false" title="Switch plot type (Vega, Sankey, Mermaid)">
+                    <i class="fa-solid fa-chevron-down caret"></i>
+                </button>
+                <div id="plots-popover-menu" class="split-hub-popover">
+                    <button type="button" id="plots-item-vega" class="split-hub-item active" data-view="vega">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-chart-simple"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Vega / Vega-Lite</span>
+                            <span class="split-hub-item-desc">Declarative JSON chart specs</span>
+                        </div>
+                    </button>
+                    <button type="button" id="plots-item-sankey" class="split-hub-item" data-view="sankey">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Sankey Diagram</span>
+                            <span class="split-hub-item-desc">Flow &amp; pathway routing</span>
+                        </div>
+                    </button>
+                    <button type="button" id="plots-item-mermaid" class="split-hub-item" data-view="mermaid">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-code-fork"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Mermaid</span>
+                            <span class="split-hub-item-desc">Charts for .md & in-chat rendering</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
             <div class="nav-separator-dot"></div>
             <button id="show-agent-btn" class="button icon-button" disabled
                 title="Upload data to explore Agentic Studio">
@@ -73,20 +112,81 @@
             </button>
         </nav>
 
-        <!-- Right: Controls & Actions -->
+        <!-- Right: Controls & Actions (Variant 1: Categorized Dropdowns) -->
         <div id="controls">
-            <button id="set-data-btn" class="button icon-button primary hidden" title="Upload or Paste Dataset">
-                <i class="fa-solid fa-cloud-arrow-up"></i><span>Set Data</span>
-            </button>
-            <button id="dummy-data-btn" class="button icon-button hidden" title="Load sample dataset">
-                <i class="fa-solid fa-wand-magic-sparkles"></i><span>Demo Data</span>
-            </button>
+            <!-- Data Dropdown Hub -->
+            <div class="dropdown-wrapper">
+                <button id="data-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false"
+                    title="Data management options">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Data</span>
+                    <span id="data-filename-chip" class="data-filename-chip hidden"></span>
+                    <i class="fa-solid fa-chevron-down caret"></i>
+                </button>
+                <div id="data-dropdown-menu" class="dropdown-menu">
+                    <div class="dropdown-header-block">
+                        <div class="dropdown-header-title">Active Dataset</div>
+                        <div class="dataset-status-badge">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span id="data-active-dataset-text">No dataset loaded</span>
+                        </div>
+                    </div>
+                    <button id="set-data-btn" class="dropdown-item" title="Upload or Paste Dataset">
+                        <div class="dropdown-item-content">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Load / Change Data...</span>
+                        </div>
+                    </button>
+                    <button id="dummy-data-btn" class="dropdown-item" title="Load sample dataset">
+                        <div class="dropdown-item-content">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Demo Data</span>
+                        </div>
+                    </button>
+                    <div class="dropdown-divider"></div>
+                    <button id="reset-btn" class="dropdown-item danger" disabled title="Reset Dataset">
+                        <div class="dropdown-item-content">
+                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                            <span>Reset Dataset</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Session Dropdown Hub -->
+            <div class="dropdown-wrapper">
+                <button id="session-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false"
+                    title="Session options">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Session</span>
+                    <i class="fa-solid fa-chevron-down caret"></i>
+                </button>
+                <div id="session-dropdown-menu" class="dropdown-menu">
+                    <div class="dropdown-header-block">
+                        <div class="dropdown-header-title">Workspace Session</div>
+                        <div class="dropdown-header-desc">Export or restore your analysis state</div>
+                    </div>
+                    <button id="export-session-btn" class="dropdown-item" title="Export Session (JSON)">
+                        <div class="dropdown-item-content">
+                            <i class="fa-solid fa-file-export"></i>
+                            <span>Export Session (.json)</span>
+                        </div>
+                    </button>
+                    <button id="load-session-btn" class="dropdown-item" title="Load Session">
+                        <div class="dropdown-item-content">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <span>Load Session File...</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
             <input type="file" id="csv-file-input" accept=".csv" class="hidden-element">
+
+            <div class="header-v-divider"></div>
+
             <button id="settings-btn" class="button icon-button compact-icon-btn" title="AI Settings">
                 <i class="fa-solid fa-sliders"></i>
-            </button>
-            <button id="reset-btn" class="button icon-button compact-icon-btn" disabled title="Reset Dataset">
-                <i class="fa-solid fa-arrow-rotate-left"></i>
             </button>
             <button id="help-btn" class="button icon-button compact-icon-btn" title="Documentation">
                 <i class="fa-solid fa-book-open"></i>
@@ -106,10 +206,13 @@
 
                 <div class="empty-state-actions">
                     <button id="empty-set-data-btn" class="button icon-button primary" title="Upload or Paste Dataset">
-                        <i class="fa-solid fa-cloud-arrow-up"></i><span>Set Data</span>
+                        <i class="fa-solid fa-cloud-arrow-up"></i><span>Load Data</span>
                     </button>
                     <button id="empty-demo-btn" class="button icon-button" title="Load sample dataset">
                         <i class="fa-solid fa-wand-magic-sparkles"></i><span>Demo Data</span>
+                    </button>
+                    <button id="empty-load-session-btn" class="button icon-button" title="Load saved session">
+                        <i class="fa-solid fa-folder-open"></i><span>Load Session</span>
                     </button>
                 </div>
             </div>
@@ -421,9 +524,11 @@
                     <div class="syntax-sidebar-header">
                         <div class="sidebar-header-title">
                             <i class="fa-solid fa-code text-primary-icon-sm"></i>
-                            <span>SankeyMatic Syntax</span>
+                            <span>Sankey Syntax</span>
                         </div>
                         <div class="sidebar-header-actions">
+                            <button id="sankey-format-btn" class="sidebar-format-btn"
+                                title="Format / Clean Syntax">Format</button>
                             <span class="sidebar-live-tag">Live</span>
                             <button id="sankey-collapse-btn" class="sidebar-collapse-btn"
                                 title="Collapse Syntax Editor (Ctrl+B)">
@@ -626,6 +731,8 @@
                             <span>Mermaid Syntax</span>
                         </div>
                         <div class="sidebar-header-actions">
+                            <button id="mermaid-format-btn" class="sidebar-format-btn"
+                                title="Format / Clean Syntax">Format</button>
                             <span class="sidebar-live-tag">Live</span>
                             <button id="mermaid-collapse-btn" class="sidebar-collapse-btn"
                                 title="Collapse Syntax Editor (Ctrl+B)">
@@ -701,8 +808,10 @@
                             <div class="curves-header-row">
                                 <label for="mermaid-curves-list">Numeric Value Curves</label>
                                 <div class="curves-quick-actions">
-                                    <button type="button" id="mermaid-curves-select-all" class="curves-quick-btn" title="Select all numeric columns">Select All</button>
-                                    <button type="button" id="mermaid-curves-clear" class="curves-quick-btn" title="Clear selection">Clear</button>
+                                    <button type="button" id="mermaid-curves-select-all" class="curves-quick-btn"
+                                        title="Select all numeric columns">Select All</button>
+                                    <button type="button" id="mermaid-curves-clear" class="curves-quick-btn"
+                                        title="Clear selection">Clear</button>
                                 </div>
                             </div>
                             <div id="mermaid-curves-list" class="curves-checkbox-list"></div>
@@ -728,13 +837,7 @@
 
                         <hr class="control-divider">
 
-                        <details class="control-group mermaid-config-details" id="mermaid-config-group">
-                            <summary class="mermaid-config-summary">
-                                <label class="cursor-pointer-no-margin">Chart Config</label>
-                                <i class="fa-solid fa-chevron-down details-chevron"></i>
-                            </summary>
-                            <div id="mermaid-config-panel" class="mermaid-config-panel"></div>
-                        </details>
+                        <div id="mermaid-config-panel" class="mermaid-config-panel"></div>
 
                         <hr class="control-divider">
 
@@ -779,6 +882,348 @@
             </div>
         </div>
 
+        <!-- Vega Studio View -->
+        <div id="vega-container" class="vis-container hidden">
+            <div class="tab-intro-banner">
+                <div class="tab-intro-primary-row">
+                    <p class="tab-intro-desc">Declarative statistical visualization grammar that compiles interactive
+                        charts, multi-layered views, and publication-ready graphics directly from Vega-Lite JSON
+                        specifications.</p>
+                    <div class="tab-intro-actions">
+                        <button class="tab-intro-info-btn" type="button" aria-expanded="false"
+                            title="Toggle Overview & Description">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Info</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <button class="tab-intro-toggle-btn" type="button" aria-expanded="false"
+                            title="Toggle Guidelines & Best Practices">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Guidelines</span>
+                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <a href="https://vega.github.io/vega-lite/" target="_blank" rel="noopener noreferrer"
+                            class="tab-intro-link" title="Open official Vega-Lite documentation">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i><span>Docs</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="tab-intro-drawer">
+                    <div class="tab-intro-drawer-inner">
+                        <div class="tab-intro-criteria">
+                            <div class="tab-intro-pill pill-use">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span class="pill-label">When to use</span>
+                                <span class="pill-text">Statistical charts, customized scales/axes, layered marks,
+                                    faceting, distributions, and exact spec control.</span>
+                            </div>
+                            <div class="tab-intro-pill pill-avoid">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span class="pill-label">When not to</span>
+                                <span class="pill-text">Very large datasets (>50k rows) in-browser without server-side
+                                    aggregation.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="vega-main-layout mermaid-main-layout">
+                <div id="vega-sidebar" class="syntax-sidebar">
+                    <div class="syntax-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-code text-primary-icon-sm"></i>
+                            <span>Vega-Lite Spec</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <button id="vega-format-btn" class="sidebar-format-btn"
+                                title="Format / Prettify JSON">Format</button>
+                            <span class="sidebar-live-tag">Live</span>
+                            <button id="vega-collapse-btn" class="sidebar-collapse-btn" title="Collapse Spec Editor">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="vega-text-editor"
+                        placeholder="{\n  &quot;$schema&quot;: &quot;https://vega.github.io/schema/vega-lite/v5.json&quot;,\n  &quot;mark&quot;: &quot;bar&quot;\n}"
+                        spellcheck="false"></textarea>
+                    <div id="vega-error-notice" class="hidden"></div>
+                </div>
+                <div id="vega-canvas-wrapper" class="canvas-wrapper">
+                    <button id="vega-expand-btn" class="sidebar-expand-tab hidden" title="Open Vega-Lite Spec Editor">
+                        <i class="fa-solid fa-code"></i>
+                        <span class="tab-text">Spec</span>
+                        <i class="fa-solid fa-chevron-right tab-arrow"></i>
+                    </button>
+                    <button id="vega-controls-expand-btn" class="sidebar-expand-tab sidebar-expand-right hidden"
+                        title="Open Vega Controls">
+                        <i class="fa-solid fa-chevron-left tab-arrow"></i>
+                        <span class="tab-text">Controls</span>
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                    <div id="vega-render-output" class="vega-render-output"></div>
+                </div>
+                <div id="vega-controls-sidebar" class="controls-sidebar">
+                    <div class="controls-sidebar-header">
+                        <div class="sidebar-header-title">
+                            <i class="fa-solid fa-sliders header-icon-primary"></i>
+                            <span>Controls</span>
+                        </div>
+                        <div class="sidebar-header-actions">
+                            <button id="vega-controls-collapse-btn" class="sidebar-collapse-btn"
+                                title="Collapse Controls Panel">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="controls-sidebar-body">
+                        <div class="control-group">
+                            <label for="vega-chart-preset">Chart Type</label>
+                            <select id="vega-chart-preset" class="control-select">
+                                <option value="bar" selected>Bar Chart</option>
+                                <option value="line">Line Chart</option>
+                                <option value="point">Scatter / Points</option>
+                                <option value="circle">Circles</option>
+                                <option value="area">Area Chart</option>
+                                <option value="arc">Arc / Pie Chart</option>
+                                <option value="boxplot">Boxplot</option>
+                                <option value="tick">Tick Chart</option>
+                                <option value="rect">Heatmap / Rect</option>
+                                <option value="rule">Rule / Threshold</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="vega-chart-title">Chart Title</label>
+                            <input type="text" id="vega-chart-title" class="control-input" placeholder="Chart Title">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="vega-x-col">X Axis Column</label>
+                            <select id="vega-x-col" class="control-select"></select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="vega-y-col">Y Axis Column</label>
+                            <select id="vega-y-col" class="control-select"></select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="vega-color-col">Color / Series Column</label>
+                            <select id="vega-color-col" class="control-select"></select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="vega-agg-func">Aggregation</label>
+                            <select id="vega-agg-func" class="control-select">
+                                <option value="none" selected>None</option>
+                                <option value="sum">Sum</option>
+                                <option value="mean">Mean (Average)</option>
+                                <option value="median">Median</option>
+                                <option value="min">Min</option>
+                                <option value="max">Max</option>
+                                <option value="count">Count</option>
+                            </select>
+                        </div>
+
+                        <hr class="control-divider">
+
+                        <!-- Dimensions Section (Matching Sankey Tab) -->
+                        <div class="control-group">
+                            <div class="dimension-header-row">
+                                <label class="cursor-pointer-no-margin">Dimensions</label>
+                                <label class="curves-checkbox-item dimension-checkbox-label">
+                                    <input type="checkbox" id="vega-autofit" checked>
+                                    <span>Auto-fit</span>
+                                </label>
+                            </div>
+                            <div class="dimensions-grid-2col">
+                                <div class="dimension-input-group">
+                                    <span class="dimension-label-text">Width:</span>
+                                    <input type="number" id="vega-custom-width"
+                                        class="control-input dimension-input-number" min="100" max="4000" step="50"
+                                        placeholder="Auto">
+                                </div>
+                                <div class="dimension-input-group">
+                                    <span class="dimension-label-text">Height:</span>
+                                    <input type="number" id="vega-custom-height"
+                                        class="control-input dimension-input-number" min="100" max="3000" step="50"
+                                        placeholder="Auto">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="control-divider">
+
+                        <!-- 2. Mark & Style Accordion -->
+                        <details class="control-group mermaid-config-details" id="vega-mark-style-group">
+                            <summary class="mermaid-config-summary">
+                                <label class="cursor-pointer-no-margin">Mark &amp; Style</label>
+                                <i class="fa-solid fa-chevron-down details-chevron"></i>
+                            </summary>
+                            <div class="vega-section-content">
+                                <label class="curves-checkbox-item">
+                                    <input type="checkbox" id="vega-mark-filled" checked>
+                                    <span>Filled Marks</span>
+                                </label>
+                                <div>
+                                    <label style="font-size: 0.75rem; margin-bottom: 2px;">Opacity</label>
+                                    <div class="range-slider-row">
+                                        <input type="range" id="vega-mark-opacity" min="0.1" max="1" step="0.05"
+                                            value="0.85">
+                                        <span id="vega-mark-opacity-val" class="range-value-pill">0.85</span>
+                                    </div>
+                                </div>
+                                <div class="control-group" style="margin-bottom: 0;">
+                                    <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter
+                                        Shape</label>
+                                    <select id="vega-mark-shape" class="control-select">
+                                        <option value="circle" selected>Circle</option>
+                                        <option value="square">Square</option>
+                                        <option value="diamond">Diamond</option>
+                                        <option value="triangle-up">Triangle Up</option>
+                                        <option value="triangle-down">Triangle Down</option>
+                                        <option value="cross">Cross</option>
+                                    </select>
+                                </div>
+                                <label class="curves-checkbox-item">
+                                    <input type="checkbox" id="vega-labels-toggle">
+                                    <span>Show Data Labels</span>
+                                </label>
+                                <label class="curves-checkbox-item">
+                                    <input type="checkbox" id="vega-tooltip-toggle" checked>
+                                    <span>Interactive Tooltips</span>
+                                </label>
+                            </div>
+                        </details>
+
+                        <!-- 3. Axis & Scales Accordion -->
+                        <details class="control-group mermaid-config-details" id="vega-axis-scales-group">
+                            <summary class="mermaid-config-summary">
+                                <label class="cursor-pointer-no-margin">Axis &amp; Scales</label>
+                                <i class="fa-solid fa-chevron-down details-chevron"></i>
+                            </summary>
+                            <div class="vega-section-content">
+                                <div class="control-group" style="margin-bottom: 0;">
+                                    <label for="vega-x-scale" style="font-size: 0.75rem;">X Axis Scale</label>
+                                    <select id="vega-x-scale" class="control-select">
+                                        <option value="linear" selected>Linear (Default)</option>
+                                        <option value="log">Logarithmic</option>
+                                        <option value="sqrt">Square Root</option>
+                                        <option value="time">Temporal / Time</option>
+                                        <option value="band">Band / Discrete</option>
+                                    </select>
+                                </div>
+                                <div class="control-group" style="margin-bottom: 0;">
+                                    <label for="vega-y-scale" style="font-size: 0.75rem;">Y Axis Scale</label>
+                                    <select id="vega-y-scale" class="control-select">
+                                        <option value="linear" selected>Linear (Default)</option>
+                                        <option value="log">Logarithmic</option>
+                                        <option value="sqrt">Square Root</option>
+                                        <option value="time">Temporal / Time</option>
+                                    </select>
+                                </div>
+                                <label class="curves-checkbox-item">
+                                    <input type="checkbox" id="vega-zero-toggle" checked>
+                                    <span>Start Axes at Zero</span>
+                                </label>
+                                <div class="control-group" style="margin-bottom: 0;">
+                                    <label for="vega-sort-order" style="font-size: 0.75rem;">Sort Order</label>
+                                    <select id="vega-sort-order" class="control-select">
+                                        <option value="default" selected>Natural / Default</option>
+                                        <option value="ascending">Ascending (A-Z, 0-9)</option>
+                                        <option value="descending">Descending (Z-A, 9-0)</option>
+                                    </select>
+                                </div>
+                                <div class="dimensions-grid-2col">
+                                    <div class="dimension-input-group">
+                                        <span class="dimension-label-text">X Title:</span>
+                                        <input type="text" id="vega-x-title" class="control-input" placeholder="Auto">
+                                    </div>
+                                    <div class="dimension-input-group">
+                                        <span class="dimension-label-text">Y Title:</span>
+                                        <input type="text" id="vega-y-title" class="control-input" placeholder="Auto">
+                                    </div>
+                                </div>
+                                <div class="dimensions-grid-2col">
+                                    <div class="dimension-input-group">
+                                        <span class="dimension-label-text">Y Min:</span>
+                                        <input type="number" id="vega-domain-min" class="control-input"
+                                            placeholder="Auto">
+                                    </div>
+                                    <div class="dimension-input-group">
+                                        <span class="dimension-label-text">Y Max:</span>
+                                        <input type="number" id="vega-domain-max" class="control-input"
+                                            placeholder="Auto">
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- 4. Faceting Accordion -->
+                        <details class="control-group mermaid-config-details" id="vega-faceting-group">
+                            <summary class="mermaid-config-summary">
+                                <label class="cursor-pointer-no-margin">Facets</label>
+                                <i class="fa-solid fa-chevron-down details-chevron"></i>
+                            </summary>
+                            <div class="vega-section-content">
+                                <div class="control-group" style="margin-bottom: 0;">
+                                    <label for="vega-facet-col" style="font-size: 0.75rem;">Facet Column</label>
+                                    <select id="vega-facet-col" class="control-select"></select>
+                                </div>
+                            </div>
+                        </details>
+
+                        <hr class="control-divider">
+
+                        <div class="actions-stack">
+                            <button id="vega-ai-btn" class="button icon-button ai-action-btn"
+                                title="Use AI Agent to generate or transform Vega-Lite chart">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Generate</span>
+                            </button>
+                            <button id="vega-demo-btn" class="button icon-button"
+                                title="Load a recommended demo chart for current dataset">
+                                <i class="fa-solid fa-play"></i><span>Show Demo</span>
+                            </button>
+                        </div>
+
+                        <hr class="control-divider">
+
+                        <div class="controls-sidebar-actions">
+                            <div class="control-group">
+                                <label>Zoom Controls</label>
+                                <div class="utility-segmented-btn-group">
+                                    <button id="vega-zoom-in" class="utility-btn" title="Zoom In"><i
+                                            class="fa-solid fa-magnifying-glass-plus"></i><span>In</span></button>
+                                    <button id="vega-zoom-out" class="utility-btn" title="Zoom Out"><i
+                                            class="fa-solid fa-magnifying-glass-minus"></i><span>Out</span></button>
+                                    <button id="vega-zoom-reset" class="utility-btn" title="Reset Zoom"><i
+                                            class="fa-solid fa-expand"></i><span>Reset</span></button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Export Chart</label>
+                                <div class="utility-segmented-btn-group">
+                                    <button id="vega-export-png-btn" class="utility-btn" title="Export as PNG"><i
+                                            class="fa-solid fa-file-image"></i><span>PNG</span></button>
+                                    <button id="vega-export-svg-btn" class="utility-btn" title="Export as SVG"><i
+                                            class="fa-solid fa-file-code"></i><span>SVG</span></button>
+                                </div>
+                                <div class="utility-segmented-btn-group" style="margin-top: 6px;">
+                                    <button id="vega-export-json-btn" class="utility-btn"
+                                        title="Download Vega-Lite Spec"><i
+                                            class="fa-solid fa-file-arrow-down"></i><span>JSON</span></button>
+                                    <button id="vega-copy-json-btn" class="utility-btn"
+                                        title="Copy Spec to Clipboard"><i
+                                            class="fa-regular fa-copy"></i><span>Copy</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Agent View -->
         <div id="agent-container" class="vis-container hidden">
             <!-- Simplified Chat Area -->
@@ -791,6 +1236,10 @@
                         title="Start new conversation (deletes old history)">
                         <i class="fa-solid fa-plus"></i>
                         <span>New Chat</span>
+                    </button>
+                    <button id="agent-skills-btn" class="chat-new-btn" title="Toggle agent skills">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span id="agent-skills-label">Skills</span>
                     </button>
                     <input type="text" id="chat-input"
                         placeholder="Ask anything about your data... (e.g. “Summarize this dataset”, “Show correlation between numeric columns”, or “Plot distribution of top values”.)">
@@ -862,7 +1311,7 @@
         </div>
     </div>
 
-    <!-- Set Data Modal (Upload CSV / Paste Data) -->
+    <!-- Load Data Modal (Upload CSV / Paste Data) -->
     <div id="set-data-modal" class="modal hidden">
         <div class="modal-content set-data-modal-content">
             <div class="modal-header">
@@ -950,6 +1399,98 @@
         </div>
     </div>
 
+    <!-- Vega AI Prompt Modal -->
+    <div id="vega-ai-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI Vega Chart Generation</h2>
+                <button id="close-vega-ai-modal-btn" class="button modal-close-btn-compact">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label for="vega-ai-prompt-input">Chart instructions or prompt</label>
+                    <textarea id="vega-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
+                        placeholder="e.g. Create a grouped bar chart comparing sales by region with a red threshold line..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-vega-ai-modal-btn" class="button">Cancel</button>
+                <button id="confirm-vega-ai-modal-btn" class="button primary">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Skills Toggle Modal -->
+    <div id="agent-skills-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-layer-group text-primary-icon-md"></i>
+                    <h2>Agent Skills</h2>
+                </div>
+            </div>
+            <div class="modal-body modal-body-spaced">
+                <p class="set-data-dropzone-sub">Toggle which runtime skills steer the agent's next answer. The chart
+                    linter always stays on.</p>
+                <div id="agent-skills-list" class="curves-checkbox-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-agent-skills-btn" class="button">Cancel</button>
+                <button id="confirm-agent-skills-btn" class="button primary">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Load & Verification Modal -->
+    <div id="session-modal" class="modal hidden">
+        <div class="modal-content session-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-brand-row">
+                    <i class="fa-solid fa-clock-rotate-left text-primary-icon-md"></i>
+                    <h2>Load Session</h2>
+                </div>
+            </div>
+            <div class="modal-body modal-body-spaced">
+                <!-- Step 1: Session File -->
+                <div class="session-step">
+                    <label class="session-step-label">1. Select Session File (.json)</label>
+                    <div id="session-file-dropzone" class="set-data-dropzone session-dropzone">
+                        <i class="fa-solid fa-file-code dropzone-icon"></i>
+                        <p class="set-data-dropzone-title">Drop your session JSON here or <span
+                                class="highlight">browse</span></p>
+                        <p class="set-data-dropzone-sub">Workspace configuration</p>
+                        <input type="file" id="session-file-input" accept=".json" class="hidden-element">
+                    </div>
+                    <div id="session-file-info" class="session-file-badge hidden"></div>
+                </div>
+
+                <!-- Step 2: Dataset Verification -->
+                <div id="session-dataset-step" class="session-step hidden">
+                    <label class="session-step-label">2. Dataset Verification</label>
+                    <div id="session-dataset-status" class="session-status-card"></div>
+
+                    <div id="session-dataset-upload-prompt" class="hidden">
+                        <p class="session-step-note">Upload the dataset to resume analysis (columns must match):</p>
+                        <div id="session-data-dropzone" class="set-data-dropzone session-dropzone">
+                            <i class="fa-solid fa-file-csv dropzone-icon"></i>
+                            <p class="set-data-dropzone-title">Drop matching CSV file here or <span
+                                    class="highlight">browse</span></p>
+                            <input type="file" id="session-data-input" accept=".csv" class="hidden-element">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-session-btn" class="button">Cancel</button>
+                <button id="apply-session-btn" class="button primary" disabled>
+                    <i class="fa-solid fa-play"></i><span>Restore Session</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Docs / README Markdown Viewer Modal -->
     <div id="docs-modal" class="modal hidden">
         <div class="modal-content docs-modal-content">
@@ -1020,7 +1561,7 @@
         </div>
     </footer>
 
-    <script type="module" src="/static/main.js?v=20260915_direct_gw"></script>
+    <script type="module" src="/static/main.js"></script>
 </body>
 
 </html>
