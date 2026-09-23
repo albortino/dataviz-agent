@@ -70,15 +70,41 @@
                 <i class="fa-solid fa-cubes-stacked"></i><span>SandDance</span>
             </button>
             <div class="nav-separator-dot"></div>
-            <button id="show-mermaid-btn" class="button icon-button" disabled title="Upload data to explore Mermaid">
-                <i class="fa-solid fa-code-fork"></i><span>Mermaid</span>
-            </button>
-            <button id="show-sankey-btn" class="button icon-button" disabled title="Upload data to explore Sankey">
-                <i class="fa-solid fa-diagram-project"></i><span>Sankey</span>
-            </button>
-            <button id="show-vega-btn" class="button icon-button" disabled title="Upload data to explore Vega">
-                <i class="fa-solid fa-chart-simple"></i><span>Vega</span>
-            </button>
+            <!-- Split Hub for Plots & Diagrams (Mermaid, Sankey, Vega) -->
+            <div id="plots-split-hub" class="split-hub-wrapper">
+                <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
+                    title="Upload data to explore Plots">
+                    <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
+                    <span id="plots-primary-label">Vega</span>
+                </button>
+                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" disabled
+                    aria-expanded="false" title="Switch plot type (Vega, Sankey, Mermaid)">
+                    <i class="fa-solid fa-chevron-down caret"></i>
+                </button>
+                <div id="plots-popover-menu" class="split-hub-popover">
+                    <button type="button" id="plots-item-vega" class="split-hub-item active" data-view="vega">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-chart-simple"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Vega / Vega-Lite</span>
+                            <span class="split-hub-item-desc">Declarative JSON chart specs</span>
+                        </div>
+                    </button>
+                    <button type="button" id="plots-item-sankey" class="split-hub-item" data-view="sankey">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Sankey Diagram</span>
+                            <span class="split-hub-item-desc">Flow &amp; pathway routing</span>
+                        </div>
+                    </button>
+                    <button type="button" id="plots-item-mermaid" class="split-hub-item" data-view="mermaid">
+                        <div class="split-hub-item-icon"><i class="fa-solid fa-code-fork"></i></div>
+                        <div class="split-hub-item-info">
+                            <span class="split-hub-item-title">Mermaid</span>
+                            <span class="split-hub-item-desc">Charts for .md & in-chat rendering</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
             <div class="nav-separator-dot"></div>
             <button id="show-agent-btn" class="button icon-button" disabled
                 title="Upload data to explore Agentic Studio">
@@ -90,7 +116,8 @@
         <div id="controls">
             <!-- Data Dropdown Hub -->
             <div class="dropdown-wrapper">
-                <button id="data-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false" title="Data management options">
+                <button id="data-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false"
+                    title="Data management options">
                     <i class="fa-solid fa-database"></i>
                     <span>Data</span>
                     <span id="data-filename-chip" class="data-filename-chip hidden"></span>
@@ -128,7 +155,8 @@
 
             <!-- Session Dropdown Hub -->
             <div class="dropdown-wrapper">
-                <button id="session-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false" title="Session options">
+                <button id="session-dropdown-btn" class="button icon-button dropdown-trigger-btn" aria-expanded="false"
+                    title="Session options">
                     <i class="fa-solid fa-layer-group"></i>
                     <span>Session</span>
                     <i class="fa-solid fa-chevron-down caret"></i>
@@ -499,7 +527,8 @@
                             <span>Sankey Syntax</span>
                         </div>
                         <div class="sidebar-header-actions">
-                            <button id="sankey-format-btn" class="sidebar-format-btn" title="Format / Clean Syntax">Format</button>
+                            <button id="sankey-format-btn" class="sidebar-format-btn"
+                                title="Format / Clean Syntax">Format</button>
                             <span class="sidebar-live-tag">Live</span>
                             <button id="sankey-collapse-btn" class="sidebar-collapse-btn"
                                 title="Collapse Syntax Editor (Ctrl+B)">
@@ -702,7 +731,8 @@
                             <span>Mermaid Syntax</span>
                         </div>
                         <div class="sidebar-header-actions">
-                            <button id="mermaid-format-btn" class="sidebar-format-btn" title="Format / Clean Syntax">Format</button>
+                            <button id="mermaid-format-btn" class="sidebar-format-btn"
+                                title="Format / Clean Syntax">Format</button>
                             <span class="sidebar-live-tag">Live</span>
                             <button id="mermaid-collapse-btn" class="sidebar-collapse-btn"
                                 title="Collapse Syntax Editor (Ctrl+B)">
@@ -856,7 +886,9 @@
         <div id="vega-container" class="vis-container hidden">
             <div class="tab-intro-banner">
                 <div class="tab-intro-primary-row">
-                    <p class="tab-intro-desc">Declarative statistical visualization grammar that compiles interactive charts, multi-layered views, and publication-ready graphics directly from Vega-Lite JSON specifications.</p>
+                    <p class="tab-intro-desc">Declarative statistical visualization grammar that compiles interactive
+                        charts, multi-layered views, and publication-ready graphics directly from Vega-Lite JSON
+                        specifications.</p>
                     <div class="tab-intro-actions">
                         <button class="tab-intro-info-btn" type="button" aria-expanded="false"
                             title="Toggle Overview & Description">
@@ -882,12 +914,14 @@
                             <div class="tab-intro-pill pill-use">
                                 <i class="fa-solid fa-circle-check"></i>
                                 <span class="pill-label">When to use</span>
-                                <span class="pill-text">Statistical charts, customized scales/axes, layered marks, faceting, distributions, and exact spec control.</span>
+                                <span class="pill-text">Statistical charts, customized scales/axes, layered marks,
+                                    faceting, distributions, and exact spec control.</span>
                             </div>
                             <div class="tab-intro-pill pill-avoid">
                                 <i class="fa-solid fa-circle-xmark"></i>
                                 <span class="pill-label">When not to</span>
-                                <span class="pill-text">Very large datasets (>50k rows) in-browser without server-side aggregation.</span>
+                                <span class="pill-text">Very large datasets (>50k rows) in-browser without server-side
+                                    aggregation.</span>
                             </div>
                         </div>
                     </div>
@@ -901,21 +935,21 @@
                             <span>Vega-Lite Spec</span>
                         </div>
                         <div class="sidebar-header-actions">
-                            <button id="vega-format-btn" class="sidebar-format-btn" title="Format / Prettify JSON">Format</button>
+                            <button id="vega-format-btn" class="sidebar-format-btn"
+                                title="Format / Prettify JSON">Format</button>
                             <span class="sidebar-live-tag">Live</span>
-                            <button id="vega-collapse-btn" class="sidebar-collapse-btn"
-                                title="Collapse Spec Editor">
+                            <button id="vega-collapse-btn" class="sidebar-collapse-btn" title="Collapse Spec Editor">
                                 <i class="fa-solid fa-chevron-left"></i>
                             </button>
                         </div>
                     </div>
-                    <textarea id="vega-text-editor" placeholder="{\n  &quot;$schema&quot;: &quot;https://vega.github.io/schema/vega-lite/v5.json&quot;,\n  &quot;mark&quot;: &quot;bar&quot;\n}"
+                    <textarea id="vega-text-editor"
+                        placeholder="{\n  &quot;$schema&quot;: &quot;https://vega.github.io/schema/vega-lite/v5.json&quot;,\n  &quot;mark&quot;: &quot;bar&quot;\n}"
                         spellcheck="false"></textarea>
                     <div id="vega-error-notice" class="hidden"></div>
                 </div>
                 <div id="vega-canvas-wrapper" class="canvas-wrapper">
-                    <button id="vega-expand-btn" class="sidebar-expand-tab hidden"
-                        title="Open Vega-Lite Spec Editor">
+                    <button id="vega-expand-btn" class="sidebar-expand-tab hidden" title="Open Vega-Lite Spec Editor">
                         <i class="fa-solid fa-code"></i>
                         <span class="tab-text">Spec</span>
                         <i class="fa-solid fa-chevron-right tab-arrow"></i>
@@ -943,7 +977,7 @@
                     </div>
                     <div class="controls-sidebar-body">
                         <div class="control-group">
-                            <label for="vega-chart-preset">Mark Type</label>
+                            <label for="vega-chart-preset">Chart Type</label>
                             <select id="vega-chart-preset" class="control-select">
                                 <option value="bar" selected>Bar Chart</option>
                                 <option value="line">Line Chart</option>
@@ -1034,12 +1068,14 @@
                                 <div>
                                     <label style="font-size: 0.75rem; margin-bottom: 2px;">Opacity</label>
                                     <div class="range-slider-row">
-                                        <input type="range" id="vega-mark-opacity" min="0.1" max="1" step="0.05" value="0.85">
+                                        <input type="range" id="vega-mark-opacity" min="0.1" max="1" step="0.05"
+                                            value="0.85">
                                         <span id="vega-mark-opacity-val" class="range-value-pill">0.85</span>
                                     </div>
                                 </div>
                                 <div class="control-group" style="margin-bottom: 0;">
-                                    <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter Shape</label>
+                                    <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter
+                                        Shape</label>
                                     <select id="vega-mark-shape" class="control-select">
                                         <option value="circle" selected>Circle</option>
                                         <option value="square">Square</option>
@@ -1111,11 +1147,13 @@
                                 <div class="dimensions-grid-2col">
                                     <div class="dimension-input-group">
                                         <span class="dimension-label-text">Y Min:</span>
-                                        <input type="number" id="vega-domain-min" class="control-input" placeholder="Auto">
+                                        <input type="number" id="vega-domain-min" class="control-input"
+                                            placeholder="Auto">
                                     </div>
                                     <div class="dimension-input-group">
                                         <span class="dimension-label-text">Y Max:</span>
-                                        <input type="number" id="vega-domain-max" class="control-input" placeholder="Auto">
+                                        <input type="number" id="vega-domain-max" class="control-input"
+                                            placeholder="Auto">
                                     </div>
                                 </div>
                             </div>
@@ -1172,9 +1210,11 @@
                                             class="fa-solid fa-file-code"></i><span>SVG</span></button>
                                 </div>
                                 <div class="utility-segmented-btn-group" style="margin-top: 6px;">
-                                    <button id="vega-export-json-btn" class="utility-btn" title="Download Vega-Lite Spec"><i
+                                    <button id="vega-export-json-btn" class="utility-btn"
+                                        title="Download Vega-Lite Spec"><i
                                             class="fa-solid fa-file-arrow-down"></i><span>JSON</span></button>
-                                    <button id="vega-copy-json-btn" class="utility-btn" title="Copy Spec to Clipboard"><i
+                                    <button id="vega-copy-json-btn" class="utility-btn"
+                                        title="Copy Spec to Clipboard"><i
                                             class="fa-regular fa-copy"></i><span>Copy</span></button>
                                 </div>
                             </div>

@@ -18,16 +18,18 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-main {
+body > main {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     padding: 0.75rem 1.5rem;
     gap: 0.65rem;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
-footer,
+body > footer,
 #app-footer {
     text-align: center;
     color: var(--color-text-secondary);
@@ -70,7 +72,7 @@ footer a:hover,
 }
 
 /* Header */
-header,
+body > header,
 #header-bar {
     position: relative;
     width: 100%;
@@ -85,7 +87,7 @@ header,
     align-items: center;
     gap: var(--gap-l);
     box-sizing: border-box;
-    z-index: 500;
+    z-index: 5000;
 }
 
 #header-brand {
@@ -220,6 +222,7 @@ header,
         opacity: 0;
         transform: translateY(-6px) scale(0.98);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -575,6 +578,176 @@ button.utility-btn:active,
     box-shadow: none !important;
 }
 
+/* Split Hub Component for Plots & Diagrams */
+.split-hub-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--border-radius-pill);
+    transition: all var(--transition-base);
+}
+
+/* Unified Bubble Look: single shared pill background and border */
+.split-hub-wrapper .split-hub-main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-right: 0.25rem;
+    box-shadow: none !important;
+}
+
+.split-hub-wrapper .split-hub-toggle {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding: 0 0.55rem 0 0.25rem;
+    box-shadow: none !important;
+}
+
+.split-hub-wrapper .split-hub-toggle .caret {
+    font-size: 0.65rem;
+    transition: transform var(--transition-fast);
+}
+
+.split-hub-wrapper.open {
+    z-index: 100;
+}
+
+.split-hub-wrapper.open .split-hub-toggle .caret,
+.split-hub-toggle[aria-expanded="true"] .caret {
+    transform: rotate(180deg);
+}
+
+/* Active Bubble: entire combined pill is highlighted together */
+.split-hub-wrapper.active-group {
+    background: var(--color-background-light);
+    border-radius: var(--border-radius-pill);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.split-hub-wrapper.active-group .split-hub-main,
+.split-hub-wrapper.active-group .split-hub-toggle {
+    background: transparent;
+    color: var(--color-primary) !important;
+    font-weight: var(--font-weight-bold);
+}
+
+.split-hub-wrapper.active-group .split-hub-main i,
+.split-hub-wrapper.active-group .split-hub-toggle i {
+    color: var(--color-primary) !important;
+}
+
+.split-hub-wrapper:hover:not(.active-group) {
+    background: rgba(255, 255, 255, 0.75);
+}
+
+.split-hub-wrapper:hover:not(.active-group) .split-hub-main,
+.split-hub-wrapper:hover:not(.active-group) .split-hub-toggle {
+    color: var(--color-text-primary);
+}
+
+.split-hub-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    transform: none;
+    background: var(--color-background-light);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--shadow-lg);
+    width: 270px;
+    padding: 0.5rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.35rem;
+    z-index: 2500;
+    animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.split-hub-wrapper.open .split-hub-popover {
+    display: flex;
+}
+
+.split-hub-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.75rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: left !important;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    width: 100%;
+    height: auto !important;
+    min-height: auto !important;
+    box-sizing: border-box;
+    box-shadow: none !important;
+    white-space: normal !important;
+}
+
+.split-hub-item:hover {
+    background: var(--color-background-medium);
+    border-color: var(--color-border);
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.split-hub-item.active {
+    background: var(--color-primary-light);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.split-hub-item-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: var(--color-background-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.split-hub-item.active .split-hub-item-icon {
+    background: #ffffff;
+    color: var(--color-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.split-hub-item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start !important;
+    text-align: left !important;
+    min-width: 0;
+    flex: 1;
+}
+
+.split-hub-item-title {
+    font-size: 0.82rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    line-height: 1.2;
+    text-align: left !important;
+    width: 100%;
+}
+
+.split-hub-item.active .split-hub-item-title {
+    color: var(--color-primary);
+}
+
+.split-hub-item-desc {
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+    line-height: 1.2;
+    text-align: left !important;
+    width: 100%;
+}
+
 /* ==========================================================================
    Form Controls (Select, Input, Textarea, Checkbox)
    ========================================================================== */
@@ -779,14 +952,21 @@ hr.control-divider,
     overflow: hidden !important;
 }
 
+/* Explicitly constrain LineUp engine & header to base visual layer */
+.lineup-engine,
+.le-header,
+.le-multi {
+    z-index: 1 !important;
+}
+
 /* LineUp Dialogs & Search Popups - High Z-Index & Theme Styling */
 .lu-backdrop {
-    z-index: 9990 !important;
+    z-index: 390 !important;
 }
 
 .lu-dialog,
 .lu-tooltip {
-    z-index: 9999 !important;
+    z-index: 400 !important;
     background: var(--color-background-light) !important;
     border: 1px solid var(--color-border) !important;
     border-radius: var(--border-radius-card) !important;
@@ -873,23 +1053,6 @@ hr.control-divider,
     color: var(--color-primary) !important;
 }
 
-/* LineUp Dialogs & Search Popups - High Z-Index & Theme Styling */
-.lu-backdrop {
-    z-index: 9990 !important;
-}
-
-.lu-dialog,
-.lu-tooltip {
-    z-index: 9999 !important;
-    background: var(--color-background-light) !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: var(--border-radius-card) !important;
-    box-shadow: var(--shadow-xl) !important;
-    padding: 0.85rem !important;
-    color: var(--color-text-primary) !important;
-    font-family: var(--font-sans) !important;
-}
-
 .lu-dialog strong,
 .lu-tooltip strong {
     color: var(--color-text-primary) !important;
@@ -903,7 +1066,7 @@ hr.control-divider,
     color: var(--color-text-secondary) !important;
 }
 
-.lu-dialog .lu-checkbox:not(.lu-dialog-filter-table-entry) > span {
+.lu-dialog .lu-checkbox:not(.lu-dialog-filter-table-entry)>span {
     font-size: 0.825rem !important;
     color: var(--color-text-primary) !important;
 }

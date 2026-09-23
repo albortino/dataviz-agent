@@ -30,11 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const showLineupBtn = document.getElementById('show-lineup-btn');
     const showGraphicwalkerBtn = document.getElementById('show-graphicwalker-btn');
     const showSanddanceBtn = document.getElementById('show-sanddance-btn');
-    const showMermaidBtn = document.getElementById('show-mermaid-btn');
-    const showSankeyBtn = document.getElementById('show-sankey-btn');
-    const showVegaBtn = document.getElementById('show-vega-btn');
+    const plotsSplitHub = document.getElementById('plots-split-hub');
+    const plotsPrimaryBtn = document.getElementById('plots-primary-btn');
+    const plotsPrimaryIcon = document.getElementById('plots-primary-icon');
+    const plotsPrimaryLabel = document.getElementById('plots-primary-label');
+    const plotsMenuToggleBtn = document.getElementById('plots-menu-toggle-btn');
+    const plotsPopoverMenu = document.getElementById('plots-popover-menu');
+    const plotsItemVega = document.getElementById('plots-item-vega');
+    const plotsItemSankey = document.getElementById('plots-item-sankey');
+    const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, showMermaidBtn, showSankeyBtn, showVegaBtn, showAgentBtn];
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, plotsMenuToggleBtn, showAgentBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -198,6 +204,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // Plots Split Hub metadata
+    const plotsConfig = {
+        vega: { label: 'Vega', icon: 'fa-chart-simple', elem: plotsItemVega },
+        sankey: { label: 'Sankey', icon: 'fa-diagram-project', elem: plotsItemSankey },
+        mermaid: { label: 'Mermaid', icon: 'fa-code-fork', elem: plotsItemMermaid }
+    };
+    let activePlotType = 'vega';
+
+    function updatePlotsHubState(plotType, isPlotsActive) {
+        if (plotType && plotsConfig[plotType]) {
+            activePlotType = plotType;
+            if (plotsPrimaryLabel) plotsPrimaryLabel.textContent = plotsConfig[plotType].label;
+            if (plotsPrimaryIcon) plotsPrimaryIcon.className = `fa-solid ${plotsConfig[plotType].icon}`;
+            [plotsItemVega, plotsItemSankey, plotsItemMermaid].forEach(item => {
+                if (item) item.classList.toggle('active', item.getAttribute('data-view') === plotType);
+            });
+        }
+        if (plotsSplitHub) {
+            plotsSplitHub.classList.toggle('active-group', isPlotsActive);
+        }
+    }
+
     // --- View Switcher ---
     function showEmptyState() {
         if (emptyStateContainer) emptyStateContainer.classList.remove('hidden');
@@ -209,6 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = true;
             }
         });
+
+        if (plotsSplitHub) {
+            plotsSplitHub.classList.remove('open', 'active-group');
+        }
+        if (plotsMenuToggleBtn) {
+            plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+        }
 
         if (resetButton) resetButton.disabled = true;
         if (exportSessionBtn) exportSessionBtn.disabled = true;
@@ -227,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        const isPlotsTarget = (targetButton === plotsPrimaryBtn);
         allViewButtons.forEach(btn => {
             if (btn === targetButton) {
                 btn.classList.add('active');
@@ -234,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.classList.remove('active');
             }
         });
+
+        updatePlotsHubState(null, isPlotsTarget);
 
         // Free SVG DOM memory when leaving Sankey view
         if (targetContainer !== sankeyContainer && sankeyMgr) {
@@ -279,7 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function showMermaid() {
         if (!currentData || currentData.length === 0) return;
         currentActiveView = 'mermaid';
-        setActiveView(mermaidContainer, showMermaidBtn);
+        updatePlotsHubState('mermaid', true);
+        setActiveView(mermaidContainer, plotsPrimaryBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
             mermaidMgr.updateColumnOptions();
@@ -291,7 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function showSankey() {
         if (!currentData || currentData.length === 0) return;
         currentActiveView = 'sankey';
-        setActiveView(sankeyContainer, showSankeyBtn);
+        updatePlotsHubState('sankey', true);
+        setActiveView(sankeyContainer, plotsPrimaryBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
             sankeyMgr.renderChart();
@@ -301,7 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function showVega() {
         if (!currentData || currentData.length === 0) return;
         currentActiveView = 'vega';
-        setActiveView(vegaContainer, showVegaBtn);
+        updatePlotsHubState('vega', true);
+        setActiveView(vegaContainer, plotsPrimaryBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
         setTimeout(() => {
             vegaMgr.initCollapseState();
@@ -390,9 +431,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showLineupBtn) showLineupBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showLineup(); });
     if (showGraphicwalkerBtn) showGraphicwalkerBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showGraphicWalker(); });
     if (showSanddanceBtn) showSanddanceBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSanddance(); });
-    if (showMermaidBtn) showMermaidBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showMermaid(); });
-    if (showSankeyBtn) showSankeyBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSankey(); });
-    if (showVegaBtn) showVegaBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showVega(); });
+    if (plotsPrimaryBtn) {
+        plotsPrimaryBtn.addEventListener('click', () => {
+            if (!currentData || currentData.length === 0) return;
+            if (activePlotType === 'sankey') {
+                showSankey();
+            } else if (activePlotType === 'mermaid') {
+                showMermaid();
+            } else {
+                showVega();
+            }
+        });
+    }
+    if (plotsItemVega) {
+        plotsItemVega.addEventListener('click', () => {
+            closePlotsMenu();
+            if (currentData && currentData.length > 0) showVega();
+        });
+    }
+    if (plotsItemSankey) {
+        plotsItemSankey.addEventListener('click', () => {
+            closePlotsMenu();
+            if (currentData && currentData.length > 0) showSankey();
+        });
+    }
+    if (plotsItemMermaid) {
+        plotsItemMermaid.addEventListener('click', () => {
+            closePlotsMenu();
+            if (currentData && currentData.length > 0) showMermaid();
+        });
+    }
     if (showAgentBtn) showAgentBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showAgent(); });
 
     // --- CSV Import Modal & Parsing ---
@@ -573,12 +641,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 showGraphicWalker();
             } else if (showSanddanceBtn && showSanddanceBtn.classList.contains('active')) {
                 showSanddance();
-            } else if (showMermaidBtn && showMermaidBtn.classList.contains('active')) {
-                showMermaid();
-            } else if (showSankeyBtn && showSankeyBtn.classList.contains('active')) {
-                showSankey();
-            } else if (showVegaBtn && showVegaBtn.classList.contains('active')) {
-                showVega();
+            } else if (plotsPrimaryBtn && plotsPrimaryBtn.classList.contains('active')) {
+                if (activePlotType === 'sankey') {
+                    showSankey();
+                } else if (activePlotType === 'mermaid') {
+                    showMermaid();
+                } else {
+                    showVega();
+                }
             } else if (showAgentBtn && showAgentBtn.classList.contains('active')) {
                 showAgent();
             } else {
@@ -776,6 +846,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const allDropdownMenus = [dataDropdownMenu, sessionDropdownMenu];
     const allDropdownButtons = [dataDropdownBtn, sessionDropdownBtn];
 
+    function closePlotsMenu() {
+        if (plotsSplitHub) plotsSplitHub.classList.remove('open');
+        if (plotsMenuToggleBtn) plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
     function closeAllDropdowns() {
         allDropdownMenus.forEach(m => m && m.classList.remove('show'));
         allDropdownButtons.forEach(b => {
@@ -784,6 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 b.setAttribute('aria-expanded', 'false');
             }
         });
+        closePlotsMenu();
     }
 
     function setupDropdown(triggerBtn, menuElem) {
@@ -803,8 +879,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDropdown(dataDropdownBtn, dataDropdownMenu);
     setupDropdown(sessionDropdownBtn, sessionDropdownMenu);
 
+    if (plotsMenuToggleBtn && plotsSplitHub) {
+        plotsMenuToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = plotsSplitHub.classList.contains('open');
+            closeAllDropdowns();
+            if (!isOpen) {
+                plotsSplitHub.classList.add('open');
+                plotsMenuToggleBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown-wrapper')) {
+        if (!e.target.closest('.dropdown-wrapper') && !e.target.closest('.split-hub-wrapper')) {
             closeAllDropdowns();
         }
     });
