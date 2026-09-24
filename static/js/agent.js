@@ -91,6 +91,7 @@ export class AgentManager {
         const userModel = (localStorage.getItem('ai_model') || '').trim();
         const apiKey = (localStorage.getItem('ai_api_key') || '').trim();
         const baseUrl = (localStorage.getItem('ai_base_url') || '').trim();
+        const apiVersion = (localStorage.getItem('ai_api_version') || '').trim();
 
         if (statusMsg) {
             statusMsg.classList.remove('agent-error-state');
@@ -106,7 +107,8 @@ export class AgentManager {
                 body: JSON.stringify({
                     api_key: apiKey || undefined,
                     base_url: baseUrl || undefined,
-                    model: userModel || undefined
+                    model: userModel || undefined,
+                    api_version: apiVersion || undefined
                 }),
                 signal: controller.signal
             });
@@ -773,6 +775,7 @@ export class AgentManager {
         const apiKey = localStorage.getItem('ai_api_key') || undefined;
         const baseUrl = localStorage.getItem('ai_base_url') || undefined;
         const model = localStorage.getItem('ai_model') || undefined;
+        const apiVersion = localStorage.getItem('ai_api_version') || undefined;
 
         // Client-side quick response check & SQL execution via DuckDB-Wasm
         const lowerText = text.toLowerCase().trim();
@@ -846,6 +849,7 @@ export class AgentManager {
                 api_key: apiKey || undefined,
                 base_url: baseUrl || undefined,
                 model: model || undefined,
+                api_version: apiVersion || undefined,
                 active_skills: this.allSkills.length ? getActiveSkills(this.allSkills) : undefined
             };
 

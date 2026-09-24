@@ -908,6 +908,7 @@ export class MermaidManager {
         const apiKey = (localStorage.getItem('ai_api_key') || '').trim();
         const baseUrl = (localStorage.getItem('ai_base_url') || '').trim();
         const model = (localStorage.getItem('ai_model') || '').trim();
+        const apiVersion = (localStorage.getItem('ai_api_version') || '').trim();
 
         const preset = this.presetSelect?.value || 'xychart';
         const col1 = this.sourceCol ? this.sourceCol.value : '';
@@ -972,7 +973,8 @@ export class MermaidManager {
                     data: sampleData,
                     api_key: apiKey || undefined,
                     base_url: baseUrl || undefined,
-                    model: model || undefined
+                    model: model || undefined,
+                    api_version: apiVersion || undefined
                 })
             });
             clearTimeout(timeoutId);

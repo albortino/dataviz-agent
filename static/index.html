@@ -1301,13 +1301,17 @@
                     <input type="text" id="ai-base-url" class="control-input" value="https://api.deepseek.com">
                 </div>
                 <div class="control-group">
-                    <label for="ai-model-name">Model Name</label>
                     <input type="text" id="ai-model-name" class="control-input" value="deepseek-chat">
+                </div>
+                <div class="control-group" id="ai-api-version-group">
+                    <label for="ai-api-version">API Version</label>
+                    <input type="text" id="ai-api-version" class="control-input" placeholder="2024-10-21" value="2024-10-21">
+                    <small class="form-help-text">Used for Azure OpenAI deployments (e.g., 2024-10-21).</small>
                 </div>
                 <div class="control-group">
                     <label for="ai-api-key">API Key (Stored locally in your browser - BYOK)</label>
                     <input type="password" id="ai-api-key" class="control-input" placeholder="sk-...">
-                    <small class="form-help-text">Supports DeepSeek, OpenAI,
+                    <small class="form-help-text">Supports DeepSeek, OpenAI, Azure OpenAI,
                         Anthropic, Mistral, and OpenRouter API keys.</small>
                 </div>
             </div>

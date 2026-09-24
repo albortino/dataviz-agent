@@ -18,6 +18,7 @@ export class SettingsManager {
         this.presetSelect = document.getElementById('ai-preset-select');
         this.baseUrlInput = document.getElementById('ai-base-url');
         this.modelNameInput = document.getElementById('ai-model-name');
+        this.apiVersionInput = document.getElementById('ai-api-version');
         this.apiKeyInput = document.getElementById('ai-api-key');
     }
 
@@ -43,7 +44,8 @@ export class SettingsManager {
                             id,
                             name: p.name,
                             model: p.model,
-                            baseUrl: p.base_url || p.baseUrl
+                            baseUrl: p.base_url || p.baseUrl,
+                            apiVersion: p.api_version || p.apiVersion || ''
                         };
                         if (p.default) this.defaultPresetId = id;
 
@@ -79,11 +81,13 @@ export class SettingsManager {
 
         const savedBaseUrl = localStorage.getItem('ai_base_url') || fallbackBaseUrl;
         const savedModel = localStorage.getItem('ai_model') || fallbackModel;
+        const savedApiVersion = localStorage.getItem('ai_api_version') || (currentPresetConfig ? currentPresetConfig.apiVersion : '') || '2024-10-21';
         const savedApiKey = localStorage.getItem('ai_api_key') || '';
 
         if (this.presetSelect) this.presetSelect.value = savedPreset;
         if (this.baseUrlInput) this.baseUrlInput.value = savedBaseUrl;
         if (this.modelNameInput) this.modelNameInput.value = savedModel;
+        if (this.apiVersionInput) this.apiVersionInput.value = savedApiVersion;
         if (this.apiKeyInput) {
             this.apiKeyInput.value = savedApiKey;
             if (this.serverSettings?.has_server_key && !savedApiKey) {
@@ -98,6 +102,7 @@ export class SettingsManager {
         if (this.presetSelect) localStorage.setItem('ai_preset', this.presetSelect.value);
         if (this.baseUrlInput) localStorage.setItem('ai_base_url', this.baseUrlInput.value.trim());
         if (this.modelNameInput) localStorage.setItem('ai_model', this.modelNameInput.value.trim());
+        if (this.apiVersionInput) localStorage.setItem('ai_api_version', this.apiVersionInput.value.trim());
         if (this.apiKeyInput) localStorage.setItem('ai_api_key', this.apiKeyInput.value.trim());
 
         if (this.settingsModal) this.settingsModal.classList.add('hidden');
@@ -111,6 +116,9 @@ export class SettingsManager {
                 if (this.presets[preset] && preset !== 'custom') {
                     if (this.baseUrlInput) this.baseUrlInput.value = this.presets[preset].baseUrl;
                     if (this.modelNameInput) this.modelNameInput.value = this.presets[preset].model;
+                    if (this.apiVersionInput && this.presets[preset].apiVersion) {
+                        this.apiVersionInput.value = this.presets[preset].apiVersion;
+                    }
                 }
             });
         }

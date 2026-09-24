@@ -4,7 +4,7 @@ import json
 import inspect
 import pandas as pd
 import numpy as np
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 try:
     from src.tools import AVAILABLE_TOOLS, get_dataframe_schema, OPENAI_TOOLS, CLIENT_DELEGATED_TOOLS
 except ImportError:
@@ -65,6 +65,7 @@ class ReActAgent:
         api_key: str = None,
         base_url: str = None,
         model_name: str = None,
+        api_version: str = None,
         active_skills: list = None,
         row_count: int = None,
         dataset_profile: str = None,
@@ -82,14 +83,27 @@ class ReActAgent:
         self.api_key = api_key or os.getenv("LLM_API_KEY") or ""
         self.base_url = (base_url or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com").strip()
         self.model_name = (model_name or os.getenv("LLM_MODEL") or "deepseek-flash").strip()
+        self.api_version = (api_version or os.getenv("LLM_API_VERSION") or "2024-10-21").strip()
 
-        extra_headers = {"x-api-key": self.api_key} if ("anthropic" in self.base_url and self.api_key) else None
+        if self.base_url and not self.base_url.startswith("http://") and not self.base_url.startswith("https://"):
+            self.base_url = f"https://{self.base_url}"
 
-        self.client = OpenAI(
-            api_key=self.api_key or "no-key",
-            base_url=self.base_url,
-            default_headers=extra_headers
-        )
+        is_azure = "openai.azure.com" in self.base_url or "azure.com" in self.base_url
+
+        if is_azure:
+            clean_endpoint = re.sub(r"/openai(/.*)?$", "", self.base_url.rstrip("/"))
+            self.client = AzureOpenAI(
+                azure_endpoint=clean_endpoint,
+                api_key=self.api_key or "no-key",
+                api_version=self.api_version
+            )
+        else:
+            extra_headers = {"x-api-key": self.api_key} if ("anthropic" in self.base_url and self.api_key) else None
+            self.client = OpenAI(
+                api_key=self.api_key or "no-key",
+                base_url=self.base_url,
+                default_headers=extra_headers
+            )
 
     def _build_response(self, answer: str, logs: list = None, images: list = None, code_blocks: list = None, status: str = "completed") -> dict:
         """Helper to construct standardized agent response dictionary."""
@@ -162,6 +176,7 @@ class ReActAgent:
             "  * SandDance: Particle-based 3D/2D unit visualizations (scatter, bar, treemap, density).\n"
             "  * Sankey: Live SankeyMatic flow diagrams with customizable palettes, stage disambiguation for election/transition circular-link prevention, and text annotations.\n"
             "  * Mermaid: Diagram and flowchart studio with native Sankey (sankey-beta), Radar charts, Treemap (treemap-beta), Flowchart, Pie, and XY charts.\n"
+            "  * Vega-Lite: Declarative statistical visualizations.\n"
             "- Next to this chat panel, the user has a 'Live Data State' preview showing the first few rows of the active DataFrame. When you filter or modify data, that preview updates dynamically.\n\n"
             "CRITICAL EXECUTION RULES:\n"
             "1. DUCKDB-WASM ENGINE FOR ACCURATE ANALYTICS: For ANY aggregations, sums, averages, counts, unique values, filtering, group-by metrics, or correlations across the complete dataset, ALWAYS call `execute_sql` with DuckDB SQL targeting table `dataset`. The client executes this query directly on the 100% full dataset in DuckDB-Wasm with zero sampling and exact mathematical precision.\n"

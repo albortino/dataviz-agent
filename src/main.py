@@ -6,6 +6,7 @@ from typing import Optional, List, Any
 import pandas as pd
 import os
 import requests
+import re
 
 try:
     from src.agent import ReActAgent
@@ -40,8 +41,9 @@ app.add_middleware(
 )
 
 DEFAULT_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-DEFAULT_MODEL_NAME = os.getenv("MODEL_NAME", os.getenv("LLM_MODEL", "deepseek-flash"))
-DEFAULT_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY") or ""
+DEFAULT_MODEL_NAME = os.getenv("LLM_MODEL", "deepseek-flash")
+DEFAULT_API_KEY = os.getenv("LLM_API_KEY") or ""
+DEFAULT_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", os.getenv("LLM_API_VERSION", "2024-10-21"))
 
 class ChatRequest(BaseModel):
     message: Optional[str] = None
@@ -49,6 +51,7 @@ class ChatRequest(BaseModel):
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
+    api_version: Optional[str] = None
     active_skills: Optional[List[str]] = None
     row_count: Optional[int] = None
     dataset_profile: Optional[str] = None
@@ -59,14 +62,17 @@ class ValidateKeyRequest(BaseModel):
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
+    api_version: Optional[str] = None
 
 class ExecuteCodeRequest(BaseModel):
     code: str
     data: List[Any]
 
-def check_credentials_validity(api_key: str, base_url: str, model_name: str) -> dict:
+def check_credentials_validity(api_key: str, base_url: str, model_name: str, api_version: str = None) -> dict:
     api_key = (api_key or "").strip()
     base_url = (base_url or "").rstrip("/")
+    if base_url and not base_url.startswith("http://") and not base_url.startswith("https://"):
+        base_url = f"https://{base_url}"
     is_local = "localhost" in base_url or "127.0.0.1" in base_url
     if not api_key and not is_local:
         return {
@@ -76,7 +82,14 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str) -> 
         }
 
     try:
-        if "anthropic.com" in base_url:
+        is_azure = "openai.azure.com" in base_url or "azure.com" in base_url
+        if is_azure:
+            clean_endpoint = re.sub(r"/openai(/.*)?$", "", base_url)
+            ver = api_version or DEFAULT_API_VERSION or "2024-10-21"
+            test_url = f"{clean_endpoint}/openai/models?api-version={ver}"
+            headers = {"api-key": api_key}
+            resp = requests.get(test_url, headers=headers, timeout=6)
+        elif "anthropic.com" in base_url:
             test_url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
             headers = {
                 "x-api-key": api_key,
@@ -145,13 +158,15 @@ def validate_key(request: ValidateKeyRequest):
     user_key = (request.api_key or "").strip()
     user_base_url = (request.base_url or "").strip()
     user_model = (request.model or "").strip()
+    user_api_version = (request.api_version or "").strip()
 
     # Fallback to server defaults if client key is empty and server key exists
     api_key = user_key or DEFAULT_API_KEY
     base_url = user_base_url or DEFAULT_BASE_URL
     model_name = user_model or DEFAULT_MODEL_NAME
+    api_version = user_api_version or DEFAULT_API_VERSION
 
-    res = check_credentials_validity(api_key, base_url, model_name)
+    res = check_credentials_validity(api_key, base_url, model_name, api_version)
     res["uses_server_key"] = bool(not user_key and DEFAULT_API_KEY)
     return res
 
@@ -162,6 +177,13 @@ PROVIDER_PRESETS = [
         "model": "deepseek-flash",
         "base_url": "https://api.deepseek.com",
         "default": True
+    },
+    {
+        "id": "azure-openai",
+        "name": "Azure OpenAI",
+        "model": "gpt-4o",
+        "base_url": "https://<your-resource>.openai.azure.com",
+        "api_version": "2024-10-21"
     },
     {
         "id": "openai-gpt56-terra",
@@ -215,6 +237,7 @@ def chat(request: ChatRequest):
     api_key = (request.api_key or "").strip() or DEFAULT_API_KEY
     base_url = (request.base_url or "").strip() or DEFAULT_BASE_URL
     model_name = (request.model or "").strip() or DEFAULT_MODEL_NAME
+    api_version = (request.api_version or "").strip() or DEFAULT_API_VERSION
 
     if not api_key and "localhost" not in base_url and "127.0.0.1" not in base_url:
         raise HTTPException(
@@ -229,6 +252,7 @@ def chat(request: ChatRequest):
             api_key=api_key,
             base_url=base_url,
             model_name=model_name,
+            api_version=api_version,
             active_skills=request.active_skills,
             row_count=request.row_count,
             dataset_profile=request.dataset_profile,
