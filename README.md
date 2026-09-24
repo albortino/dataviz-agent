@@ -114,11 +114,15 @@ Dataviz-Agent offers a flexible AI architecture. You can configure global server
 
 Supported provider presets include:
 - **DeepSeek Flash** (`https://api.deepseek.com`)
+- **Azure OpenAI** (`https://<resource>.openai.azure.com`) — supports **Direct Browser Connection** for private VPN endpoints
 - **OpenAI GPT-5.6 Terra / GPT-4o** (`https://api.openai.com/v1`)
 - **Google Gemini Flash** (`https://generativelanguage.googleapis.com/v1beta/openai/`)
 - **Anthropic Claude Sonnet** (`https://api.anthropic.com/v1`)
 - **Local Ollama** (`http://localhost:11434/v1`)
 - **OpenRouter Gateway** (`https://openrouter.ai/api/v1`)
+
+> [!NOTE]
+> **Direct Browser Connection (VPN / Private Azure endpoints):** If your Azure OpenAI or LLM endpoint is behind a private corporate VPN and not reachable from the backend server, enable "Direct Browser Connection" in the Settings modal. In this mode, the ReAct agent runs directly in your browser, running analytical queries via DuckDB-Wasm and rendering interactive Vega-Lite & Mermaid diagrams.
 
 ---
 

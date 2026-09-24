@@ -86,38 +86,48 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
         if is_azure:
             clean_endpoint = re.sub(r"/openai(/.*)?$", "", base_url)
             ver = api_version or DEFAULT_API_VERSION or "2024-10-21"
-            test_url = f"{clean_endpoint}/openai/models?api-version={ver}"
-            headers = {"api-key": api_key}
-            resp = requests.get(test_url, headers=headers, timeout=6)
+            test_url = f"{clean_endpoint}/openai/deployments/{model_name}/chat/completions?api-version={ver}"
+            headers = {"api-key": api_key, "Content-Type": "application/json"}
+            payload = {"messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
         elif "anthropic.com" in base_url:
-            test_url = f"{base_url}/models" if base_url.endswith("/v1") else f"{base_url}/v1/models"
+            test_url = f"{base_url}/messages" if base_url.endswith("/v1") else f"{base_url}/v1/messages"
             headers = {
                 "x-api-key": api_key,
-                "anthropic-version": "2023-06-01"
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
             }
-            resp = requests.get(test_url, headers=headers, timeout=6)
+            payload = {"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
         else:
-            test_url = f"{base_url}/models"
-            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-            resp = requests.get(test_url, headers=headers, timeout=6)
+            endpoint = base_url.rstrip("/")
+            test_url = f"{endpoint}/chat/completions" if not endpoint.endswith("/chat/completions") else endpoint
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            payload = {"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
 
-        if resp.status_code == 200:
+        if 200 <= resp.status_code < 300 or resp.status_code == 400:
             return {"valid": True, "model": model_name, "provider_url": base_url}
         elif resp.status_code == 401:
             return {
                 "valid": False,
-                "error": "Invalid API Key (401 Unauthorized). Please check your key in Settings.",
+                "error": "Invalid API Key (401 Unauthorized).",
                 "model": model_name
             }
         elif resp.status_code == 403:
             return {
                 "valid": False,
-                "error": "Access forbidden (403). Your API key may lack permissions for this provider/model.",
+                "error": "Access forbidden (403). Check permissions or VNet.",
                 "model": model_name
             }
         elif resp.status_code == 404:
-            # Endpoint reached but /models path not implemented by proxy
-            return {"valid": True, "model": model_name, "provider_url": base_url}
+            return {
+                "valid": False,
+                "error": f"Deployment '{model_name}' not found (404).",
+                "model": model_name
+            }
         else:
             err_text = resp.text[:120] if resp.text else f"Status code {resp.status_code}"
             return {
@@ -128,7 +138,7 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
     except requests.exceptions.Timeout:
         return {
             "valid": False,
-            "error": f"Connection timed out reaching {base_url}. Please check your network or provider URL.",
+            "error": "Timeout after 2s",
             "model": model_name
         }
     except requests.exceptions.ConnectionError:

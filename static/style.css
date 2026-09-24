@@ -2831,6 +2831,324 @@ hr.control-divider,
 }
 
 /* ==========================================================================
+   AI Settings Modal (Concept 1: Refined Minimalist Professional)
+   ========================================================================== */
+
+#settings-modal .modal-content {
+    max-width: 440px;
+    width: 92vw;
+    border-radius: 16px;
+    background: var(--color-bg-card, #ffffff);
+    box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    border: none;
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+}
+
+#settings-modal .modal-header {
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-bg-card, #ffffff);
+}
+
+#settings-modal .settings-modal-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+#settings-modal .settings-icon-cube {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    border: 1px solid #dbeafe;
+}
+
+#settings-modal .modal-header h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #0f172a);
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+#settings-modal .modal-close-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted, #94a3b8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.15s ease;
+}
+
+#settings-modal .modal-close-btn:hover {
+    background: var(--color-bg-medium, #f1f5f9);
+    color: var(--color-text-primary, #0f172a);
+}
+
+#settings-modal .modal-body {
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--color-bg-card, #ffffff);
+    max-height: 75vh;
+}
+
+/* Strictly vertical stack for every control group in the settings modal */
+#settings-modal .control-group {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.35rem;
+    margin: 0;
+    width: 100%;
+}
+
+#settings-modal .settings-form-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: -0.01em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0;
+    text-transform: none;
+}
+
+#settings-modal .control-input,
+#settings-modal .control-select {
+    width: 100%;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    padding: 0 0.75rem;
+    font-size: 0.88rem;
+    color: #0f172a;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+}
+
+#settings-modal .control-input:focus,
+#settings-modal .control-select:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+#settings-modal .control-input.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+}
+
+#settings-modal .control-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Route Segmented Switcher */
+#settings-modal .route-segmented-control {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 9px;
+    border: 1px solid #e2e8f0;
+    gap: 2px;
+}
+
+#settings-modal .route-segmented-btn {
+    height: 32px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    transition: all 0.15s ease;
+}
+
+#settings-modal .route-segmented-btn.active {
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+#settings-modal .route-segmented-btn.active.direct i {
+    color: #0284c7;
+}
+
+#settings-modal .route-segmented-btn.active.server i {
+    color: #6366f1;
+}
+
+#settings-modal .settings-route-hint {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+/* Advanced disclosure */
+#settings-modal .settings-advanced-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: #2563eb;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    padding: 0.2rem 0;
+}
+
+#settings-modal .settings-advanced-toggle i {
+    font-size: 0.65rem;
+    transition: transform 0.18s ease;
+}
+
+#settings-modal .settings-advanced-toggle.open i {
+    transform: rotate(90deg);
+}
+
+#settings-modal .settings-advanced-drawer {
+    display: none;
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+}
+
+#settings-modal .settings-advanced-drawer.open {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+/* Ping Status Toast */
+#settings-modal .ping-status-bar {
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.3;
+}
+
+#settings-modal .ping-status-bar.testing {
+    display: flex;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+#settings-modal .ping-status-bar.success {
+    display: flex;
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+#settings-modal .ping-status-bar.error {
+    display: flex;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* Footer */
+#settings-modal .modal-footer {
+    padding: 0.85rem 1.4rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+}
+
+#settings-modal .btn-test-connection {
+    height: 36px;
+    padding: 0 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+}
+
+#settings-modal .btn-test-connection:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+#settings-modal .btn-cancel {
+    height: 36px;
+    padding: 0 1rem;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#settings-modal .btn-cancel:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+#settings-modal .btn-save {
+    height: 36px;
+    padding: 0 1.15rem;
+    border-radius: 8px;
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+#settings-modal .btn-save:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+/* ==========================================================================
    Data Import / Parser Settings Modal
    ========================================================================== */
 

@@ -6,6 +6,7 @@
 
 import { ClientDataTools } from './data-transform.js';
 import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js';
+import { validateBrowserDirectConnection, runBrowserDirectAgent } from './browser-agent.js';
 
 export const CHAT_STORAGE_KEY = 'ai_agent_chat_history_v1';
 
@@ -92,10 +93,33 @@ export class AgentManager {
         const apiKey = (localStorage.getItem('ai_api_key') || '').trim();
         const baseUrl = (localStorage.getItem('ai_base_url') || '').trim();
         const apiVersion = (localStorage.getItem('ai_api_version') || '').trim();
+        const isDirectBrowser = localStorage.getItem('ai_direct_browser') === 'true';
+        this.isDirectBrowser = isDirectBrowser;
 
         if (statusMsg) {
             statusMsg.classList.remove('agent-error-state');
             statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-primary-icon"></i> Checking API key and agent connection...`;
+        }
+
+        if (isDirectBrowser) {
+            try {
+                const res = await validateBrowserDirectConnection({
+                    apiKey,
+                    baseUrl,
+                    model: userModel,
+                    apiVersion,
+                    timeout
+                });
+                this.agentAvailable = Boolean(res.valid);
+                this.activeModel = res.model || userModel || 'LLM Agent';
+                this.errorMessage = res.error || '';
+                this.usesServerKey = false;
+            } catch (e) {
+                this.agentAvailable = false;
+                this.errorMessage = e.message || 'Direct connection validation error';
+            }
+            this.updateUIState();
+            return this.agentAvailable;
         }
 
         try {
@@ -150,8 +174,23 @@ export class AgentManager {
     }
 
     getWelcomeMessageHtml() {
-        const keySource = this.usesServerKey ? ' (Server Environment)' : '';
+        const keySource = this.usesServerKey ? ' (Server Environment)' : (this.isDirectBrowser ? ' (Browser Direct)' : '');
         const modelBadge = this.activeModel ? `Online (${this.activeModel}${keySource})` : 'Online';
+        if (this.isDirectBrowser) {
+            return `
+            <div class="agent-welcome">
+                <p>
+                    I am your autonomous data science assistant running in <b>Direct Browser Connection</b> mode (VPN compatible). Analytical queries execute directly via DuckDB-Wasm:
+                </p>
+                <ul>
+                    <li><b>Direct In-Browser ReAct Loop:</b> Directly communicates with your LLM endpoint (Azure OpenAI / private VPN) with zero backend proxying.</li>
+                    <li><b>DuckDB-Wasm Calculations:</b> Aggregations, metrics, distributions, and summaries compute locally at WASM speed on 100% of data.</li>
+                    <li><b>Declarative Visualizations:</b> Generates interactive Vega-Lite statistical charts bound to your active dataset.</li>
+                    <li><b>Diagrams & Flows:</b> Creates Mermaid diagrams and architecture flows.</li>
+                </ul>
+            </div>
+            `;
+        }
         return `
             <div class="agent-welcome">
                 <p>
@@ -856,120 +895,153 @@ export class AgentManager {
             let result = null;
             let currentLogs = [];
 
-            while (true) {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(chatPayload)
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    const errDetail = errData.detail || 'Agent service returned an error';
-                    if (response.status === 400 && errDetail.includes("No API Key")) {
-                        agentMsg.innerHTML = '<div class="markdown-content"><p><b>No API Key configured.</b> Please open <a href="#" id="agent-chat-settings-link" class="agent-settings-link">Settings (⚙️)</a> and enter your API key to use the AI Agent.</p></div>';
-                        const link = document.getElementById('agent-chat-settings-link');
-                        if (link) {
-                            link.addEventListener('click', (e) => {
-                                e.preventDefault();
-                                this.openSettingsModal();
-                            });
-                        }
-                        this.setChatBusy(false);
-                        return;
-                    }
-                    throw new Error(errDetail);
-                }
-
-                result = await response.json();
-                if (result.logs && result.logs.length > 0) {
-                    currentLogs = currentLogs.concat(result.logs);
-                }
-
-                if (result.status === 'requires_action' && result.tool_calls && result.tool_calls.length > 0) {
-                    const toolNames = result.tool_calls.map(t => t.name).join(', ');
-                    agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>Executing in-browser analytical query (${toolNames}) via DuckDB-Wasm...</span></div>`;
-                    this.scrollChatToBottom();
-
-                    const toolResults = [];
-                    for (const tc of result.tool_calls) {
-                        const callName = tc.name;
-                        const callArgs = tc.arguments || {};
-                        let outputStr = '';
-                        try {
-                            if (window.duckdbEngine && window.duckdbEngine.isReady()) {
-                                if (callName === 'execute_sql') {
-                                    const query = callArgs.query || callArgs.sql || '';
-                                    outputStr = await window.duckdbEngine.executeSQL(query);
-                                } else if (callName === 'audit_dataset') {
-                                    outputStr = await window.duckdbEngine.auditDataset();
-                                } else if (callName === 'summarize_dataset') {
-                                    outputStr = await window.duckdbEngine.summarizeDataset();
-                                } else if (callName === 'get_statistics') {
-                                    const stats = await window.duckdbEngine.getStatistics(callArgs.columns || (callArgs.column ? [callArgs.column] : null));
-                                    outputStr = JSON.stringify(stats, null, 2);
-                                } else if (callName === 'calculate_correlation') {
-                                    const corr = await window.duckdbEngine.calculateCorrelation(callArgs.col_a, callArgs.col_b);
-                                    outputStr = JSON.stringify(corr, null, 2);
-                                } else if (callName === 'get_unique_values') {
-                                    const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
-                                    if (col) {
-                                        const rows = await window.duckdbEngine.queryRows(`SELECT DISTINCT "${col}" FROM dataset WHERE "${col}" IS NOT NULL LIMIT 50;`);
-                                        outputStr = JSON.stringify(rows.map(r => r[col]), null, 2);
-                                    } else {
-                                        outputStr = 'Error: column not specified';
-                                    }
-                                } else if (callName === 'calculate_sum') {
-                                    const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
-                                    const rows = await window.duckdbEngine.queryRows(`SELECT SUM("${col}") AS total FROM dataset;`);
-                                    outputStr = JSON.stringify(rows[0] || {}, null, 2);
-                                } else if (callName === 'calculate_mean') {
-                                    const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
-                                    const rows = await window.duckdbEngine.queryRows(`SELECT AVG("${col}") AS mean FROM dataset;`);
-                                    outputStr = JSON.stringify(rows[0] || {}, null, 2);
-                                } else if (callName === 'get_group_summary') {
-                                    const grp = callArgs.group_col || callArgs.group;
-                                    const aggCol = callArgs.agg_col || callArgs.column;
-                                    const func = (callArgs.agg_func || 'mean').toUpperCase() === 'MEAN' ? 'AVG' : (callArgs.agg_func || 'sum').toUpperCase();
-                                    const rows = await window.duckdbEngine.queryRows(`SELECT "${grp}", ${func}("${aggCol}") AS metric FROM dataset GROUP BY "${grp}" ORDER BY metric DESC LIMIT 25;`);
-                                    outputStr = JSON.stringify(rows, null, 2);
-                                } else if (callName === 'list_columns') {
-                                    const schema = await window.duckdbEngine.getSchema();
-                                    outputStr = JSON.stringify(schema.map(c => c.name));
-                                } else if (callName === 'get_info') {
-                                    const cnt = await window.duckdbEngine.getRowCount();
-                                    const schema = await window.duckdbEngine.getSchema();
-                                    outputStr = `Table: dataset (${cnt} rows, ${schema.length} columns)\n` + schema.map(c => `${c.name}: ${c.type}`).join('\n');
-                                } else {
-                                    outputStr = `Executed ${callName} on client.`;
-                                }
-                            } else {
-                                outputStr = 'Error: DuckDB engine not ready on client.';
-                            }
-                        } catch (execErr) {
-                            outputStr = `Client Execution Error: ${execErr.message}`;
-                        }
-
-                        toolResults.push({
-                            tool_call_id: tc.id,
-                            content: outputStr
+            const isDirectBrowser = localStorage.getItem('ai_direct_browser') === 'true';
+            if (isDirectBrowser) {
+                if (!apiKey && (!baseUrl || (!baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')))) {
+                    agentMsg.innerHTML = '<div class="markdown-content"><p><b>No API Key configured.</b> Please open <a href="#" id="agent-chat-settings-link" class="agent-settings-link">Settings (⚙️)</a> and enter your API key to use the AI Agent.</p></div>';
+                    const link = document.getElementById('agent-chat-settings-link');
+                    if (link) {
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this.openSettingsModal();
                         });
                     }
+                    this.setChatBusy(false);
+                    return;
+                }
 
-                    chatPayload = {
-                        messages: result.messages,
-                        tool_results: toolResults,
-                        data: previewData,
-                        row_count: totalRowCount,
-                        dataset_profile: datasetProfile,
-                        api_key: apiKey || undefined,
-                        base_url: baseUrl || undefined,
-                        model: model || undefined,
-                        active_skills: this.allSkills.length ? getActiveSkills(this.allSkills) : undefined
-                    };
-                } else {
-                    result.logs = currentLogs;
-                    break;
+                agentMsg.innerHTML = '<div class="chat-analyzing-indicator"><i class="fa-solid fa-spinner fa-spin text-primary-icon"></i><span>Connecting directly to LLM from browser...</span></div>';
+                this.scrollChatToBottom();
+
+                result = await runBrowserDirectAgent({
+                    userQuery: text,
+                    apiKey,
+                    baseUrl,
+                    model,
+                    apiVersion,
+                    activeSkills: this.allSkills.length ? getActiveSkills(this.allSkills) : undefined,
+                    duckdbEngine: window.duckdbEngine,
+                    onProgress: ({ step, toolNames }) => {
+                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>[Step ${step}] Executing in-browser query (${toolNames}) via DuckDB-Wasm...</span></div>`;
+                        this.scrollChatToBottom();
+                    }
+                });
+            } else {
+                while (true) {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chatPayload)
+                    });
+
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        const errDetail = errData.detail || 'Agent service returned an error';
+                        if (response.status === 400 && errDetail.includes("No API Key")) {
+                            agentMsg.innerHTML = '<div class="markdown-content"><p><b>No API Key configured.</b> Please open <a href="#" id="agent-chat-settings-link" class="agent-settings-link">Settings (⚙️)</a> and enter your API key to use the AI Agent.</p></div>';
+                            const link = document.getElementById('agent-chat-settings-link');
+                            if (link) {
+                                link.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    this.openSettingsModal();
+                                });
+                            }
+                            this.setChatBusy(false);
+                            return;
+                        }
+                        throw new Error(errDetail);
+                    }
+
+                    result = await response.json();
+                    if (result.logs && result.logs.length > 0) {
+                        currentLogs = currentLogs.concat(result.logs);
+                    }
+
+                    if (result.status === 'requires_action' && result.tool_calls && result.tool_calls.length > 0) {
+                        const toolNames = result.tool_calls.map(t => t.name).join(', ');
+                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>Executing in-browser analytical query (${toolNames}) via DuckDB-Wasm...</span></div>`;
+                        this.scrollChatToBottom();
+
+                        const toolResults = [];
+                        for (const tc of result.tool_calls) {
+                            const callName = tc.name;
+                            const callArgs = tc.arguments || {};
+                            let outputStr = '';
+                            try {
+                                if (window.duckdbEngine && window.duckdbEngine.isReady()) {
+                                    if (callName === 'execute_sql') {
+                                        const query = callArgs.query || callArgs.sql || '';
+                                        outputStr = await window.duckdbEngine.executeSQL(query);
+                                    } else if (callName === 'audit_dataset') {
+                                        outputStr = await window.duckdbEngine.auditDataset();
+                                    } else if (callName === 'summarize_dataset') {
+                                        outputStr = await window.duckdbEngine.summarizeDataset();
+                                    } else if (callName === 'get_statistics') {
+                                        const stats = await window.duckdbEngine.getStatistics(callArgs.columns || (callArgs.column ? [callArgs.column] : null));
+                                        outputStr = JSON.stringify(stats, null, 2);
+                                    } else if (callName === 'calculate_correlation') {
+                                        const corr = await window.duckdbEngine.calculateCorrelation(callArgs.col_a, callArgs.col_b);
+                                        outputStr = JSON.stringify(corr, null, 2);
+                                    } else if (callName === 'get_unique_values') {
+                                        const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
+                                        if (col) {
+                                            const rows = await window.duckdbEngine.queryRows(`SELECT DISTINCT "${col}" FROM dataset WHERE "${col}" IS NOT NULL LIMIT 50;`);
+                                            outputStr = JSON.stringify(rows.map(r => r[col]), null, 2);
+                                        } else {
+                                            outputStr = 'Error: column not specified';
+                                        }
+                                    } else if (callName === 'calculate_sum') {
+                                        const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
+                                        const rows = await window.duckdbEngine.queryRows(`SELECT SUM("${col}") AS total FROM dataset;`);
+                                        outputStr = JSON.stringify(rows[0] || {}, null, 2);
+                                    } else if (callName === 'calculate_mean') {
+                                        const col = callArgs.column || (callArgs.columns && callArgs.columns[0]);
+                                        const rows = await window.duckdbEngine.queryRows(`SELECT AVG("${col}") AS mean FROM dataset;`);
+                                        outputStr = JSON.stringify(rows[0] || {}, null, 2);
+                                    } else if (callName === 'get_group_summary') {
+                                        const grp = callArgs.group_col || callArgs.group;
+                                        const aggCol = callArgs.agg_col || callArgs.column;
+                                        const func = (callArgs.agg_func || 'mean').toUpperCase() === 'MEAN' ? 'AVG' : (callArgs.agg_func || 'sum').toUpperCase();
+                                        const rows = await window.duckdbEngine.queryRows(`SELECT "${grp}", ${func}("${aggCol}") AS metric FROM dataset GROUP BY "${grp}" ORDER BY metric DESC LIMIT 25;`);
+                                        outputStr = JSON.stringify(rows, null, 2);
+                                    } else if (callName === 'list_columns') {
+                                        const schema = await window.duckdbEngine.getSchema();
+                                        outputStr = JSON.stringify(schema.map(c => c.name));
+                                    } else if (callName === 'get_info') {
+                                        const cnt = await window.duckdbEngine.getRowCount();
+                                        const schema = await window.duckdbEngine.getSchema();
+                                        outputStr = `Table: dataset (${cnt} rows, ${schema.length} columns)\n` + schema.map(c => `${c.name}: ${c.type}`).join('\n');
+                                    } else {
+                                        outputStr = `Executed ${callName} on client.`;
+                                    }
+                                } else {
+                                    outputStr = 'Error: DuckDB engine not ready on client.';
+                                }
+                            } catch (execErr) {
+                                outputStr = `Client Execution Error: ${execErr.message}`;
+                            }
+
+                            toolResults.push({
+                                tool_call_id: tc.id,
+                                content: outputStr
+                            });
+                        }
+
+                        chatPayload = {
+                            messages: result.messages,
+                            tool_results: toolResults,
+                            data: previewData,
+                            row_count: totalRowCount,
+                            dataset_profile: datasetProfile,
+                            api_key: apiKey || undefined,
+                            base_url: baseUrl || undefined,
+                            model: model || undefined,
+                            active_skills: this.allSkills.length ? getActiveSkills(this.allSkills) : undefined
+                        };
+                    } else {
+                        result.logs = currentLogs;
+                        break;
+                    }
                 }
             }
             let rawAnswer = result.answer || '';

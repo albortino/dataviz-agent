@@ -1287,37 +1287,87 @@
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>AI Model Settings</h2>
+                <div class="settings-modal-header-title">
+                    <span class="settings-icon-cube"><i class="fa-solid fa-brain"></i></span>
+                    <h2>AI Model Settings</h2>
+                </div>
+                <button id="close-settings-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
+                <!-- Provider Preset Dropdown -->
                 <div class="control-group">
-                    <label for="ai-preset-select">Provider Preset</label>
+                    <label for="ai-preset-select" class="settings-form-label">Provider</label>
                     <select id="ai-preset-select" class="control-select">
                         <option value="custom">Custom Configuration</option>
                     </select>
                 </div>
+
+                <!-- Segmented Route Switcher -->
                 <div class="control-group">
-                    <label for="ai-base-url">API Base URL</label>
-                    <input type="text" id="ai-base-url" class="control-input" value="https://api.deepseek.com">
+                    <div class="settings-form-label">
+                        <span>Connection Route</span>
+                        <span class="settings-route-hint" id="ai-route-hint">Server proxy</span>
+                    </div>
+                    <div class="route-segmented-control" id="ai-route-switcher">
+                        <button type="button" class="route-segmented-btn server active" data-mode="server">
+                            <i class="fa-solid fa-server"></i> <span>Server Proxy</span>
+                        </button>
+                        <button type="button" class="route-segmented-btn direct" data-mode="browser">
+                            <i class="fa-solid fa-globe"></i> <span>Direct Browser (VPN)</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="control-group">
-                    <input type="text" id="ai-model-name" class="control-input" value="deepseek-chat">
+
+                <!-- Endpoint URL (Visible for Azure & Custom; hidden for standard presets) -->
+                <div class="control-group" id="ai-endpoint-group" style="display: none;">
+                    <label for="ai-base-url" id="ai-endpoint-label" class="settings-form-label">Endpoint Hostname</label>
+                    <input type="text" id="ai-base-url" class="control-input font-mono" placeholder="my-resource.openai.azure.com" value="https://api.deepseek.com">
                 </div>
-                <div class="control-group" id="ai-api-version-group">
-                    <label for="ai-api-version">API Version</label>
-                    <input type="text" id="ai-api-version" class="control-input" placeholder="2024-10-21" value="2024-10-21">
-                    <small class="form-help-text">Used for Azure OpenAI deployments (e.g., 2024-10-21).</small>
+
+                <!-- Model / Deployment Name -->
+                <div class="control-group" id="ai-model-group">
+                    <label for="ai-model-name" id="ai-model-name-label" class="settings-form-label">Model</label>
+                    <input type="text" id="ai-model-name" class="control-input font-mono" value="deepseek-chat">
                 </div>
-                <div class="control-group">
-                    <label for="ai-api-key">API Key (Stored locally in your browser - BYOK)</label>
-                    <input type="password" id="ai-api-key" class="control-input" placeholder="sk-...">
-                    <small class="form-help-text">Supports DeepSeek, OpenAI, Azure OpenAI,
-                        Anthropic, Mistral, and OpenRouter API keys.</small>
+
+                <!-- API Key -->
+                <div class="control-group" id="ai-api-key-group">
+                    <div class="settings-form-label">
+                        <span>API Key</span>
+                        <span class="settings-route-hint">Stored locally (BYOK)</span>
+                    </div>
+                    <input type="password" id="ai-api-key" class="control-input font-mono" placeholder="sk-...">
                 </div>
+
+                <!-- Advanced Parameters (Base URL & API Version) -->
+                <div class="settings-advanced-section" id="ai-advanced-section">
+                    <button type="button" class="settings-advanced-toggle" id="ai-adv-trigger">
+                        <i class="fa-solid fa-chevron-right"></i>
+                        <span>Advanced Parameters</span>
+                    </button>
+                    <div class="settings-advanced-drawer" id="ai-adv-content">
+                        <div class="control-group" id="ai-adv-base-url-group">
+                            <label for="ai-adv-base-url" class="settings-form-label">Base URL</label>
+                            <input type="text" id="ai-adv-base-url" class="control-input font-mono" placeholder="https://api.deepseek.com">
+                        </div>
+                        <div class="control-group" id="ai-api-version-group">
+                            <label for="ai-api-version" class="settings-form-label">API Version</label>
+                            <input type="text" id="ai-api-version" class="control-input font-mono" placeholder="2024-10-21" value="2024-10-21">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ping Result Toast -->
+                <div class="ping-status-bar" id="ai-ping-status"></div>
             </div>
             <div class="modal-footer">
-                <button id="cancel-settings-modal-btn" class="button">Cancel</button>
-                <button id="save-settings-btn" class="button primary">Save Settings</button>
+                <button id="test-connection-btn" class="btn-test-connection" type="button">
+                    <i class="fa-solid fa-bolt"></i> <span>Test Ping</span>
+                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="cancel-settings-modal-btn" class="btn-cancel" type="button">Cancel</button>
+                    <button id="save-settings-btn" class="btn-save" type="button">Save Settings</button>
+                </div>
             </div>
         </div>
     </div>
