@@ -1,6 +1,5 @@
 /* ==========================================================================
    Dataviz-Agent Core Stylesheet
-   Consolidated & Tokenized
    ========================================================================== */
 
 /* Base & Layout */
@@ -18,7 +17,7 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-body > main {
+body>main {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -29,7 +28,7 @@ body > main {
     z-index: 1;
 }
 
-body > footer,
+body>footer,
 #app-footer {
     text-align: center;
     color: var(--color-text-secondary);
@@ -72,7 +71,7 @@ footer a:hover,
 }
 
 /* Header */
-body > header,
+body>header,
 #header-bar {
     position: relative;
     width: 100%;
@@ -944,12 +943,16 @@ hr.control-divider,
 #lineup-root {
     flex-grow: 1;
     position: relative;
-    overflow: auto;
+    overflow: hidden;
     box-sizing: border-box;
+    padding: 0 0 1rem 0;
+    margin: 0 24px;
 }
 
 #lineup-root:empty {
     overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 /* Explicitly constrain LineUp engine & header to base visual layer */
@@ -1142,9 +1145,9 @@ hr.control-divider,
     width: 100%;
     min-height: calc(100vh - 210px);
     background: var(--color-background-light);
-    border-radius: var(--border-radius-card);
+    /*border-radius: var(--border-radius-card);
     overflow: hidden;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border);*/
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -2118,10 +2121,81 @@ hr.control-divider,
     box-sizing: border-box;
 }
 
-.sanddance-panel label {
+.sanddance-panel label,
+.sanddance-panel .vega-bind-name {
     font-size: 0.775rem;
     font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
+}
+
+.sanddance-panel .vega-bind {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+/* SandDance Hover Tooltip */
+.sanddance-custom-tooltip,
+.sanddance-tooltip {
+    position: fixed !important;
+    z-index: 99999 !important;
+    pointer-events: none !important;
+    background: var(--color-background-elevated) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--border-radius-md) !important;
+    box-shadow: var(--shadow-lg) !important;
+    padding: 0.6rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    color: var(--color-text-main) !important;
+    max-width: 320px !important;
+    backdrop-filter: blur(8px) !important;
+    animation: fadeInSandDanceTooltip 0.12s ease-out;
+}
+
+@keyframes fadeInSandDanceTooltip {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sanddance-tooltip-header {
+    font-weight: var(--font-weight-semibold);
+    font-size: 0.775rem;
+    color: var(--color-primary);
+    margin-bottom: 0.35rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sanddance-tooltip-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.6rem;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.sanddance-tooltip-key {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.sanddance-tooltip-val {
+    color: var(--color-text-main);
+    word-break: break-word;
+    text-align: right;
+}
+
+.sanddance-tooltip table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.sanddance-tooltip td {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.75rem;
 }
 
 /* ==========================================================================

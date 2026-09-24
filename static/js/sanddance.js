@@ -38,6 +38,8 @@ export class SandDanceManager {
         this.canvasWrapper = document.getElementById('sanddance-canvas-wrapper');
         this.panelContainer = document.getElementById('sanddance-panel-container');
         this.panelGroup = document.getElementById('sanddance-panel-group');
+        this.tooltipCheck = document.getElementById('sanddance-tooltip-check');
+        this.tooltipsEnabled = true;
         this.mutationObserver = null;
         this.resizeObserver = null;
         this.resizeTimeout = null;
@@ -73,12 +75,35 @@ export class SandDanceManager {
 
     relocatePanel() {
         if (!this.panelContainer) return;
-        const panel = (this.root && this.root.querySelector('.sanddance-panel')) ||
+        let panel = (this.root && this.root.querySelector('.sanddance-panel')) ||
             (this.canvasWrapper && this.canvasWrapper.querySelector('.sanddance-panel')) ||
-            document.querySelector('#sanddance-container .sanddance-panel');
-        if (panel && panel.parentElement !== this.panelContainer) {
-            this.panelContainer.appendChild(panel);
-            if (this.panelGroup) this.panelGroup.classList.remove('hidden');
+            document.querySelector('#sanddance-container .sanddance-panel') ||
+            document.querySelector('.sanddance-panel');
+
+        if (!panel && this.viewer && this.viewer.presenter) {
+            try {
+                const prefix = (this.viewer.presenter.style && this.viewer.presenter.style.cssPrefix) || 'sanddance-';
+                panel = document.createElement('div');
+                panel.className = `${prefix}panel`;
+                const vegaControls = document.createElement('div');
+                vegaControls.className = `${prefix}vegaControls`;
+                const legend = document.createElement('div');
+                legend.className = `${prefix}legend`;
+                panel.appendChild(vegaControls);
+                panel.appendChild(legend);
+                this.panelContainer.appendChild(panel);
+            } catch (e) {
+                console.warn('Could not ensure sanddance-panel:', e);
+            }
+        }
+
+        if (panel) {
+            if (panel.parentElement !== this.panelContainer) {
+                this.panelContainer.appendChild(panel);
+            }
+            if (this.panelGroup) {
+                this.panelGroup.classList.remove('hidden');
+            }
         }
     }
 
@@ -88,11 +113,11 @@ export class SandDanceManager {
             for (const m of mutations) {
                 for (const node of m.addedNodes) {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.classList && node.classList.contains('sanddance-panel')) {
+                        if (node.classList && (node.classList.contains('sanddance-panel') || node.classList.contains('sanddance-vegaControls') || node.classList.contains('vega-bind'))) {
                             this.relocatePanel();
                             return;
                         }
-                        if (node.querySelector && node.querySelector('.sanddance-panel')) {
+                        if (node.querySelector && node.querySelector('.sanddance-panel, .sanddance-vegaControls, .vega-bind')) {
                             this.relocatePanel();
                             return;
                         }
@@ -103,6 +128,9 @@ export class SandDanceManager {
         this.mutationObserver.observe(this.root, { childList: true, subtree: true });
         if (this.canvasWrapper && this.canvasWrapper !== this.root) {
             this.mutationObserver.observe(this.canvasWrapper, { childList: true });
+        }
+        if (this.panelContainer) {
+            this.mutationObserver.observe(this.panelContainer, { childList: true, subtree: true });
         }
     }
 
@@ -137,7 +165,43 @@ export class SandDanceManager {
         if (!this.viewer && window.SandDance && window.vega && this.root) {
             try {
                 SandDance.use(vega);
-                this.viewer = new SandDance.Viewer(this.root);
+                if (SandDance.VegaMorphCharts && SandDance.VegaMorphCharts.Presenter) {
+                    const proto = SandDance.VegaMorphCharts.Presenter.prototype;
+                    if (!proto._origGetElement) {
+                        proto._origGetElement = proto.getElement;
+                        proto.getElement = function (type) {
+                            let el = this._origGetElement(type);
+                            if (!el && typeof document !== 'undefined') {
+                                const typeName = typeof type === 'number'
+                                    ? (SandDance.VegaMorphCharts.PresenterElement[type] || '')
+                                    : (typeof type === 'string' ? type : '');
+                                const prefix = (this.style && this.style.cssPrefix) || 'sanddance-';
+                                if (typeName) {
+                                    el = document.querySelector(`.${prefix}${typeName}`) ||
+                                         document.querySelector(`[class*="${typeName}"]`);
+                                }
+                                if (!el && (type === 2 || type === 'panel')) {
+                                    el = document.querySelector('.sanddance-panel') ||
+                                         document.getElementById('sanddance-panel-container');
+                                }
+                            }
+                            return el;
+                        };
+                    }
+                }
+                this.viewer = new SandDance.Viewer(this.root, {
+                    onError: (errs) => {
+                        console.error("SandDance Viewer internal errors:", Array.isArray(errs) ? errs.join("; ") : errs);
+                    },
+                    tooltipOptions: {
+                        create: (props) => {
+                            if (!this.tooltipsEnabled) {
+                                return { destroy: () => { } };
+                            }
+                            return this.createTooltip(props);
+                        }
+                    }
+                });
                 this.relocatePanel();
             } catch (err) {
                 console.error("SandDance initialization error:", err);
@@ -146,7 +210,86 @@ export class SandDanceManager {
         return this.viewer;
     }
 
+    createTooltip(props) {
+        if (!props) return { destroy: () => { } };
+        const data = props.dataItem || props.datum;
+        if (!data || typeof data !== 'object') return { destroy: () => { } };
+
+        if (this.activeTooltipEl && this.activeTooltipEl.parentElement) {
+            this.activeTooltipEl.parentElement.removeChild(this.activeTooltipEl);
+            this.activeTooltipEl = null;
+        }
+
+        const entries = Object.entries(data).filter(([key]) => {
+            const lk = key.toLowerCase();
+            return !key.startsWith('__') && !key.startsWith('GL_') && lk !== 'id' && !lk.includes('sanddance');
+        });
+
+        if (entries.length === 0) return { destroy: () => { } };
+
+        const tooltipEl = document.createElement('div');
+        tooltipEl.className = 'sanddance-custom-tooltip';
+
+        const escapeHtml = (str) => {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
+
+        let html = '<div class="sanddance-tooltip-header"><i class="fa-solid fa-circle-info" style="font-size: 0.7rem;"></i><span>Data Point</span></div><div class="sanddance-tooltip-grid">';
+        for (const [key, val] of entries) {
+            let displayVal = '-';
+            if (val !== null && val !== undefined && val !== '') {
+                if (typeof val === 'number') {
+                    displayVal = Number.isInteger(val) ? val.toLocaleString() : val.toLocaleString(undefined, { maximumFractionDigits: 3 });
+                } else {
+                    displayVal = String(val);
+                }
+            }
+            html += `<span class="sanddance-tooltip-key">${escapeHtml(key)}:</span><span class="sanddance-tooltip-val">${escapeHtml(displayVal)}</span>`;
+        }
+        html += '</div>';
+        tooltipEl.innerHTML = html;
+
+        document.body.appendChild(tooltipEl);
+        this.activeTooltipEl = tooltipEl;
+
+        const e = props.event;
+        const src = (e && e.srcEvent) || e || {};
+        const clientX = src.clientX ?? (e && e.x) ?? (e && e.center && e.center.x) ?? 0;
+        const clientY = src.clientY ?? (e && e.y) ?? (e && e.center && e.center.y) ?? 0;
+        const offset = 14;
+        const rect = tooltipEl.getBoundingClientRect();
+        let left = clientX + offset;
+        let top = clientY + offset;
+
+        if (left + rect.width > window.innerWidth - 12) {
+            left = Math.max(10, clientX - rect.width - offset);
+        }
+        if (top + rect.height > window.innerHeight - 12) {
+            top = Math.max(10, clientY - rect.height - offset);
+        }
+
+        tooltipEl.style.left = `${left}px`;
+        tooltipEl.style.top = `${top}px`;
+
+        return {
+            destroy: () => {
+                if (tooltipEl && tooltipEl.parentElement) {
+                    tooltipEl.parentElement.removeChild(tooltipEl);
+                }
+                if (this.activeTooltipEl === tooltipEl) {
+                    this.activeTooltipEl = null;
+                }
+            }
+        };
+    }
+
     reset() {
+        if (this.activeTooltipEl && this.activeTooltipEl.parentElement) {
+            this.activeTooltipEl.parentElement.removeChild(this.activeTooltipEl);
+            this.activeTooltipEl = null;
+        }
         if (this.viewer && this.hasRenderedData) {
             try {
                 if (typeof this.viewer.reset === 'function') {
@@ -169,7 +312,7 @@ export class SandDanceManager {
         if (this.disaggregateCheck) this.disaggregateCheck.checked = false;
         if (this.disaggregateContainer) this.disaggregateContainer.classList.add('hidden');
         if (this.disaggregateInfo) this.disaggregateInfo.textContent = 'Unrolls rows by numerical count';
-        if (this.panelContainer) this.panelContainer.innerHTML = '';
+        if (this.panelGroup) this.panelGroup.classList.add('hidden');
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
     }
@@ -543,6 +686,12 @@ export class SandDanceManager {
             });
         }
 
+        if (this.tooltipCheck) {
+            this.tooltipCheck.addEventListener('change', () => {
+                this.tooltipsEnabled = !!this.tooltipCheck.checked;
+            });
+        }
+
         if (this.collapseBtn) {
             this.collapseBtn.addEventListener('click', () => this.setToolbarCollapsed(true));
         }
@@ -577,7 +726,8 @@ export class SandDanceManager {
             facet: (this.facetSelect && this.facetSelect.value) || '',
             totalStyle: (this.totalStyleSelect && this.totalStyleSelect.value) || '',
             disaggregate: !!(this.disaggregateCheck && this.disaggregateCheck.checked),
-            disaggregateCol: (this.disaggregateCol && this.disaggregateCol.value) || ''
+            disaggregateCol: (this.disaggregateCol && this.disaggregateCol.value) || '',
+            tooltips: this.tooltipsEnabled
         };
     }
 
@@ -599,6 +749,10 @@ export class SandDanceManager {
         }
         if (state.disaggregateCol && this.disaggregateCol) {
             this.disaggregateCol.value = state.disaggregateCol;
+        }
+        if (state.tooltips !== undefined && this.tooltipCheck) {
+            this.tooltipsEnabled = !!state.tooltips;
+            this.tooltipCheck.checked = !!state.tooltips;
         }
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();

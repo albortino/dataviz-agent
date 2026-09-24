@@ -12,6 +12,7 @@
 
 import { detectType, parseValue, processFullCSV } from './js/data-transform.js';
 import { duckdbEngine } from './js/duckdb-engine.js';
+import { LineUpManager } from './js/lineup.js';
 import { MermaidManager } from './js/mermaid.js';
 import { SankeyManager } from './js/sankey.js';
 import { VegaManager } from './js/vega.js';
@@ -149,6 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const getData = () => currentData;
 
     // Instantiate Sub-Managers
+    const lineupMgr = new LineUpManager({
+        getData
+    });
+
     const mermaidMgr = new MermaidManager({
         getData
     });
@@ -188,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Initialize modules
+    lineupMgr.init();
     mermaidMgr.init();
     sankeyMgr.init();
     vegaMgr.init();
@@ -286,9 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentActiveView = 'lineup';
         setActiveView(lineupContainer, showLineupBtn);
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
-        if (lineupInstance) {
-            try { lineupInstance.update(); } catch (e) { }
-        }
+        lineupMgr.update();
+        lineupMgr.adjustColumnWidths();
     }
 
     function showGraphicWalker() {
@@ -396,35 +401,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function restoreLineupWithDump(dump) {
         if (!window.LineUpJS || !lineupRoot || !currentData || currentData.length === 0) return;
-        try {
-            if (lineupInstance) {
-                try { lineupInstance.destroy(); } catch (e) { }
-                lineupInstance = null;
-            }
-            if (lineupRoot) lineupRoot.innerHTML = '';
-
-            lineupInstance = LineUpJS.asLineUp(lineupRoot, currentData);
-            if (dump) {
-                if (typeof lineupInstance.restore === 'function') {
-                    lineupInstance.restore(dump);
-                } else if (lineupInstance.data && typeof lineupInstance.data.restore === 'function') {
-                    lineupInstance.data.restore(dump);
-                }
-            }
-            if (lineupInstance && typeof lineupInstance.update === 'function') {
-                lineupInstance.update();
-            }
-        } catch (err) {
-            console.error("Failed to restore LineUp with dump:", err);
-            try {
-                if (lineupInstance) {
-                    try { lineupInstance.destroy(); } catch (e) { }
-                    lineupInstance = null;
-                }
-                if (lineupRoot) lineupRoot.innerHTML = '';
-                lineupInstance = LineUpJS.asLineUp(lineupRoot, currentData);
-            } catch (e) { }
-        }
+        lineupMgr.restore(dump, currentData);
+        lineupInstance = lineupMgr.getInstance();
     }
 
     // View switcher button clicks
@@ -624,16 +602,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         setTimeout(() => {
-            if (lineupInstance) {
-                try { lineupInstance.destroy(); } catch (e) { }
-            }
-            if (lineupRoot) lineupRoot.innerHTML = '';
-            try {
-                if (window.LineUpJS && lineupRoot) {
-                    lineupInstance = LineUpJS.asLineUp(lineupRoot, data);
-                }
-            } catch (err) {
-                console.error("Failed to initialize LineUp:", err);
+            if (window.LineUpJS && lineupRoot) {
+                lineupMgr.render(data);
+                lineupInstance = lineupMgr.getInstance();
             }
 
             // Restore active view or default to LineUp
@@ -680,10 +651,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const resetView = () => {
-        if (lineupInstance) {
-            try { lineupInstance.destroy(); } catch (e) { }
-            lineupInstance = null;
-        }
+        lineupMgr.destroy();
+        lineupInstance = null;
 
         graphicWalkerMgr.reset();
         sanddanceMgr.reset();
