@@ -253,11 +253,6 @@
                         </button>
                     </div>
 
-                    <div class="empty-state-hint">
-                        <i class="fa-solid fa-arrow-down"></i>
-                        <span>or drop a CSV file anywhere on screen to start</span>
-                    </div>
-
                     <div class="empty-state-features">
                         <div class="empty-feature-item">
                             <i class="fa-solid fa-table-cells empty-feature-icon"></i>
@@ -1333,20 +1328,27 @@
                     <div class="message agent" id="agent-status-msg">Connecting to Data Agent...</div>
                 </div>
                 <div class="chat-input-area">
-                    <button id="chat-clear-btn" class="chat-new-btn"
-                        title="Start new conversation (clears history)">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>New</span>
-                    </button>
-                    <button id="agent-skills-btn" class="chat-new-btn" title="Toggle active agent skills">
-                        <i class="fa-solid fa-layer-group"></i>
-                        <span id="agent-skills-label">Skills</span>
-                    </button>
-                    <input type="text" id="chat-input"
-                        placeholder="Ask anything about your data, request charts, or python code...">
-                    <button id="chat-send-btn" class="button icon-button primary" title="Send Message">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+                    <div class="chat-input-toolbar">
+                        <div class="chat-input-toolbar-left">
+                            <button type="button" id="chat-clear-btn" class="chat-tool-btn"
+                                title="Start new conversation (clears history)">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>New</span>
+                            </button>
+                            <button type="button" id="agent-skills-btn" class="chat-tool-btn" title="Toggle active agent skills">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <span id="agent-skills-label">Skills</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chat-input-row">
+                        <input type="text" id="chat-input"
+                            placeholder="Ask anything about your data, request charts, or python code..."
+                            autocomplete="off">
+                        <button type="button" id="chat-send-btn" class="chat-send-btn" title="Send Message (Enter)">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
