@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     }
 
-    function toggleAgentCopilot(forceState) {
+    function toggleAgent(forceState) {
         if (!agentContainer) return;
         const willOpen = (typeof forceState === 'boolean') ? forceState : agentContainer.classList.contains('hidden');
         if (willOpen) {
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showAgent() {
         if (!currentData || currentData.length === 0) return;
-        toggleAgentCopilot(true);
+        toggleAgent(true);
     }
 
     function activateViewByName(viewName) {
@@ -462,17 +462,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showAgentBtn) {
         showAgentBtn.addEventListener('click', () => {
             if (currentData && currentData.length > 0) {
-                toggleAgentCopilot();
+                toggleAgent();
             }
         });
     }
 
     const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
     if (copilotCollapseBtn) {
-        copilotCollapseBtn.addEventListener('click', () => toggleAgentCopilot(false));
+        copilotCollapseBtn.addEventListener('click', () => toggleAgent(false));
     }
 
-    // Draggable Split-Pane Resizer for Copilot
+    // Draggable Split-Pane Resizer for Agent
     if (copilotDragHandle && agentContainer) {
         const savedWidth = localStorage.getItem('copilot_width');
         if (savedWidth) {

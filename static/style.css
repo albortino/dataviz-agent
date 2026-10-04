@@ -2880,7 +2880,7 @@ hr.control-divider,
     display: flex;
     justify-content: flex-end;
     align-items: stretch;
-    z-index: 2000;
+    z-index: 6000;
     transition: opacity 0.2s ease;
 }
 
@@ -2939,6 +2939,7 @@ hr.control-divider,
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    min-height: 32px;
 }
 
 .modal-header-brand-row,
@@ -2946,6 +2947,31 @@ hr.control-divider,
     display: flex;
     align-items: center;
     gap: 0.65rem;
+}
+
+.modal-close-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: var(--border-radius-pill);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0;
+    box-shadow: none;
+    transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+    background: var(--color-background-medium);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
 }
 
 .inspector-drawer-nav {
@@ -3029,52 +3055,6 @@ hr.control-divider,
    AI Settings Modal
    ========================================================================== */
 
-#settings-modal .settings-modal-header-title {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-}
-
-#settings-modal .settings-icon-cube {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    background: #eff6ff;
-    color: #2563eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.95rem;
-    border: 1px solid #dbeafe;
-}
-
-#settings-modal .modal-header h2 {
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--color-text-primary, #0f172a);
-    letter-spacing: -0.01em;
-    margin: 0;
-}
-
-#settings-modal .modal-close-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted, #94a3b8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 0.95rem;
-    transition: all 0.15s ease;
-}
-
-#settings-modal .modal-close-btn:hover {
-    background: var(--color-bg-medium, #f1f5f9);
-    color: var(--color-text-primary, #0f172a);
-}
 
 #settings-modal .modal-body {
     display: flex;
