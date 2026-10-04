@@ -60,7 +60,6 @@
                     aria-expanded="false" title="Load, change, or reset dataset (Step 1)">
                     <i class="fa-solid fa-database"></i>
                     <span>Data</span>
-                    <span id="data-filename-chip" class="data-filename-chip hidden"></span>
                     <i class="fa-solid fa-chevron-down caret"></i>
                 </button>
                 <div id="data-dropdown-menu" class="dropdown-menu">
@@ -120,37 +119,50 @@
                 <i class="fa-solid fa-cubes-stacked"></i><span>3D Particles</span>
             </button>
             <div class="nav-separator-dot"></div>
-            <!-- Split Hub for Custom Charts & Diagrams (Vega, Sankey, Mermaid) -->
-            <div id="plots-split-hub" class="split-hub-wrapper">
+            <!-- Charts engine picker (Vega, Sankey, Mermaid).
+                 Both buttons are borderless view pills; the chevron is just a
+                 smaller square half of the joined Charts pill. -->
+            <div id="plots-split-hub" class="dropdown-wrapper">
                 <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
                     title="Custom declarative charts and diagrams">
                     <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
                     <span id="plots-primary-label">Charts</span>
                 </button>
-                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" disabled
+                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle"
                     aria-expanded="false" title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
                     <i class="fa-solid fa-chevron-down caret"></i>
                 </button>
-                <div id="plots-popover-menu" class="split-hub-popover">
-                    <button type="button" id="plots-item-vega" class="split-hub-item active" data-view="vega">
-                        <div class="split-hub-item-icon"><i class="fa-solid fa-chart-simple"></i></div>
-                        <div class="split-hub-item-info">
-                            <span class="split-hub-item-title">Vega-Lite Charts</span>
-                            <span class="split-hub-item-desc">Statistical charts & spec editor</span>
+                <div id="plots-popover-menu" class="dropdown-menu">
+                    <div class="dropdown-header-block">
+                        <div class="dropdown-header-title">Visualization Libraries</div>
+                        <div class="dropdown-header-desc">Switch chart engine for the Charts view</div>
+                    </div>
+
+                    <button type="button" id="plots-item-vega" class="dropdown-item active" data-view="vega">
+                        <div class="dropdown-item-content">
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-chart-simple"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Vega-Lite Charts</span>
+                                <span class="dropdown-item-sub">Statistical charts & spec editor</span>
+                            </div>
                         </div>
                     </button>
-                    <button type="button" id="plots-item-sankey" class="split-hub-item" data-view="sankey">
-                        <div class="split-hub-item-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                        <div class="split-hub-item-info">
-                            <span class="split-hub-item-title">Sankey Diagram</span>
-                            <span class="split-hub-item-desc">Flow &amp; pathway routing</span>
+                    <button type="button" id="plots-item-sankey" class="dropdown-item" data-view="sankey">
+                        <div class="dropdown-item-content">
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-diagram-project"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Sankey Diagram</span>
+                                <span class="dropdown-item-sub">Flow &amp; pathway routing</span>
+                            </div>
                         </div>
                     </button>
-                    <button type="button" id="plots-item-mermaid" class="split-hub-item" data-view="mermaid">
-                        <div class="split-hub-item-icon"><i class="fa-solid fa-code-fork"></i></div>
-                        <div class="split-hub-item-info">
-                            <span class="split-hub-item-title">Mermaid</span>
-                            <span class="split-hub-item-desc">Architecture &amp; sequence flows</span>
+                    <button type="button" id="plots-item-mermaid" class="dropdown-item" data-view="mermaid">
+                        <div class="dropdown-item-content">
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-code-fork"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Mermaid</span>
+                                <span class="dropdown-item-sub">Architecture &amp; sequence flows</span>
+                            </div>
                         </div>
                     </button>
                 </div>
@@ -238,7 +250,8 @@
             <div id="empty-state-container" class="vis-container">
                 <div class="initial-message">
                     <h2>Your data.<br><em>Instantly visual.</em></h2>
-                    <p>Drop a CSV, paste from clipboard, or load demo data — then explore, chart, and interrogate with interactive tools or a built-in AI agent.</p>
+                    <p>Drop a CSV, paste from clipboard, or load demo data — then explore, chart, and interrogate with
+                        interactive tools or a built-in AI agent.</p>
 
                     <div class="empty-state-actions">
                         <button id="empty-set-data-btn" class="button icon-button primary"
@@ -255,24 +268,24 @@
 
                     <div class="empty-state-features">
                         <div class="empty-feature-item">
-                            <i class="fa-solid fa-table-cells empty-feature-icon"></i>
+                            <span class="empty-feature-icon"><i class="fa-solid fa-arrow-down-wide-short"></i></span>
                             <span class="empty-feature-label">Table</span>
-                            <span class="empty-feature-desc">Sort, filter & rank with LineUp</span>
+                            <span class="empty-feature-desc">Rank, sort & filter every row</span>
                         </div>
                         <div class="empty-feature-item">
-                            <i class="fa-solid fa-chart-line empty-feature-icon"></i>
+                            <span class="empty-feature-icon"><i class="fa-solid fa-chart-column"></i></span>
                             <span class="empty-feature-label">Explorer</span>
-                            <span class="empty-feature-desc">Drag-and-drop visual analysis</span>
+                            <span class="empty-feature-desc">Drag fields onto shelves to chart</span>
                         </div>
                         <div class="empty-feature-item">
-                            <i class="fa-solid fa-chart-simple empty-feature-icon"></i>
+                            <span class="empty-feature-icon"><i class="fa-solid fa-diagram-project"></i></span>
                             <span class="empty-feature-label">Charts</span>
-                            <span class="empty-feature-desc">Vega-Lite, Sankey & Mermaid</span>
+                            <span class="empty-feature-desc">Spec-driven Vega, flows & diagrams</span>
                         </div>
                         <div class="empty-feature-item">
-                            <i class="fa-solid fa-robot empty-feature-icon"></i>
+                            <span class="empty-feature-icon"><i class="fa-solid fa-terminal"></i></span>
                             <span class="empty-feature-label">AI Agent</span>
-                            <span class="empty-feature-desc">Python code & auto-insights</span>
+                            <span class="empty-feature-desc">Ask questions, get Python answers</span>
                         </div>
                     </div>
                 </div>
@@ -332,8 +345,7 @@
                 <div class="tab-intro-banner">
                     <div class="tab-intro-primary-row">
                         <p class="tab-intro-desc">Automated visual data exploration engine with
-                            drag-and-drop shelves, automatic chart recommendations, multi-dimensional filters, and
-                            aggregations.</p>
+                            drag-and-drop shelves, multi-dimensional filters, and aggregations.</p>
                         <div class="tab-intro-actions">
                             <button class="tab-intro-info-btn" type="button" aria-expanded="false"
                                 title="Toggle Overview & Description">
@@ -699,6 +711,7 @@
                             <div class="control-group">
                                 <label for="sankey-palette">Color Theme</label>
                                 <select id="sankey-palette" class="control-select">
+                                    <option value="accessible" selected>Accessible (colorblind-safe)</option>
                                     <option value="category10">Category 10</option>
                                     <option value="tableau10">Tableau 10</option>
                                     <option value="set2">Set 2 Pastel</option>
@@ -1313,7 +1326,7 @@
             <div class="copilot-header">
                 <div class="copilot-header-brand">
                     <i class="fa-solid fa-robot text-primary-icon"></i>
-                    <span class="copilot-header-title">AI Copilot</span>
+                    <span class="copilot-header-title">AI Agent</span>
                     <span id="agent-online-chip" class="copilot-status-chip">Ready</span>
                 </div>
                 <div class="copilot-header-actions">
@@ -1335,7 +1348,8 @@
                                 <i class="fa-solid fa-plus"></i>
                                 <span>New</span>
                             </button>
-                            <button type="button" id="agent-skills-btn" class="chat-tool-btn" title="Toggle active agent skills">
+                            <button type="button" id="agent-skills-btn" class="chat-tool-btn"
+                                title="Toggle active agent skills">
                                 <i class="fa-solid fa-layer-group"></i>
                                 <span id="agent-skills-label">Skills</span>
                             </button>
@@ -1421,7 +1435,8 @@
                 <div class="control-group">
                     <div class="settings-form-label">
                         <span>Routing Mode</span>
-                        <span class="settings-route-hint" id="ai-route-hint">Full agent mode (executes python and visual transformations on backend)</span>
+                        <span class="settings-route-hint" id="ai-route-hint">Full agent mode (executes python and visual
+                            transformations on backend)</span>
                     </div>
                     <div class="route-segmented-control" id="ai-route-switcher">
                         <button type="button" class="route-segmented-btn server active" data-mode="server"
@@ -1437,7 +1452,8 @@
 
                 <!-- Endpoint URL (Visible for Azure & Custom; hidden for standard presets) -->
                 <div class="control-group" id="ai-endpoint-group" style="display: none;">
-                    <label for="ai-base-url" id="ai-endpoint-label" class="settings-form-label">Endpoint Hostname</label>
+                    <label for="ai-base-url" id="ai-endpoint-label" class="settings-form-label">Endpoint
+                        Hostname</label>
                     <input type="text" id="ai-base-url" class="control-input font-mono"
                         placeholder="my-resource.openai.azure.com" value="https://api.deepseek.com">
                 </div>
@@ -1589,15 +1605,18 @@
                             <p class="modal-header-subtitle">Create Mermaid flowcharts and architecture diagrams</p>
                         </div>
                     </div>
-                    <button id="close-mermaid-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                    <button id="close-mermaid-ai-modal-btn" class="modal-close-btn" title="Close"><i
+                            class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
             <div class="modal-body">
                 <div class="control-group">
-                    <label for="mermaid-ai-prompt-input" class="settings-form-label">Diagram Instructions &amp; Rules</label>
+                    <label for="mermaid-ai-prompt-input" class="settings-form-label">Diagram Instructions &amp;
+                        Rules</label>
                     <textarea id="mermaid-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
                         placeholder="e.g. Group by department, highlight errors in red, lay out left-to-right..."></textarea>
-                    <span class="settings-route-hint" style="margin-top: 4px;">Describe the sequence, flowchart structure, or hierarchy to generate.</span>
+                    <span class="settings-route-hint" style="margin-top: 4px;">Describe the sequence, flowchart
+                        structure, or hierarchy to generate.</span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1621,7 +1640,8 @@
                             <p class="modal-header-subtitle">Generate statistical charts from current dataset</p>
                         </div>
                     </div>
-                    <button id="close-vega-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                    <button id="close-vega-ai-modal-btn" class="modal-close-btn" title="Close"><i
+                            class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
             <div class="modal-body">
@@ -1629,7 +1649,8 @@
                     <label for="vega-ai-prompt-input" class="settings-form-label">Chart Instructions or Prompt</label>
                     <textarea id="vega-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
                         placeholder="e.g. Create a grouped bar chart comparing sales by region with a red threshold line..."></textarea>
-                    <span class="settings-route-hint" style="margin-top: 4px;">Specify desired chart type, axes variables, color groupings, or sorting.</span>
+                    <span class="settings-route-hint" style="margin-top: 4px;">Specify desired chart type, axes
+                        variables, color groupings, or sorting.</span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1671,7 +1692,8 @@
                 </nav>
             </div>
             <div class="modal-body modal-body-spaced">
-                <p class="set-data-dropzone-sub">Select which specialized skills the AI agent should use when answering prompts. Core chart linting is always enabled.</p>
+                <p class="set-data-dropzone-sub">Select which specialized skills the AI agent should use when answering
+                    prompts. Core charting capabilities are always enabled.</p>
                 <div id="agent-skills-list" class="curves-checkbox-list"></div>
             </div>
             <div class="modal-footer">
@@ -1716,7 +1738,8 @@
                     <label class="session-step-label">1. Choose Session File (.json)</label>
                     <div id="session-file-dropzone" class="set-data-dropzone session-dropzone">
                         <i class="fa-solid fa-file-code dropzone-icon"></i>
-                        <p class="set-data-dropzone-title"><strong>Click to browse</strong> or drag & drop exported JSON</p>
+                        <p class="set-data-dropzone-title"><strong>Click to browse</strong> or drag & drop exported JSON
+                        </p>
                         <p class="set-data-dropzone-sub">Saved visualization session configuration</p>
                         <input type="file" id="session-file-input" accept=".json" class="hidden-element">
                     </div>

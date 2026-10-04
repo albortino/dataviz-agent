@@ -136,4 +136,23 @@
        ------------------------------------------------------- */
     --font-mono: 'SFMono-Regular', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+    /* -------------------------------------------------------
+       Impeccable chart system — single source of truth
+       Mirrors src/vizkit/theme.py CATEGORICAL (Okabe-Ito)
+       ------------------------------------------------------- */
+    --chart-1: #0072B2;
+    --chart-2: #D55E00;
+    --chart-3: #009E73;
+    --chart-4: #CC79A7;
+    --chart-5: #56B4E9;
+    --chart-6: #E69F00;
+    --chart-7: #999999;
+    --chart-single: #0072B2;
+    --chart-highlight: #D55E00;
+    --chart-base-gray: #999999;
+    --chart-grid: #E5E5E5;
+    --chart-axis-text: #475569;
+    --chart-link-opacity: 0.28;
+    --chart-link-opacity-hover: 0.55;
 }

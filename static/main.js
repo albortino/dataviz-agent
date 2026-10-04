@@ -42,7 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
     const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, plotsMenuToggleBtn, showAgentBtn];
+    // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
+    // buttons never fire click events, so including the Charts engine picker
+    // would make the dropdown unopenable. The picker stays enabled so users
+    // can always switch engines; engine items no-op until data is loaded.
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -68,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('csv-file-input');
     const dataDropdownBtn = document.getElementById('data-dropdown-btn');
     const dataDropdownMenu = document.getElementById('data-dropdown-menu');
-    const dataFilenameChip = document.getElementById('data-filename-chip');
     const dataActiveDatasetText = document.getElementById('data-active-dataset-text');
     const workspaceDropdownBtn = document.getElementById('workspace-dropdown-btn') || document.getElementById('session-dropdown-btn');
     const workspaceDropdownMenu = document.getElementById('workspace-dropdown-menu') || document.getElementById('session-dropdown-menu');
@@ -85,27 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadSessionBtn = document.getElementById('load-session-btn');
     const emptyLoadSessionBtn = document.getElementById('empty-load-session-btn');
 
-    // Dataset name tracking with first-k-characters truncation
+    // Dataset name tracking (surfaced in Data dropdown "Active Dataset")
     let currentDatasetName = null;
-    const MAX_DATASET_NAME_CHARS = 12;
-
-    const formatDatasetName = (name, k = MAX_DATASET_NAME_CHARS) => {
-        if (!name) return '';
-        return name.length > k ? name.slice(0, k) + '…' : name;
-    };
 
     const updateDatasetIndicator = (name, rowCount = 0) => {
         currentDatasetName = name;
-        if (name && dataFilenameChip) {
-            dataFilenameChip.textContent = formatDatasetName(name);
-            dataFilenameChip.title = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
-            dataFilenameChip.classList.remove('hidden');
-        } else if (dataFilenameChip) {
-            dataFilenameChip.textContent = '';
-            dataFilenameChip.title = '';
-            dataFilenameChip.classList.add('hidden');
-        }
-
+        // Header chip removed by design: dataset identity lives in the
+        // Data dropdown ("Active Dataset") only, keeping the header quiet.
         if (dataActiveDatasetText) {
             if (name) {
                 dataActiveDatasetText.textContent = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
@@ -253,7 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (plotsSplitHub) {
             plotsSplitHub.classList.remove('open', 'active-group');
         }
+        if (plotsPopoverMenu) {
+            plotsPopoverMenu.classList.remove('show');
+        }
         if (plotsMenuToggleBtn) {
+            plotsMenuToggleBtn.classList.remove('active');
             plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
         }
 
@@ -442,21 +435,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if (plotsItemVega) {
-        plotsItemVega.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemVega.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showVega();
+            closeAllDropdowns();
         });
     }
     if (plotsItemSankey) {
-        plotsItemSankey.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemSankey.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showSankey();
+            closeAllDropdowns();
         });
     }
     if (plotsItemMermaid) {
-        plotsItemMermaid.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemMermaid.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showMermaid();
+            closeAllDropdowns();
         });
     }
     if (showAgentBtn) {
@@ -894,13 +890,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Header Dropdown Menus
-    const allDropdownMenus = [dataDropdownMenu, workspaceDropdownMenu];
-    const allDropdownButtons = [dataDropdownBtn, workspaceDropdownBtn];
+    // Header Dropdown Menus — one shared pattern for Data, Charts, Workspace.
+    // Each trigger toggles its sibling .dropdown-menu via .show; the Charts
+    // hub additionally marks its .dropdown-wrapper .open for split-btn styling.
+    const allDropdownMenus = [dataDropdownMenu, plotsPopoverMenu, workspaceDropdownMenu];
+    const allDropdownButtons = [dataDropdownBtn, plotsMenuToggleBtn, workspaceDropdownBtn];
 
     function closePlotsMenu() {
         if (plotsSplitHub) plotsSplitHub.classList.remove('open');
-        if (plotsMenuToggleBtn) plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+        if (plotsPopoverMenu) plotsPopoverMenu.classList.remove('show');
+        if (plotsMenuToggleBtn) {
+            plotsMenuToggleBtn.classList.remove('active');
+            plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+        }
     }
 
     function closeAllDropdowns() {
@@ -930,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupDropdown(dataDropdownBtn, dataDropdownMenu);
     setupDropdown(workspaceDropdownBtn, workspaceDropdownMenu);
+    setupDropdown(plotsMenuToggleBtn, plotsPopoverMenu);
 
     if (workspaceMenuModelBtn) {
         workspaceMenuModelBtn.addEventListener('click', () => {
@@ -951,20 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (plotsMenuToggleBtn && plotsSplitHub) {
-        plotsMenuToggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = plotsSplitHub.classList.contains('open');
-            closeAllDropdowns();
-            if (!isOpen) {
-                plotsSplitHub.classList.add('open');
-                plotsMenuToggleBtn.setAttribute('aria-expanded', 'true');
-            }
-        });
-    }
-
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown-wrapper') && !e.target.closest('.split-hub-wrapper')) {
+        if (!e.target.closest('.dropdown-wrapper')) {
             closeAllDropdowns();
         }
     });
@@ -975,7 +966,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Close dropdowns when clicking any item
+    // Close all popups when clicking any item (Charts engine items included:
+    // they keep .active for selection but must not stay open)
     document.querySelectorAll('.dropdown-item').forEach(item => {
         item.addEventListener('click', () => {
             closeAllDropdowns();

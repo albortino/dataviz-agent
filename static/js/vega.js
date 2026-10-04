@@ -10,6 +10,37 @@
 
 import { formatVegaSpec } from './spec-formatter.js';
 
+/** Shared impeccable chart language. Mirrors src/vizkit/theme.py CATEGORICAL. */
+export const CHART_CATEGORICAL = [
+    '#0072B2', '#D55E00', '#009E73', '#CC79A7',
+    '#56B4E9', '#E69F00', '#999999'
+];
+export const CHART_CONFIG = {
+    background: '#FFFFFF',
+    font: 'Inter, system-ui, sans-serif',
+    axis: {
+        labelFont: 'Inter, system-ui, sans-serif',
+        titleFont: 'Inter, system-ui, sans-serif',
+        labelFontSize: 11,
+        titleFontSize: 11,
+        labelColor: '#475569',
+        titleColor: '#334155',
+        gridColor: '#E5E5E5',
+        domainColor: '#CBD5E1',
+        tickColor: '#CBD5E1'
+    },
+    legend: {
+        labelFont: 'Inter, system-ui, sans-serif',
+        titleFont: 'Inter, system-ui, sans-serif',
+        labelFontSize: 11,
+        titleFontSize: 11,
+        labelColor: '#334155',
+        titleColor: '#0F172A'
+    },
+    title: { font: 'Inter, system-ui, sans-serif', fontSize: 13, color: '#0F172A' },
+    range: { category: CHART_CATEGORICAL }
+};
+
 export class VegaManager {
     constructor(options = {}) {
         this.getData = options.getData || (() => []);
@@ -800,6 +831,19 @@ export class VegaManager {
         }
 
         runtimeSpec.autosize = { type: 'pad', contains: 'padding' };
+
+        // Impeccable chart language: applied only when spec omits it (append, don't overhaul)
+        runtimeSpec.background = runtimeSpec.background || CHART_CONFIG.background;
+        runtimeSpec.config = runtimeSpec.config || {};
+        if (!runtimeSpec.config.axis) runtimeSpec.config.axis = { ...CHART_CONFIG.axis };
+        if (!runtimeSpec.config.legend) runtimeSpec.config.legend = { ...CHART_CONFIG.legend };
+        if (!runtimeSpec.config.title) runtimeSpec.config.title = { ...CHART_CONFIG.title };
+        if (!runtimeSpec.config.range) runtimeSpec.config.range = { ...CHART_CONFIG.range };
+        if (!runtimeSpec.config.view) runtimeSpec.config.view = { stroke: '#E2E8F0' };
+        // Single-series bars default to primary blue unless author set a color
+        const _hasColor = runtimeSpec.encoding?.color || (runtimeSpec.layer || []).some(l => l.encoding?.color);
+        if (!_hasColor && !runtimeSpec.config.bar) runtimeSpec.config.bar = { fill: '#0072B2' };
+        if (!_hasColor && !runtimeSpec.config.point) runtimeSpec.config.point = { fill: '#0072B2' };
 
         try {
             this.clearError();

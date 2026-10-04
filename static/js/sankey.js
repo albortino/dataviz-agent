@@ -7,7 +7,15 @@
 import { aggregateValues, detectType } from './data-transform.js';
 import { formatSankeySyntax } from './spec-formatter.js';
 
+export const CHART_CATEGORICAL = [
+    '#0072B2', '#D55E00', '#009E73', '#CC79A7',
+    '#56B4E9', '#E69F00', '#999999'
+];
+export const CHART_SINGLE = '#0072B2';
+export const CHART_HIGHLIGHT = '#D55E00';
+
 export const PALETTES = {
+    accessible: CHART_CATEGORICAL,
     category10: d3.schemeCategory10,
     tableau10: d3.schemeTableau10,
     set2: d3.schemeSet2,
@@ -400,8 +408,8 @@ export class SankeyManager {
 
         this.graphData = graph;
 
-        const paletteName = this.palette?.value || 'category10';
-        const colorScheme = PALETTES[paletteName] || d3.schemeCategory10;
+        const paletteName = this.palette?.value || 'accessible';
+        const colorScheme = PALETTES[paletteName] || CHART_CATEGORICAL;
         const colorScale = d3.scaleOrdinal(colorScheme);
 
         const getNodeColor = (d) => {
@@ -422,10 +430,10 @@ export class SankeyManager {
             .attr('d', d3.sankeyLinkHorizontal())
             .attr('stroke', d => d.color || getNodeColor(d.source))
             .attr('stroke-width', d => Math.max(1, d.width))
-            .style('stroke-opacity', 0.45);
+            .style('stroke-opacity', 0.28);
 
         link.append('title')
-            .text(d => `${d.source.name} → ${d.target.name}\nAmount: ${d.value.toLocaleString()}`);
+            .text(d => `${d.source.name} → ${d.target.name}\n${d.value.toLocaleString('en-US')}`);
 
         // Draw Nodes
         const self = this;
@@ -441,6 +449,8 @@ export class SankeyManager {
             .attr('height', d => Math.max(1, d.y1 - d.y0))
             .attr('width', d => d.x1 - d.x0)
             .attr('fill', d => getNodeColor(d))
+            .attr('stroke', 'rgba(15,23,42,0.12)')
+            .attr('stroke-width', 1)
             .attr('rx', 3)
             .attr('ry', 3)
             .call(d3.drag()
@@ -471,13 +481,17 @@ export class SankeyManager {
             });
 
         rect.append('title')
-            .text(d => `${d.name}\nTotal: ${d.value.toLocaleString()}`);
+            .text(d => `${d.name}\n${d.value.toLocaleString('en-US')}`);
 
         node.append('text')
             .attr('x', d => d.x0 < width / 2 ? (d.x1 - d.x0) + 6 : -6)
             .attr('y', d => (d.y1 - d.y0) / 2)
             .attr('dy', '0.35em')
             .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+            .attr('font-family', 'Inter, system-ui, sans-serif')
+            .attr('font-size', 11)
+            .attr('fill', '#475569')
+            .style('font-feature-settings', '"tnum" "lnum"')
             .text(d => `${d.name} (${Math.round(d.value * 100) / 100})`);
 
         // Annotations
@@ -708,7 +722,7 @@ export class SankeyManager {
             valCol: (this.valCol && this.valCol.value) || '',
             aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
             disambiguateNodes: !!(this.disambiguateNodes && this.disambiguateNodes.checked),
-            palette: (this.palette && this.palette.value) || 'category10',
+            palette: (this.palette && this.palette.value) || 'accessible',
             nodeAlign: (this.nodeAlign && this.nodeAlign.value) || 'justify',
             autoFit: !!(this.autoFitCheckbox && this.autoFitCheckbox.checked),
             customWidth: (this.customWidthInput && this.customWidthInput.value) || '',
@@ -729,6 +743,10 @@ export class SankeyManager {
             this.disambiguateNodes.checked = !!state.disambiguateNodes;
         }
         if (state.palette && this.palette) this.palette.value = state.palette;
+        // Migrate legacy rainbow defaults to accessible palette once
+        if (this.palette && ['category10', 'tableau10'].includes(this.palette.value)) {
+            this.palette.value = 'accessible';
+        }
         if (state.nodeAlign && this.nodeAlign) this.nodeAlign.value = state.nodeAlign;
         if (this.autoFitCheckbox && state.autoFit !== undefined) {
             this.autoFitCheckbox.checked = !!state.autoFit;

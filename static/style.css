@@ -23,12 +23,19 @@ body {
     width: 6px;
     height: 6px;
 }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  {
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 
 ::selection {
     background: rgba(37, 99, 235, 0.16);
@@ -104,7 +111,7 @@ body>header,
     width: 100%;
     background: var(--color-surface-1);
     border-bottom: 1px solid var(--color-border);
-    box-shadow: 0 1px 0 0 rgba(255,255,255,0.04);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.04);
     padding: var(--padding-header);
     display: flex;
     justify-content: space-between;
@@ -150,7 +157,6 @@ body>header,
     font-weight: var(--font-weight-medium);
     line-height: 1;
     letter-spacing: 0.02em;
-    text-transform: uppercase;
 }
 
 #controls {
@@ -164,31 +170,36 @@ body>header,
     gap: 0.45rem;
     font-weight: var(--font-weight-medium);
     transition: all var(--transition-base);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border-input);
+    box-shadow: var(--shadow-sm);
 }
 
 .copilot-header-btn:hover:not(:disabled):not(.active) {
     background: var(--color-surface-3);
-    border-color: rgba(255,255,255,0.15);
+    border-color: var(--color-border-input);
     color: var(--color-text-primary);
 }
 
-.copilot-header-btn.active {
-    background: var(--color-primary-light) !important;
-    color: var(--color-primary) !important;
-    border-color: var(--color-primary) !important;
+.copilot-header-btn.active,
+.copilot-header-btn.active:hover:not(:disabled) {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
     font-weight: var(--font-weight-bold);
     box-shadow: 0 0 0 2px var(--color-primary-glow);
+    transform: none;
 }
 
 .copilot-header-btn.active i {
-    color: var(--color-primary) !important;
+    color: var(--color-primary);
 }
 
 /* Header with Categorized Dropdowns */
 .header-v-divider {
     width: 1px;
     height: 16px;
-    background: rgba(255,255,255,0.08);
+    background: var(--color-border);
     margin: 0 0.35rem;
 }
 
@@ -215,7 +226,7 @@ body>header,
 }
 
 .dropdown-trigger-btn:hover {
-    border-color: rgba(255,255,255,0.2);
+    border-color: var(--color-border-input);
     background: var(--color-surface-3);
     color: var(--color-text-primary);
 }
@@ -242,24 +253,6 @@ body>header,
     color: var(--color-primary);
 }
 
-/* Active Dataset Truncated Chip */
-.data-filename-chip {
-    font-size: 0.72rem;
-    font-weight: var(--font-weight-bold);
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    padding: 0.12rem 0.45rem;
-    border-radius: var(--border-radius-pill);
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: inline-block;
-    vertical-align: middle;
-    letter-spacing: -0.01em;
-}
-
 /* Dropdown Menu Popover */
 .dropdown-menu {
     position: absolute;
@@ -282,7 +275,8 @@ body>header,
     display: flex;
 }
 
-#data-dropdown-menu {
+#data-dropdown-menu,
+#plots-popover-menu {
     left: 0;
     right: auto;
 }
@@ -424,6 +418,25 @@ body>header,
     color: var(--color-primary);
 }
 
+/* Selected state (e.g. active Charts engine): same tint as hover, persistent */
+.dropdown-item.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.dropdown-item.active .dropdown-item-icon-box {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.dropdown-item.active .dropdown-item-label {
+    color: var(--color-primary);
+}
+
+.dropdown-item.active i {
+    color: var(--color-primary);
+}
+
 .dropdown-item.danger:hover:not(:disabled) {
     background: #fef2f2;
     color: var(--color-danger);
@@ -485,7 +498,7 @@ button {
 .button:hover,
 button:hover {
     background: var(--color-surface-3);
-    border-color: rgba(255,255,255,0.2);
+    border-color: rgba(255, 255, 255, 0.2);
     color: var(--color-text-primary);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
@@ -518,7 +531,7 @@ button.primary:hover {
 button.ai-action-btn {
     background: var(--ai-gradient);
     color: #ffffff;
-    border-color: rgba(99,102,241,0.35);
+    border-color: rgba(99, 102, 241, 0.35);
     box-shadow: var(--shadow-sm);
     font-weight: var(--font-weight-bold);
 }
@@ -526,7 +539,7 @@ button.ai-action-btn {
 .button.ai-action-btn:hover:not(:disabled),
 button.ai-action-btn:hover:not(:disabled) {
     background: var(--ai-gradient-hover);
-    border-color: rgba(99,102,241,0.6);
+    border-color: rgba(99, 102, 241, 0.6);
     color: #e0e7ff;
     transform: translateY(-1px);
     box-shadow: var(--ai-glow);
@@ -536,7 +549,7 @@ button.ai-action-btn:hover:not(:disabled) {
 button:disabled {
     background-color: var(--color-surface-1) !important;
     border-color: var(--color-border) !important;
-    color: rgba(100,116,139,0.5) !important;
+    color: rgba(100, 116, 139, 0.5) !important;
     cursor: not-allowed !important;
     transform: none !important;
     box-shadow: none !important;
@@ -672,16 +685,21 @@ button.utility-btn:active,
     transition: color var(--transition-fast);
 }
 
-#view-controls .button:hover:not(:disabled) {
-    color: var(--color-text-primary);
+#view-controls .button:hover:not(:disabled):not(.active) {
+    color: var(--color-text-muted);
     background: rgba(255, 255, 255, 0.75);
     transform: none;
+    font-weight: var(--font-weight-bold);
+}
+
+#view-controls .button:hover:not(:disabled):not(.active) i {
+    color: var(--color-text-secondary);
 }
 
 #view-controls .button.active,
 #view-controls .button.active i {
-    background: var(--color-surface-2);
-    color: var(--color-primary) !important;
+    background: #ffffff;
+    color: var(--color-primary);
     font-weight: var(--font-weight-bold);
     box-shadow: var(--shadow-sm);
 }
@@ -695,174 +713,111 @@ button.utility-btn:active,
     box-shadow: none !important;
 }
 
-/* Split Hub Component for Plots & Diagrams */
-.split-hub-wrapper {
-    position: relative;
+/* Split Hub Component for Plots & Diagrams.
+   The Charts hub is a .dropdown-wrapper variant: its popup and items reuse
+   the shared .dropdown-menu / .dropdown-item system above. Only the joined
+   two-button pill styling lives here. Note: the wrapper must stay
+   position:relative (inherited from .dropdown-wrapper) so the absolute
+   popup anchors to the hub, not the nav. */
+#plots-split-hub {
     display: inline-flex;
     align-items: center;
     border-radius: var(--border-radius-pill);
     transition: all var(--transition-base);
 }
 
-/* Unified Bubble Look: single shared pill background and border */
-.split-hub-wrapper .split-hub-main {
+#view-controls #plots-split-hub .split-hub-main {
+    background: transparent;
+    box-shadow: none;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     padding-right: 0.25rem;
-    box-shadow: none !important;
 }
 
-.split-hub-wrapper .split-hub-toggle {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    padding: 0 0.55rem 0 0.25rem;
-    box-shadow: none !important;
+/* Chevron half: same borderless pill language as the Charts button itself —
+   no Data/Workspace bordered trigger styling. Only when a chart view is
+   active does the whole joined pill lift to white + primary. */
+#view-controls #plots-split-hub .split-hub-toggle {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0 var(--border-radius-pill) var(--border-radius-pill) 0;
+    padding: 0 0.6rem 0 0.25rem;
+    height: 2.0rem;
+    color: var(--color-text-muted);
 }
 
-.split-hub-wrapper .split-hub-toggle .caret {
+#view-controls #plots-split-hub .split-hub-toggle .caret {
     font-size: 0.65rem;
+    color: var(--color-text-secondary);
     transition: transform var(--transition-fast);
 }
 
-.split-hub-wrapper.open {
+#view-controls #plots-split-hub .split-hub-toggle:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--color-text-muted);
+}
+
+#view-controls #plots-split-hub .split-hub-toggle:hover:not(:disabled) .caret {
+    color: var(--color-text-secondary);
+}
+
+/* Open state: bold chevron, same ink as before — no color flip */
+#view-controls #plots-split-hub .split-hub-toggle[aria-expanded="true"],
+#view-controls #plots-split-hub .split-hub-toggle.active {
+    background: transparent;
+    box-shadow: none;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-muted);
+}
+
+#view-controls #plots-split-hub .split-hub-toggle[aria-expanded="true"] .caret,
+#view-controls #plots-split-hub .split-hub-toggle.active .caret {
+    transform: rotate(180deg);
+    color: var(--color-text-secondary);
+}
+
+#plots-split-hub.open {
     z-index: 100;
 }
 
-.split-hub-wrapper.open .split-hub-toggle .caret,
-.split-hub-toggle[aria-expanded="true"] .caret {
-    transform: rotate(180deg);
-}
-
-/* Active Bubble: entire combined pill is highlighted together */
-.split-hub-wrapper.active-group {
-    background: var(--color-background-light);
-    border-radius: var(--border-radius-pill);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.split-hub-wrapper.active-group .split-hub-main,
-.split-hub-wrapper.active-group .split-hub-toggle {
-    background: transparent;
-    color: var(--color-primary) !important;
-    font-weight: var(--font-weight-bold);
-}
-
-.split-hub-wrapper.active-group .split-hub-main i,
-.split-hub-wrapper.active-group .split-hub-toggle i {
-    color: var(--color-primary) !important;
-}
-
-.split-hub-wrapper:hover:not(.active-group) {
-    background: rgba(255, 255, 255, 0.75);
-}
-
-.split-hub-wrapper:hover:not(.active-group) .split-hub-main,
-.split-hub-wrapper:hover:not(.active-group) .split-hub-toggle {
-    color: var(--color-text-primary);
-}
-
-.split-hub-popover {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    transform: none;
-    background: var(--color-background-light);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--shadow-lg);
-    width: 270px;
-    padding: 0.5rem;
-    display: none;
-    flex-direction: column;
-    gap: 0.35rem;
-    z-index: 2500;
-    animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.split-hub-wrapper.open .split-hub-popover {
-    display: flex;
-}
-
-.split-hub-item {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 0.75rem;
-    padding: 0.55rem 0.65rem;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    background: transparent;
-    text-align: left !important;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    width: 100%;
-    height: auto !important;
-    min-height: auto !important;
-    box-sizing: border-box;
-    box-shadow: none !important;
-    white-space: normal !important;
-}
-
-.split-hub-item:hover {
-    background: var(--color-background-medium);
-    border-color: var(--color-border);
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.split-hub-item.active {
-    background: var(--color-primary-light);
-    border-color: rgba(37, 99, 235, 0.2);
-}
-
-.split-hub-item-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 6px;
-    background: var(--color-background-medium);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.95rem;
-    color: var(--color-text-secondary);
-    flex-shrink: 0;
-}
-
-.split-hub-item.active .split-hub-item-icon {
+/* Active Bubble: entire combined pill lifts together when a chart is live */
+#plots-split-hub.active-group {
     background: #ffffff;
+    border-radius: var(--border-radius-pill);
+    box-shadow: var(--shadow-sm);
+}
+
+#plots-split-hub.active-group .split-hub-main,
+#plots-split-hub.active-group .split-hub-toggle {
+    background: transparent;
     color: var(--color-primary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.split-hub-item-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start !important;
-    text-align: left !important;
-    min-width: 0;
-    flex: 1;
-}
-
-.split-hub-item-title {
-    font-size: 0.82rem;
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-primary);
-    line-height: 1.2;
-    text-align: left !important;
-    width: 100%;
+    box-shadow: none;
 }
 
-.split-hub-item.active .split-hub-item-title {
+#plots-split-hub.active-group .split-hub-main i,
+#plots-split-hub.active-group .split-hub-toggle .caret,
+#plots-split-hub.active-group .split-hub-toggle i {
     color: var(--color-primary);
 }
 
-.split-hub-item-desc {
-    font-size: 0.72rem;
-    color: var(--color-text-secondary);
-    margin-top: 2px;
-    line-height: 1.2;
-    text-align: left !important;
-    width: 100%;
+#plots-split-hub:hover:not(.active-group) {
+    background: transparent;
+}
+
+#plots-split-hub:hover:not(.active-group) .split-hub-main,
+#plots-split-hub:hover:not(.active-group) .split-hub-toggle {
+    color: var(--color-text-muted);
+    background: rgba(255, 255, 255, 0.75);
+    font-weight: var(--font-weight-bold);
+}
+
+/* Selected engine keeps the shared .dropdown-item.active look; the icon box
+   inverts to white like other active states. */
+#plots-popover-menu .dropdown-item.active .dropdown-item-icon-box {
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* ==========================================================================
@@ -872,14 +827,16 @@ button.utility-btn:active,
 .control-group {
     display: flex;
     flex-direction: column;
+    gap: 0.3rem;
 }
 
 .control-group label {
-    font-size: 0.8125rem;
+    font-size: 0.68rem;
     font-weight: var(--font-weight-bold);
-    margin-bottom: 0.25rem;
-    color: var(--color-secondary-hover);
-    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0;
+    color: var(--color-text-muted);
 }
 
 .control-select,
@@ -887,16 +844,17 @@ button.utility-btn:active,
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    background-color: var(--color-background-light);
-    border: 1px solid var(--color-border-input);
-    border-radius: var(--border-radius-input);
-    padding: 0.35rem 0.85rem;
-    font-size: var(--font-size-button-link);
-    color: var(--color-text-dark);
+    background-color: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-main);
+    padding: 0.4rem 0.7rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
     font-family: inherit;
-    height: var(--height-small);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-fast);
+    font-weight: var(--font-weight-medium);
+    min-height: 2.15rem;
+    box-shadow: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
 select.control-select,
@@ -921,7 +879,8 @@ textarea.control-input {
 select.control-select:hover,
 .control-select:hover,
 .control-input:hover {
-    border-color: var(--color-text-muted);
+    border-color: var(--color-border-input);
+    background-color: var(--color-surface-1);
 }
 
 select.control-select:focus,
@@ -929,7 +888,8 @@ select.control-select:focus,
 .control-input:focus {
     border-color: var(--color-primary);
     outline: 0;
-    box-shadow: 0 0 0 3px var(--color-primary-glow);
+    background-color: var(--color-surface-1);
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 input[type="text"],
@@ -991,7 +951,7 @@ hr.control-divider,
 .control-divider {
     border: none;
     border-top: 1px solid var(--color-border);
-    margin: 0.65rem 0;
+    margin: 0.15rem 0;
     width: 100%;
     box-sizing: border-box;
 }
@@ -1125,16 +1085,26 @@ hr.control-divider,
 }
 
 .empty-feature-icon {
-    font-size: 0.95rem;
-    color: var(--color-primary);
-    background: var(--color-primary-light);
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.35rem;
+    background: var(--color-surface-3);
+    line-height: 1;
+}
+
+.empty-feature-icon i {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    line-height: 1;
+    width: auto;
+    height: auto;
+    margin: 0;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .empty-feature-label {
@@ -1150,6 +1120,85 @@ hr.control-divider,
     line-height: 1.45;
 }
 
+/* ==========================================================================
+   Impeccable chart language — tooltips, axes, legends (append-only)
+   ========================================================================== */
+
+/* Unified Vega tooltip */
+#vg-tooltip-element,
+.vg-tooltip {
+    font-family: var(--font-sans) !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
+    color: #0f172a !important;
+    background: rgba(255, 255, 255, 0.97) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.04) !important;
+    padding: 8px 10px !important;
+    backdrop-filter: blur(12px);
+    font-feature-settings: "tnum" "lnum";
+    max-width: 280px;
+}
+
+#vg-tooltip-element table td,
+.vg-tooltip table td {
+    font-feature-settings: "tnum" "lnum";
+    padding: 1px 6px 1px 0 !important;
+}
+
+#vg-tooltip-element table td.key,
+.vg-tooltip table td.key {
+    color: #64748b !important;
+    font-weight: 500;
+}
+
+#vg-tooltip-element table td.value,
+.vg-tooltip table td.value {
+    color: #0f172a !important;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* Vega SVG canvas: tabular numerals on every axis/legend label */
+#vega-render-output svg text {
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum" "lnum";
+}
+
+/* Vega mark transition (append-only, respects reduced motion) */
+#vega-render-output svg mark,
+#vega-render-output svg .mark-group {
+    transition: opacity 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #vega-render-output svg mark,
+    #vega-render-output svg .mark-group,
+    .graphic-walker-loading::before {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* LineUp tooltips: tighten + tabular */
+.lu-dialog,
+.lu-tooltip {
+    font-feature-settings: "tnum" "lnum";
+}
+
+/* Empty-state: flatten secondary cards so primary CTA dominates */
+.empty-feature-item {
+    background: var(--color-surface-2);
+}
+
+.empty-feature-item:hover {
+    background: var(--color-surface-2);
+    transform: none;
+    border-color: var(--color-border-input);
+    box-shadow: var(--shadow-sm);
+}
+
 /* LineUp */
 #lineup-root {
     flex-grow: 1;
@@ -1157,7 +1206,7 @@ hr.control-divider,
     overflow: hidden;
     box-sizing: border-box;
     padding: 0 0 1rem 0;
-    margin: 0 24px;
+    margin: 0 20px;
 }
 
 #lineup-root:empty {
@@ -1379,6 +1428,24 @@ hr.control-divider,
     gap: 12px;
 }
 
+/* Skeleton shimmer shown behind spinner while chart engines mount */
+.graphic-walker-loading::before {
+    content: "";
+    position: absolute;
+    inset: 24px;
+    border-radius: var(--border-radius-card);
+    background: linear-gradient(100deg, #f1f5f9 40%, #e2e8f0 50%, #f1f5f9 60%);
+    background-size: 200% 100%;
+    animation: impeccable-shimmer 1.2s linear infinite;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+@keyframes impeccable-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
 .graphic-walker-loading i {
     font-size: 2.2rem;
     color: var(--color-primary);
@@ -1529,20 +1596,16 @@ hr.control-divider,
     pointer-events: none !important;
 }
 
-/* Sidebar & Controls Headers */
+/* Sidebar & Controls Headers — de-emphasized: small muted title, quiet icon */
 .syntax-sidebar-header,
 .controls-sidebar-header {
-    padding: 0.6rem 0.875rem;
-    background: var(--color-surface-2);
+    padding: 0.55rem 0.9rem;
+    background: var(--color-surface-1);
     border-bottom: 1px solid var(--color-border);
-    border-radius: calc(var(--border-radius-main) - 1px) calc(var(--border-radius-main) - 1px) 0 0;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: var(--font-size-button-link);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-text-dark);
-    letter-spacing: -0.01em;
     position: sticky;
     top: 0;
     z-index: 2;
@@ -1551,12 +1614,14 @@ hr.control-divider,
     box-sizing: border-box;
 }
 
-/* Unified Controls Sidebar Body & Groups */
+/* Unified Controls Sidebar Body & Groups — quiet hierarchy: section labels
+   whisper (uppercase 11px muted), controls carry the weight. */
 .controls-sidebar-body {
-    padding: 0.85rem;
+    padding: 1rem 0.9rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: var(--gap-m);
+    gap: 0.9rem;
+    background: var(--color-surface-1);
 }
 
 .controls-sidebar-body .control-group,
@@ -1567,10 +1632,10 @@ hr.control-divider,
 }
 
 .controls-sidebar-actions {
-    margin-top: 0.25rem;
+    margin-top: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--gap-m);
+    gap: 0.9rem;
 }
 
 .control-group .utility-segmented-btn-group {
@@ -1695,12 +1760,19 @@ hr.control-divider,
 .sidebar-header-title {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-size: var(--font-size-button-link);
-    color: #1e293b;
+    gap: 6px;
+    font-size: 0.68rem;
     font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
     white-space: nowrap;
     flex-shrink: 0;
+}
+
+.sidebar-header-title i {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
 }
 
 .sidebar-header-actions {
@@ -1844,24 +1916,26 @@ hr.control-divider,
 .sankey-color-picker-row {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.55rem;
 }
 
 .sankey-color-hint {
     font-size: 0.75rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-medium);
 }
 
 .sankey-node rect {
     cursor: move;
-    shape-rendering: crispEdges;
-    transition: fill-opacity var(--transition-fast);
+    shape-rendering: geometricPrecision;
+    transition: fill-opacity var(--transition-fast), filter var(--transition-fast);
 }
 
 .sankey-node:not(.selected) rect:hover {
-    fill-opacity: 0.9;
-    stroke: var(--color-text-secondary);
+    fill-opacity: 0.85;
+    stroke: rgba(15, 23, 42, 0.35);
     stroke-width: 1.5px;
+    filter: brightness(1.04);
 }
 
 .sankey-node.selected rect {
@@ -1872,20 +1946,22 @@ hr.control-divider,
 
 .sankey-node text {
     pointer-events: none;
-    font-family: inherit;
-    font-size: 11.5px;
-    fill: #1e293b;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    fill: #475569;
     font-weight: var(--font-weight-medium);
+    font-feature-settings: "tnum" "lnum";
+    letter-spacing: 0.01em;
 }
 
 .sankey-link {
     fill: none;
-    stroke-opacity: 0.45;
-    transition: stroke-opacity 0.2s;
+    stroke-opacity: 0.28;
+    transition: stroke-opacity 0.15s ease;
 }
 
 .sankey-link:hover {
-    stroke-opacity: 0.8;
+    stroke-opacity: 0.55;
 }
 
 .sankey-annotation {
@@ -1994,19 +2070,26 @@ hr.control-divider,
 .curves-checkbox-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
     cursor: pointer;
-    color: var(--color-text-dark);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
     user-select: none;
+    padding: 0.15rem 0;
 }
 
 .curves-checkbox-item input[type="checkbox"] {
     accent-color: var(--color-primary);
     cursor: pointer;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 .curves-checkbox-item:hover {
-    color: var(--color-primary);
+    color: var(--color-text-primary);
 }
 
 #agent-skills-list {
@@ -2059,10 +2142,10 @@ hr.control-divider,
 }
 
 .mermaid-config-details {
-    background: var(--color-background-medium);
+    background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-input);
-    padding: 0.5rem 0.65rem;
+    border-radius: var(--border-radius-main);
+    padding: 0.55rem 0.7rem;
     transition: all var(--transition-base);
     box-sizing: border-box;
 }
@@ -2095,10 +2178,10 @@ hr.control-divider,
 .mermaid-config-summary label {
     margin-bottom: 0 !important;
     cursor: pointer;
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     font-weight: var(--font-weight-bold);
-    color: var(--color-secondary-hover);
-    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
@@ -2417,8 +2500,15 @@ hr.control-divider,
 }
 
 @keyframes fadeInSandDanceTooltip {
-    from { opacity: 0; transform: translateY(3px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .sanddance-tooltip-header {
@@ -3316,6 +3406,7 @@ hr.control-divider,
         opacity: 0;
         transform: scale(0.96) translateY(8px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -3996,14 +4087,14 @@ hr.control-divider,
 .tab-intro-banner {
     display: flex;
     flex-direction: column;
-    padding: 0.7rem 1.25rem;
+    padding: 0.45rem 1.25rem;
     margin: 0;
-    background: var(--color-surface-2);
+    background: var(--color-surface-1);
     border: none;
     border-bottom: 1px solid var(--color-border);
     border-radius: 0;
     box-shadow: none;
-    color: var(--color-text-dark);
+    color: var(--color-text-muted);
     flex-shrink: 0;
     z-index: 15;
     box-sizing: border-box;
@@ -4020,12 +4111,15 @@ hr.control-divider,
 
 .tab-intro-desc {
     margin: 0;
-    color: var(--color-text-secondary);
-    font-size: 0.88rem;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
     font-weight: var(--font-weight-medium);
-    line-height: 1.55;
-    letter-spacing: -0.01em;
+    line-height: 1.5;
+    letter-spacing: 0;
     flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tab-intro-actions {
@@ -4042,20 +4136,20 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 32px;
-    min-width: 90px;
-    padding: 0 0.85rem;
+    height: 28px;
+    min-width: auto;
+    padding: 0 0.65rem;
     box-sizing: border-box;
-    border-radius: var(--border-radius-pill);
-    font-size: 0.835rem;
-    font-weight: var(--font-weight-bold);
+    border-radius: var(--border-radius-main);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
     font-family: inherit;
     text-decoration: none;
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    transition: all 0.2s var(--ease-out-cubic);
+    box-shadow: none;
+    transition: all 0.15s var(--ease-out-cubic);
 }
 
 .tab-intro-info-btn {
