@@ -212,11 +212,8 @@
             <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
             <div id="empty-state-container" class="vis-container">
                 <div class="initial-message">
-                    <h2>Explore - Visualize - Analyze</h2>
-                    <p>Upload a CSV, paste from clipboard or load demo data, then explore with interactive analysis
-                        tools -
-                        or let an AI agent run
-                        Python code, generate charts, and automate insights for you.</p>
+                    <h2>Your data.<br><em>Instantly visual.</em></h2>
+                    <p>Drop a CSV, paste from clipboard, or load demo data — then explore, chart, and interrogate with interactive tools or a built-in AI agent.</p>
 
                     <div class="empty-state-actions">
                         <button id="empty-set-data-btn" class="button icon-button primary"
@@ -224,11 +221,35 @@
                             <i class="fa-solid fa-cloud-arrow-up"></i><span>Load Data</span>
                         </button>
                         <button id="empty-demo-btn" class="button icon-button" title="Load sample dataset">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Demo Data</span>
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Try Demo</span>
                         </button>
                         <button id="empty-load-session-btn" class="button icon-button" title="Load saved session">
                             <i class="fa-solid fa-folder-open"></i><span>Load Session</span>
                         </button>
+                    </div>
+
+
+                    <div class="empty-state-features">
+                        <div class="empty-feature-item">
+                            <i class="fa-solid fa-table-cells empty-feature-icon"></i>
+                            <span class="empty-feature-label">Table</span>
+                            <span class="empty-feature-desc">Sort, filter & rank with LineUp</span>
+                        </div>
+                        <div class="empty-feature-item">
+                            <i class="fa-solid fa-chart-line empty-feature-icon"></i>
+                            <span class="empty-feature-label">Explorer</span>
+                            <span class="empty-feature-desc">Drag-and-drop visual analysis</span>
+                        </div>
+                        <div class="empty-feature-item">
+                            <i class="fa-solid fa-chart-simple empty-feature-icon"></i>
+                            <span class="empty-feature-label">Charts</span>
+                            <span class="empty-feature-desc">Vega-Lite, Sankey & Mermaid</span>
+                        </div>
+                        <div class="empty-feature-item">
+                            <i class="fa-solid fa-robot empty-feature-icon"></i>
+                            <span class="empty-feature-label">AI Agent</span>
+                            <span class="empty-feature-desc">Python code & auto-insights</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,100 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
-    /* Colors - High-Precision Analytical Palette */
-    --color-primary: #2563eb;
-    --color-primary-hover: #1d4ed8;
-    --color-primary-light: #eff6ff;
-    --color-primary-glow: transparent;
+    /* -------------------------------------------------------
+       Palette — dark-canvas, warm amber accent
+       ------------------------------------------------------- */
+    --color-primary:        #f59e0b;  /* amber-400 */
+    --color-primary-hover:  #d97706;  /* amber-500 */
+    --color-primary-light:  rgba(245, 158, 11, 0.12);
+    --color-primary-glow:   rgba(245, 158, 11, 0.25);
 
-    --color-secondary: #475569;
-    --color-secondary-hover: #334155;
-    --color-secondary-light: #f8fafc;
+    --color-secondary:      #94a3b8;
+    --color-secondary-hover:#cbd5e1;
 
-    --color-success: #047857;
-    --color-danger: #dc2626;
-    --color-danger-hover: #b91c1c;
+    --color-success:        #34d399;  /* emerald-400 */
+    --color-danger:         #f87171;  /* red-400 */
+    --color-danger-hover:   #ef4444;
 
-    /* Text Colors - WCAG AA & AAA Compliant */
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #334155;
-    --color-text-dark: #1e293b;
-    --color-text-muted: #64748b;
+    /* -------------------------------------------------------
+       Canvas (dark application shell)
+       ------------------------------------------------------- */
+    --color-canvas:         #0c0e12;  /* near-black */
+    --color-surface-1:      #141720;  /* cards, panels */
+    --color-surface-2:      #1c2030;  /* elevated, sidebar */
+    --color-surface-3:      #252a3a;  /* controls, inputs */
+    --color-surface-hover:  #2e3447;
 
-    --color-background-body: #f8fafc;
-    --color-background-light: #ffffff;
-    --color-background-medium: #f1f5f9;
+    /* backward-compat aliases used throughout style.css */
+    --color-background-body:  var(--color-canvas);
+    --color-background-light: var(--color-surface-1);
+    --color-background-medium: var(--color-surface-2);
 
-    --color-border: #e2e8f0;
-    --color-border-input: #cbd5e1;
+    /* -------------------------------------------------------
+       Text
+       ------------------------------------------------------- */
+    --color-text-primary:   #f0f4ff;  /* near-white, slightly blue-tinted */
+    --color-text-secondary: #94a3b8;  /* slate-400 */
+    --color-text-dark:      #e2e8f4;
+    --color-text-muted:     #64748b;  /* slate-500 */
 
-    --color-disabled: #cbd5e1;
-    --color-light-gray: #f8fafc;
+    /* -------------------------------------------------------
+       Borders
+       ------------------------------------------------------- */
+    --color-border:         rgba(255,255,255,0.07);
+    --color-border-input:   rgba(255,255,255,0.12);
 
-    /* Precision Gradients & Accents  */
-    --primary-gradient: #2563eb;
-    --primary-gradient-hover: #1d4ed8;
-    --ai-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    --ai-gradient-hover: linear-gradient(135deg, #0f172a 0%, #020617 100%);
-    --ai-glow: none;
-    --ai-color: #2563eb;
+    --color-disabled:       #334155;
+    --color-light-gray:     var(--color-surface-2);
 
-    /* Glassmorphism Tokens */
-    --glass-bg: rgba(255, 255, 255, 0.92);
-    --glass-bg-subtle: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(226, 232, 240, 0.95);
-    --glass-blur: blur(12px);
+    /* -------------------------------------------------------
+       Gradients & accents
+       ------------------------------------------------------- */
+    --primary-gradient:       #f59e0b;
+    --primary-gradient-hover: #d97706;
 
-    /* Spacing & Gaps */
-    --padding-xs: 0.25rem;
-    --padding-s: 0.5rem;
-    --padding-m: 0.75rem 1.25rem;
-    --padding-l: 1.5rem;
+    /* AI button: deep indigo-to-violet, not the generic blue */
+    --ai-gradient:        linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
+    --ai-gradient-hover:  linear-gradient(135deg, #3730a3 0%, #312e81 100%);
+    --ai-glow:            0 0 20px rgba(99,102,241,0.35);
+    --ai-color:           #818cf8;
 
-    --padding-header: 0.75rem 1.5rem;
-    --padding-button: 0.45rem 1.1rem;
+    /* -------------------------------------------------------
+       Glass — dark-mode glass uses surface colours
+       ------------------------------------------------------- */
+    --glass-bg:         rgba(20, 23, 32, 0.92);
+    --glass-bg-subtle:  rgba(20, 23, 32, 0.75);
+    --glass-border:     rgba(255, 255, 255, 0.07);
+    --glass-blur:       blur(16px);
+
+    /* -------------------------------------------------------
+       Spacing
+       ------------------------------------------------------- */
+    --padding-xs:           0.25rem;
+    --padding-s:            0.5rem;
+    --padding-m:            0.75rem 1.25rem;
+    --padding-l:            1.5rem;
+
+    --padding-header:       0.6rem 1.25rem;
+    --padding-button:       0.45rem 1.1rem;
     --padding-button-compact: 0.4rem 0.75rem;
 
     --gap-xs: 0.25rem;
-    --gap-s: 0.5rem;
-    --gap-m: 0.75rem;
-    --gap-l: 1.25rem;
+    --gap-s:  0.5rem;
+    --gap-m:  0.75rem;
+    --gap-l:  1.25rem;
 
     --margin-header-p: 0.15rem 0 0;
 
-    /* Borders & Radius */
-    --border-radius-sm: 4px;
-    --border-radius-main: 6px;
-    --border-radius-card: 8px;
-    --border-radius-input: 6px;
-    --border-radius-pill: 9999px;
+    /* -------------------------------------------------------
+       Borders & Radius
+       ------------------------------------------------------- */
+    --border-radius-sm:    4px;
+    --border-radius-main:  6px;
+    --border-radius-card:  10px;
+    --border-radius-medium: 10px;
+    --border-radius-input: 7px;
+    --border-radius-pill:  9999px;
 
-    /* Neutral Elevation Shadows (Zero colored halos) */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-    --shadow-float: 0 16px 24px -4px rgb(0 0 0 / 0.1), 0 6px 10px -4px rgb(0 0 0 / 0.05);
+    /* -------------------------------------------------------
+       Elevation shadows (subtle, dark-mode tuned)
+       ------------------------------------------------------- */
+    --shadow-sm:    0 1px 2px 0 rgba(0,0,0,0.45);
+    --shadow-md:    0 4px 12px -2px rgba(0,0,0,0.5), 0 2px 4px -2px rgba(0,0,0,0.3);
+    --shadow-lg:    0 12px 28px -4px rgba(0,0,0,0.6), 0 4px 8px -4px rgba(0,0,0,0.3);
+    --shadow-float: 0 20px 40px -6px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.4);
+    --shadow-xl:    var(--shadow-float);
 
-    /* Typography Scale (Strict 13px+ floor for interactive / functional text) */
-    --font-size-xs: 0.8125rem;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 0.95rem;
-    --font-size-button-link: 0.875rem;
-    --font-weight-bold: 600;
-    --font-weight-medium: 500;
+    /* -------------------------------------------------------
+       Typography
+       ------------------------------------------------------- */
+    --font-size-xs:           0.8125rem;
+    --font-size-sm:           0.875rem;
+    --font-size-base:         0.9375rem;
+    --font-size-button-link:  0.875rem;
+    --font-weight-bold:       600;
+    --font-weight-medium:     500;
 
-    /* Width and height */
-    --height-small: 2.35rem;
-    --height-large: 100vh;
-    --sidebar-width-sm: 270px;
-    --sidebar-width-md: 320px;
-    --sidebar-width-lg: 340px;
-    --drawer-width: 480px;
+    /* -------------------------------------------------------
+       Layout dimensions
+       ------------------------------------------------------- */
+    --height-small:       2.25rem;
+    --height-large:       100vh;
+    --sidebar-width-sm:   270px;
+    --sidebar-width-md:   320px;
+    --sidebar-width-lg:   340px;
+    --drawer-width:       480px;
 
-    /* Transitions */
-    --transition-fast: 0.12s ease;
-    --transition-base: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-out-cubic: cubic-bezier(0.4, 0, 0.2, 1);
+    /* -------------------------------------------------------
+       Transitions
+       ------------------------------------------------------- */
+    --transition-fast: 0.1s ease;
+    --transition-base: 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out-cubic:  cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* Typography */
+    /* -------------------------------------------------------
+       Fonts
+       ------------------------------------------------------- */
     --font-mono: 'SFMono-Regular', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
