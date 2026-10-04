@@ -7,11 +7,6 @@
     <title>Dataviz-Agent</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="shortcut icon" href="/static/favicon.ico">
-    <!-- Google Fonts Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="/static/variables.css">
     <link rel="stylesheet" href="/static/style.css">
     <!-- LineUp.js CSS and JS from a CDN -->
@@ -194,8 +189,7 @@
         </div>
     </header>
     <main>
-
-
+        <div id="visual-stage" class="visual-stage">
         <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
         <div id="empty-state-container" class="vis-container">
             <div class="initial-message">
@@ -1081,8 +1075,7 @@
                                     </div>
                                 </div>
                                 <div class="control-group" style="margin-bottom: 0;">
-                                    <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter
-                                        Shape</label>
+                                    <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter Shape</label>
                                     <select id="vega-mark-shape" class="control-select">
                                         <option value="circle" selected>Circle</option>
                                         <option value="square">Square</option>
@@ -1230,9 +1223,26 @@
                 </div>
             </div>
         </div>
+        </div>
 
-        <!-- Agent View -->
+        <!-- Draggable Split-Pane Divider -->
+        <div id="copilot-drag-handle" class="split-drag-handle hidden" title="Drag to resize AI Copilot" role="separator" aria-orientation="vertical"></div>
+
+        <!-- Agent Copilot Sidebar -->
         <div id="agent-container" class="vis-container hidden">
+            <!-- Copilot Header Bar -->
+            <div class="copilot-header">
+                <div class="copilot-header-brand">
+                    <i class="fa-solid fa-robot text-primary-icon"></i>
+                    <span class="copilot-header-title">AI Copilot</span>
+                    <span id="agent-online-chip" class="copilot-status-chip">Ready</span>
+                </div>
+                <div class="copilot-header-actions">
+                    <button id="agent-copilot-collapse-btn" class="modal-close-btn" title="Close Copilot Panel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
             <!-- Simplified Chat Area -->
             <div class="chat-panel">
                 <div class="chat-messages" id="chat-messages">
@@ -1287,11 +1297,20 @@
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="settings-modal-header-title">
-                    <span class="settings-icon-cube"><i class="fa-solid fa-brain"></i></span>
-                    <h2>AI Model Settings</h2>
+                <div class="modal-header-top-row">
+                    <div class="settings-modal-header-title">
+                        <i class="fa-solid fa-brain text-primary-icon-md"></i>
+                        <h2>AI Model Settings</h2>
+                    </div>
+                    <button id="close-settings-modal-btn" class="modal-close-btn" title="Close Drawer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <button id="close-settings-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
+                    <button type="button" class="inspector-nav-tab" data-inspector="set-data-modal" title="Dataset configuration"><i class="fa-solid fa-database"></i><span>Data</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="session-modal" title="Saved sessions"><i class="fa-solid fa-clock-rotate-left"></i><span>Session</span></button>
+                    <button type="button" class="inspector-nav-tab active" data-inspector="settings-modal" title="AI Model settings"><i class="fa-solid fa-brain"></i><span>Model</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="agent-skills-modal" title="Agent skills"><i class="fa-solid fa-layer-group"></i><span>Skills</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="docs-modal" title="Documentation"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+                </nav>
             </div>
             <div class="modal-body">
                 <!-- Provider Preset Dropdown -->
@@ -1376,10 +1395,20 @@
     <div id="set-data-modal" class="modal hidden">
         <div class="modal-content set-data-modal-content">
             <div class="modal-header">
-                <div class="modal-header-brand-row">
-                    <i class="fa-solid fa-database text-primary-icon-md"></i>
-                    <h2>Set Dataset</h2>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-database text-primary-icon-md"></i>
+                        <h2>Set Dataset</h2>
+                    </div>
+                    <button id="close-set-data-modal-btn" class="modal-close-btn" title="Close Drawer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
+                <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
+                    <button type="button" class="inspector-nav-tab active" data-inspector="set-data-modal" title="Dataset configuration"><i class="fa-solid fa-database"></i><span>Data</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="session-modal" title="Saved sessions"><i class="fa-solid fa-clock-rotate-left"></i><span>Session</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="settings-modal" title="AI Model settings"><i class="fa-solid fa-brain"></i><span>Model</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="agent-skills-modal" title="Agent skills"><i class="fa-solid fa-layer-group"></i><span>Skills</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="docs-modal" title="Documentation"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+                </nav>
             </div>
 
             <div class="set-data-tabs">
@@ -1487,10 +1516,20 @@
     <div id="agent-skills-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-header-brand-row">
-                    <i class="fa-solid fa-layer-group text-primary-icon-md"></i>
-                    <h2>Agent Skills</h2>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-layer-group text-primary-icon-md"></i>
+                        <h2>Agent Skills</h2>
+                    </div>
+                    <button id="close-agent-skills-modal-btn" class="modal-close-btn" title="Close Drawer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
+                <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
+                    <button type="button" class="inspector-nav-tab" data-inspector="set-data-modal" title="Dataset configuration"><i class="fa-solid fa-database"></i><span>Data</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="session-modal" title="Saved sessions"><i class="fa-solid fa-clock-rotate-left"></i><span>Session</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="settings-modal" title="AI Model settings"><i class="fa-solid fa-brain"></i><span>Model</span></button>
+                    <button type="button" class="inspector-nav-tab active" data-inspector="agent-skills-modal" title="Agent skills"><i class="fa-solid fa-layer-group"></i><span>Skills</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="docs-modal" title="Documentation"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+                </nav>
             </div>
             <div class="modal-body modal-body-spaced">
                 <p class="set-data-dropzone-sub">Toggle which runtime skills steer the agent's next answer. The chart
@@ -1508,10 +1547,20 @@
     <div id="session-modal" class="modal hidden">
         <div class="modal-content session-modal-content">
             <div class="modal-header">
-                <div class="modal-header-brand-row">
-                    <i class="fa-solid fa-clock-rotate-left text-primary-icon-md"></i>
-                    <h2>Load Session</h2>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-clock-rotate-left text-primary-icon-md"></i>
+                        <h2>Load Session</h2>
+                    </div>
+                    <button id="close-session-modal-btn" class="modal-close-btn" title="Close Drawer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
+                <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
+                    <button type="button" class="inspector-nav-tab" data-inspector="set-data-modal" title="Dataset configuration"><i class="fa-solid fa-database"></i><span>Data</span></button>
+                    <button type="button" class="inspector-nav-tab active" data-inspector="session-modal" title="Saved sessions"><i class="fa-solid fa-clock-rotate-left"></i><span>Session</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="settings-modal" title="AI Model settings"><i class="fa-solid fa-brain"></i><span>Model</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="agent-skills-modal" title="Agent skills"><i class="fa-solid fa-layer-group"></i><span>Skills</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="docs-modal" title="Documentation"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+                </nav>
             </div>
             <div class="modal-body modal-body-spaced">
                 <!-- Step 1: Session File -->
@@ -1556,10 +1605,20 @@
     <div id="docs-modal" class="modal hidden">
         <div class="modal-content docs-modal-content">
             <div class="modal-header">
-                <div class="modal-header-brand-row">
-                    <i class="fa-solid fa-book-open text-primary-icon"></i>
-                    <h2>Documentation</h2>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-book-open text-primary-icon"></i>
+                        <h2>Documentation</h2>
+                    </div>
+                    <button id="close-docs-modal-btn" class="modal-close-btn" title="Close Drawer"><i class="fa-solid fa-xmark"></i></button>
                 </div>
+                <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
+                    <button type="button" class="inspector-nav-tab" data-inspector="set-data-modal" title="Dataset configuration"><i class="fa-solid fa-database"></i><span>Data</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="session-modal" title="Saved sessions"><i class="fa-solid fa-clock-rotate-left"></i><span>Session</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="settings-modal" title="AI Model settings"><i class="fa-solid fa-brain"></i><span>Model</span></button>
+                    <button type="button" class="inspector-nav-tab" data-inspector="agent-skills-modal" title="Agent skills"><i class="fa-solid fa-layer-group"></i><span>Skills</span></button>
+                    <button type="button" class="inspector-nav-tab active" data-inspector="docs-modal" title="Documentation"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+                </nav>
             </div>
             <div class="modal-body docs-modal-body" id="docs-modal-body">
                 <div class="docs-loading-container">

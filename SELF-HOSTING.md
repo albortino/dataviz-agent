@@ -1,6 +1,8 @@
 # Self-Hosting Guide for Dataviz-Agent
 
-This guide provides step-by-step instructions for hosting **Dataviz-Agent** on your own infrastructure—ranging from a home server or Raspberry Pi to a cloud Virtual Private Server (VPS).
+This guide provides step-by-step instructions for hosting **Dataviz-Agent** on your own infrastructure—ranging from a home server or Raspberry Pi to a cloud Virtual Private Server.
+
+Dataviz-Agent is designed to be lightweight. The frontend runs visual computations entirely in the browser, while the backend handles agent queries and Python computations.
 
 ---
 
@@ -13,19 +15,6 @@ This guide provides step-by-step instructions for hosting **Dataviz-Agent** on y
    - [Option B: 100% Local Offline Setup with Ollama](#option-b-100-local-offline-setup-with-ollama)
 4. [Environment Variables Reference](#environment-variables-reference)
 5. [Self-Hosting Tips & Security Hardening](#self-hosting-tips--security-hardening)
-
----
-
-## System Requirements
-
-Dataviz-Agent is designed to be lightweight. The frontend runs visual computations entirely in the browser, while the backend handles agent queries and Python computations.
-
-| Resource | Minimum | Recommended |
-| :--- | :--- | :--- |
-| **CPU** | 1 Core (x86_64 or ARM64 / Raspberry Pi 4 or 5) | 2+ Cores |
-| **RAM** | 512 MB (when using cloud LLMs or BYOK) | 1 GB+ (Dataviz-Agent) / 16 GB+ (if running Ollama on same host) |
-| **Disk** | 500 MB free space | 2 GB free space |
-| **OS** | Linux (Ubuntu, Debian, Alpine, Fedora, Arch), macOS, or Windows (WSL2) | Ubuntu 22.04+ / Debian 12+ / Raspberry Pi OS 64-bit |
 
 ---
 

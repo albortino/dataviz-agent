@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemVega = document.getElementById('plots-item-vega');
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
-    const showAgentBtn = document.getElementById('show-agent-btn');
+    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
     const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, plotsMenuToggleBtn, showAgentBtn];
 
     // Tool View Containers
@@ -51,7 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sankeyContainer = document.getElementById('sankey-container');
     const vegaContainer = document.getElementById('vega-container');
     const agentContainer = document.getElementById('agent-container');
-    const allContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer, agentContainer];
+    const copilotDragHandle = document.getElementById('copilot-drag-handle');
+    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer];
+    const allContainers = [...visualContainers, agentContainer];
 
     const emptyStateContainer = document.getElementById('empty-state-container');
     const emptySetDataBtn = document.getElementById('empty-set-data-btn');
@@ -260,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setActiveView(targetContainer, targetButton) {
         if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
-        allContainers.forEach(c => {
+        visualContainers.forEach(c => {
             if (c === targetContainer) {
                 c.classList.remove('hidden');
             } else if (c) {
@@ -269,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const isPlotsTarget = (targetButton === plotsPrimaryBtn);
-        allViewButtons.forEach(btn => {
+        visualViewButtons.forEach(btn => {
             if (btn === targetButton) {
                 btn.classList.add('active');
             } else if (btn) {
@@ -283,6 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetContainer !== sankeyContainer && sankeyMgr) {
             sankeyMgr.teardown();
         }
+        window.dispatchEvent(new Event('resize'));
     }
 
     let currentActiveView = 'lineup';
@@ -361,12 +364,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     }
 
+    function toggleAgentCopilot(forceState) {
+        if (!agentContainer) return;
+        const willOpen = (typeof forceState === 'boolean') ? forceState : agentContainer.classList.contains('hidden');
+        if (willOpen) {
+            agentContainer.classList.remove('hidden');
+            if (copilotDragHandle) copilotDragHandle.classList.remove('hidden');
+            if (showAgentBtn) showAgentBtn.classList.add('active');
+            setTimeout(() => { if (agentMgr && agentMgr.chatInput) agentMgr.chatInput.focus(); }, 60);
+        } else {
+            agentContainer.classList.add('hidden');
+            if (copilotDragHandle) copilotDragHandle.classList.add('hidden');
+            if (showAgentBtn) showAgentBtn.classList.remove('active');
+        }
+        window.dispatchEvent(new Event('resize'));
+    }
+
     function showAgent() {
         if (!currentData || currentData.length === 0) return;
-        currentActiveView = 'agent';
-        setActiveView(agentContainer, showAgentBtn);
-        if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
-        setTimeout(() => { if (agentMgr.chatInput) agentMgr.chatInput.focus(); }, 50);
+        toggleAgentCopilot(true);
     }
 
     function activateViewByName(viewName) {
@@ -439,7 +455,70 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentData && currentData.length > 0) showMermaid();
         });
     }
-    if (showAgentBtn) showAgentBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showAgent(); });
+    if (showAgentBtn) {
+        showAgentBtn.addEventListener('click', () => {
+            if (currentData && currentData.length > 0) {
+                toggleAgentCopilot();
+            }
+        });
+    }
+
+    const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
+    if (copilotCollapseBtn) {
+        copilotCollapseBtn.addEventListener('click', () => toggleAgentCopilot(false));
+    }
+
+    // Draggable Split-Pane Resizer for Copilot
+    if (copilotDragHandle && agentContainer) {
+        const savedWidth = localStorage.getItem('copilot_width');
+        if (savedWidth) {
+            const w = parseInt(savedWidth, 10);
+            if (w >= 300 && w <= Math.floor(window.innerWidth * 0.75)) {
+                agentContainer.style.width = `${w}px`;
+                agentContainer.style.flex = `0 0 ${w}px`;
+            }
+        }
+
+        let isDragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            const deltaX = startX - e.clientX;
+            const targetWidth = startWidth + deltaX;
+            const minWidth = 300;
+            const maxWidth = Math.floor(window.innerWidth * 0.75);
+            const clamped = Math.max(minWidth, Math.min(targetWidth, maxWidth));
+            agentContainer.style.width = `${clamped}px`;
+            agentContainer.style.flex = `0 0 ${clamped}px`;
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        const onMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            copilotDragHandle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            localStorage.setItem('copilot_width', parseInt(agentContainer.style.width, 10));
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        copilotDragHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startWidth = agentContainer.getBoundingClientRect().width;
+            copilotDragHandle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        });
+    }
 
     // --- CSV Import Modal & Parsing ---
     const openImportModal = (file) => {
@@ -1080,6 +1159,60 @@ document.addEventListener('DOMContentLoaded', () => {
             openImprintModal();
         });
     }
+
+    // Drawer backdrop click & Escape key handling for slide-out inspector drawers
+    document.querySelectorAll('.modal').forEach(m => {
+        m.addEventListener('click', (e) => {
+            if (e.target === m) {
+                m.classList.add('hidden');
+            }
+        });
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal:not(.hidden)').forEach(m => m.classList.add('hidden'));
+        }
+    });
+
+    // Close button wiring for all inspector drawers and modals
+    document.querySelectorAll('.modal-close-btn, [data-close-drawer]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal');
+            if (modal) modal.classList.add('hidden');
+        });
+    });
+
+    // Unified Inspector Drawer Tab Bar Navigation
+    const inspectorDrawerIds = ['set-data-modal', 'session-modal', 'settings-modal', 'agent-skills-modal', 'docs-modal'];
+    document.querySelectorAll('.inspector-nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetId = tab.getAttribute('data-inspector');
+            if (!targetId) return;
+
+            // Close all other inspector drawers
+            inspectorDrawerIds.forEach(id => {
+                if (id !== targetId) {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                }
+            });
+
+            // Open target drawer via its specific handler
+            if (targetId === 'set-data-modal') {
+                openSetDataModal();
+            } else if (targetId === 'session-modal') {
+                openSessionModal();
+            } else if (targetId === 'settings-modal') {
+                settingsMgr.loadSavedSettings();
+                if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+            } else if (targetId === 'agent-skills-modal') {
+                agentMgr.openSkillsModal();
+            } else if (targetId === 'docs-modal') {
+                openDocsModal();
+            }
+        });
+    });
 
     // Dynamic Footer Visibility for Privacy & Imprint
     const initFooterComplianceLinks = async () => {
