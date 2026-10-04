@@ -174,35 +174,37 @@ export class AgentManager {
     }
 
     getWelcomeMessageHtml() {
-        const keySource = this.usesServerKey ? ' (Server Environment)' : (this.isDirectBrowser ? ' (Browser Direct)' : '');
-        const modelBadge = this.activeModel ? `Online (${this.activeModel}${keySource})` : 'Online';
-        if (this.isDirectBrowser) {
-            return `
-            <div class="agent-welcome">
-                <p>
-                    I am your autonomous data science assistant running in <b>Direct Browser Connection</b> mode (VPN compatible). Analytical queries execute directly via DuckDB-Wasm:
-                </p>
-                <ul>
-                    <li><b>Direct In-Browser ReAct Loop:</b> Directly communicates with your LLM endpoint (Azure OpenAI / private VPN) with zero backend proxying.</li>
-                    <li><b>DuckDB-Wasm Calculations:</b> Aggregations, metrics, distributions, and summaries compute locally at WASM speed on 100% of data.</li>
-                    <li><b>Declarative Visualizations:</b> Generates interactive Vega-Lite statistical charts bound to your active dataset.</li>
-                    <li><b>Diagrams & Flows:</b> Creates Mermaid diagrams and architecture flows.</li>
-                </ul>
-            </div>
-            `;
-        }
+        const keySource = this.usesServerKey ? ' (Server)' : (this.isDirectBrowser ? ' (Direct)' : '');
+        const modelBadge = this.activeModel ? `Ready · ${this.activeModel}${keySource}` : 'Ready';
         return `
-            <div class="agent-welcome">
-                <p>
-                    I am your autonomous data science assistant. I can analyze your dataset, write and execute Python code, create custom charts, and generate interactive diagrams:
-                </p>
-                <ul>
-                    <li><b>Statistical Analysis & Insights:</b> Ask questions in plain language (e.g. summary stats, correlation matrices, distributions, or anomalies).</li>
-                    <li><b>Automated Charts & Plots:</b> Request custom Python charts (Matplotlib / Seaborn scatter plots, bar charts, box plots, histograms).</li>
-                    <li><b>Diagrams & Flows:</b> Generate interactive Mermaid diagrams (flowcharts, sequence flows, ER models, and architecture).</li>
-                    <li><b>Data Transformations:</b> Filter, sort, or reshape tabular data for downstream workbench views.</li>
-                </ul>
+        <div class="agent-welcome">
+            <div class="agent-welcome-header">
+                <div class="agent-welcome-icon-box">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                    <h3 class="agent-welcome-title">AI Data Copilot</h3>
+                    <p class="agent-welcome-badge">${escapeHtml(modelBadge)}</p>
+                </div>
             </div>
+            <p class="agent-welcome-desc">
+                Ask questions about your data, generate interactive charts, or inspect statistics. Click a starter or type below:
+            </p>
+            <div class="agent-prompt-chips">
+                <button type="button" class="agent-prompt-chip" data-prompt="Summarize this dataset: row count, key columns, and top distributions">
+                    <i class="fa-solid fa-chart-pie"></i><span>Summarize dataset</span>
+                </button>
+                <button type="button" class="agent-prompt-chip" data-prompt="Audit this data: check for missing values, unexpected outliers, or skewed distributions">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i><span>Data quality audit</span>
+                </button>
+                <button type="button" class="agent-prompt-chip" data-prompt="Recommend the top 3 most insightful visualizations for this dataset">
+                    <i class="fa-solid fa-chart-line"></i><span>Recommend best charts</span>
+                </button>
+                <button type="button" class="agent-prompt-chip" data-prompt="Calculate correlation between numeric columns and explain the strongest patterns">
+                    <i class="fa-solid fa-diagram-project"></i><span>Explain correlations</span>
+                </button>
+            </div>
+        </div>
         `;
     }
 
@@ -1159,6 +1161,19 @@ export class AgentManager {
 
         if (this.sendBtn) this.sendBtn.addEventListener('click', () => this.handleSend());
         if (this.chatInput) this.chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') this.handleSend(); });
+
+        if (this.messagesContainer) {
+            this.messagesContainer.addEventListener('click', (e) => {
+                const chip = e.target.closest('.agent-prompt-chip');
+                if (chip && chip.dataset.prompt) {
+                    if (this.chatInput) {
+                        this.chatInput.value = chip.dataset.prompt;
+                        this.chatInput.focus();
+                        this.handleSend();
+                    }
+                }
+            });
+        }
 
         if (this.skillsBtn) this.skillsBtn.addEventListener('click', () => this.openSkillsModal());
         if (this.skillsConfirmBtn) this.skillsConfirmBtn.addEventListener('click', () => this.closeSkillsModal(true));

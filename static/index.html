@@ -73,21 +73,30 @@
                     </div>
                     <button id="set-data-btn" class="dropdown-item" title="Upload CSV or paste data">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                            <span>Load / Change Data</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Load / Change Data</span>
+                                <span class="dropdown-item-sub">Upload CSV file or paste raw data</span>
+                            </div>
                         </div>
                     </button>
                     <button id="dummy-data-btn" class="dropdown-item" title="Load sample dataset">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span>Demo Data</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Try Demo Data</span>
+                                <span class="dropdown-item-sub">Load sample dataset to explore</span>
+                            </div>
                         </div>
                     </button>
                     <div class="dropdown-divider"></div>
                     <button id="reset-btn" class="dropdown-item danger" disabled title="Reset Dataset">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-arrow-rotate-left"></i>
-                            <span>Reset Dataset</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-arrow-rotate-left"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Reset Dataset</span>
+                                <span class="dropdown-item-sub">Clear data &amp; return to welcome</span>
+                            </div>
                         </div>
                     </button>
                 </div>
@@ -169,38 +178,54 @@
                 </button>
                 <div id="workspace-dropdown-menu" class="dropdown-menu">
                     <div class="dropdown-header-block">
-                        <div class="dropdown-header-title">Workspace</div>
+                        <div class="dropdown-header-title">Workspace &amp; Sessions</div>
+                        <div class="dropdown-header-desc">Manage project state and configuration</div>
                     </div>
                     <button id="export-session-btn" class="dropdown-item" title="Export Session (JSON)">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-file-export"></i>
-                            <span>Export Session (.json)</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-file-export"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Export Session (.json)</span>
+                                <span class="dropdown-item-sub">Download data, charts &amp; state</span>
+                            </div>
                         </div>
                     </button>
                     <button id="load-session-btn" class="dropdown-item" title="Load Session">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <span>Load Session File</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-folder-open"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Load Session File</span>
+                                <span class="dropdown-item-sub">Restore a saved workspace</span>
+                            </div>
                         </div>
                     </button>
                     <div class="dropdown-divider"></div>
                     <button id="workspace-menu-model-btn" class="dropdown-item" title="AI Model Configuration">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-brain"></i>
-                            <span>AI Model Settings</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-brain"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">AI Model Settings</span>
+                                <span class="dropdown-item-sub">Configure provider, endpoint &amp; keys</span>
+                            </div>
                         </div>
                     </button>
                     <button id="workspace-menu-skills-btn" class="dropdown-item" title="Agent Skills">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-layer-group"></i>
-                            <span>Agent Skills</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-layer-group"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Agent Skills</span>
+                                <span class="dropdown-item-sub">Manage active data audit &amp; viz abilities</span>
+                            </div>
                         </div>
                     </button>
                     <div class="dropdown-divider"></div>
                     <button id="workspace-menu-docs-btn" class="dropdown-item" title="Documentation &amp; Help">
                         <div class="dropdown-item-content">
-                            <i class="fa-solid fa-book-open"></i>
-                            <span>Documentation</span>
+                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-book-open"></i></div>
+                            <div class="dropdown-item-text-group">
+                                <span class="dropdown-item-label">Documentation</span>
+                                <span class="dropdown-item-sub">Guides, workflows &amp; chart types</span>
+                            </div>
                         </div>
                     </button>
                 </div>
@@ -228,6 +253,10 @@
                         </button>
                     </div>
 
+                    <div class="empty-state-hint">
+                        <i class="fa-solid fa-arrow-down"></i>
+                        <span>or drop a CSV file anywhere on screen to start</span>
+                    </div>
 
                     <div class="empty-state-features">
                         <div class="empty-feature-item">
@@ -1305,16 +1334,16 @@
                 </div>
                 <div class="chat-input-area">
                     <button id="chat-clear-btn" class="chat-new-btn"
-                        title="Start new conversation (deletes old history)">
+                        title="Start new conversation (clears history)">
                         <i class="fa-solid fa-plus"></i>
-                        <span>New Chat</span>
+                        <span>New</span>
                     </button>
-                    <button id="agent-skills-btn" class="chat-new-btn" title="Toggle agent skills">
+                    <button id="agent-skills-btn" class="chat-new-btn" title="Toggle active agent skills">
                         <i class="fa-solid fa-layer-group"></i>
                         <span id="agent-skills-label">Skills</span>
                     </button>
                     <input type="text" id="chat-input"
-                        placeholder="Ask anything about your data (e.g. “Summarize this dataset”, “Show correlation between numeric columns”, or “Plot distribution of top values”.)">
+                        placeholder="Ask anything about your data, request charts, or python code...">
                     <button id="chat-send-btn" class="button icon-button primary" title="Send Message">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
@@ -1541,22 +1570,28 @@
 
     <!-- Mermaid AI Format Prompt Modal -->
     <div id="mermaid-ai-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content modal-dialog-centered">
             <div class="modal-header">
-                <h2>AI Diagram Generation</h2>
-                <button id="close-mermaid-ai-modal-btn" class="button modal-close-btn-compact">&times;</button>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-code-fork text-primary-icon-md"></i>
+                        <h2>AI Diagram Generation</h2>
+                    </div>
+                    <button id="close-mermaid-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="control-group">
-                    <label for="mermaid-ai-prompt-input">Additional format prompts</label>
+                    <label for="mermaid-ai-prompt-input" class="settings-form-label">Diagram Instructions &amp; Rules</label>
                     <textarea id="mermaid-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
-                        placeholder="e.g. Highlight anomalies in red, orient horizontally, group into categories..."></textarea>
+                        placeholder="e.g. Group by department, highlight errors in red, lay out left-to-right..."></textarea>
+                    <span class="settings-route-hint" style="margin-top: 4px;">Describe the sequence, flowchart structure, or hierarchy to generate.</span>
                 </div>
             </div>
             <div class="modal-footer">
                 <button id="cancel-mermaid-ai-modal-btn" class="button">Cancel</button>
                 <button id="confirm-mermaid-ai-modal-btn" class="button primary">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate</span>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate Diagram</span>
                 </button>
             </div>
         </div>
@@ -1564,22 +1599,28 @@
 
     <!-- Vega AI Prompt Modal -->
     <div id="vega-ai-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content modal-dialog-centered">
             <div class="modal-header">
-                <h2>AI Vega Chart Generation</h2>
-                <button id="close-vega-ai-modal-btn" class="button modal-close-btn-compact">&times;</button>
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-chart-simple text-primary-icon-md"></i>
+                        <h2>AI Vega Chart Generation</h2>
+                    </div>
+                    <button id="close-vega-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="control-group">
-                    <label for="vega-ai-prompt-input">Chart instructions or prompt</label>
+                    <label for="vega-ai-prompt-input" class="settings-form-label">Chart Instructions or Prompt</label>
                     <textarea id="vega-ai-prompt-input" class="control-input modal-textarea-custom" rows="3"
                         placeholder="e.g. Create a grouped bar chart comparing sales by region with a red threshold line..."></textarea>
+                    <span class="settings-route-hint" style="margin-top: 4px;">Specify desired chart type, axes variables, color groupings, or sorting.</span>
                 </div>
             </div>
             <div class="modal-footer">
                 <button id="cancel-vega-ai-modal-btn" class="button">Cancel</button>
                 <button id="confirm-vega-ai-modal-btn" class="button primary">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate</span>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate Chart</span>
                 </button>
             </div>
         </div>
@@ -1720,7 +1761,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="ok-docs-modal-btn" class="button">Cancel</button>
+                <button id="ok-docs-modal-btn" class="button">Close</button>
             </div>
         </div>
     </div>
@@ -1740,7 +1781,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="ok-privacy-modal-btn" class="button">Cancel</button>
+                <button id="ok-privacy-modal-btn" class="button">Close</button>
             </div>
         </div>
     </div>
@@ -1760,7 +1801,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="ok-imprint-modal-btn" class="button">Cancel</button>
+                <button id="ok-imprint-modal-btn" class="button">Close</button>
             </div>
         </div>
     </div>
