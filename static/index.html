@@ -1386,9 +1386,12 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-brain text-primary-icon-md"></i>
-                        <h2>AI Model Settings</h2>
+                        <div>
+                            <h2>AI Model Settings</h2>
+                            <p class="modal-header-subtitle">Configure LLM provider and API access</p>
+                        </div>
                     </div>
-                    <button id="close-settings-modal-btn" class="modal-close-btn" title="Close Drawer"><i
+                    <button id="close-settings-modal-btn" class="modal-close-btn" title="Close"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
                 <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
@@ -1408,7 +1411,7 @@
             <div class="modal-body">
                 <!-- Provider Preset Dropdown -->
                 <div class="control-group">
-                    <label for="ai-preset-select" class="settings-form-label">Provider</label>
+                    <label for="ai-preset-select" class="settings-form-label">Provider Preset</label>
                     <select id="ai-preset-select" class="control-select">
                         <option value="custom">Custom Configuration</option>
                     </select>
@@ -1417,30 +1420,31 @@
                 <!-- Segmented Route Switcher -->
                 <div class="control-group">
                     <div class="settings-form-label">
-                        <span>Connection Route</span>
-                        <span class="settings-route-hint" id="ai-route-hint">Server proxy</span>
+                        <span>Routing Mode</span>
+                        <span class="settings-route-hint" id="ai-route-hint">Full agent mode (executes python and visual transformations on backend)</span>
                     </div>
                     <div class="route-segmented-control" id="ai-route-switcher">
-                        <button type="button" class="route-segmented-btn server active" data-mode="server">
+                        <button type="button" class="route-segmented-btn server active" data-mode="server"
+                            title="Processes prompts and python code via local backend server">
                             <i class="fa-solid fa-server"></i> <span>Server Proxy</span>
                         </button>
-                        <button type="button" class="route-segmented-btn direct" data-mode="browser">
-                            <i class="fa-solid fa-globe"></i> <span>Direct Browser (VPN)</span>
+                        <button type="button" class="route-segmented-btn direct" data-mode="browser"
+                            title="Calls LLM directly from browser (best for corporate VPN or restricted backends)">
+                            <i class="fa-solid fa-globe"></i> <span>Direct Browser</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Endpoint URL (Visible for Azure & Custom; hidden for standard presets) -->
                 <div class="control-group" id="ai-endpoint-group" style="display: none;">
-                    <label for="ai-base-url" id="ai-endpoint-label" class="settings-form-label">Endpoint
-                        Hostname</label>
+                    <label for="ai-base-url" id="ai-endpoint-label" class="settings-form-label">Endpoint Hostname</label>
                     <input type="text" id="ai-base-url" class="control-input font-mono"
                         placeholder="my-resource.openai.azure.com" value="https://api.deepseek.com">
                 </div>
 
                 <!-- Model / Deployment Name -->
                 <div class="control-group" id="ai-model-group">
-                    <label for="ai-model-name" id="ai-model-name-label" class="settings-form-label">Model</label>
+                    <label for="ai-model-name" id="ai-model-name-label" class="settings-form-label">Model Name</label>
                     <input type="text" id="ai-model-name" class="control-input font-mono" value="deepseek-chat">
                 </div>
 
@@ -1448,7 +1452,7 @@
                 <div class="control-group" id="ai-api-key-group">
                     <div class="settings-form-label">
                         <span>API Key</span>
-                        <span class="settings-route-hint">Stored locally (BYOK)</span>
+                        <span class="settings-route-hint">Stored safely in your browser (never sent elsewhere)</span>
                     </div>
                     <input type="password" id="ai-api-key" class="control-input font-mono" placeholder="sk-...">
                 </div>
@@ -1495,9 +1499,12 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-database text-primary-icon-md"></i>
-                        <h2>Set Dataset</h2>
+                        <div>
+                            <h2>Load Dataset</h2>
+                            <p class="modal-header-subtitle">Import CSV data or paste clipboard text</p>
+                        </div>
                     </div>
-                    <button id="close-set-data-modal-btn" class="modal-close-btn" title="Close Drawer"><i
+                    <button id="close-set-data-modal-btn" class="modal-close-btn" title="Close"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
                 <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
@@ -1577,7 +1584,10 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-code-fork text-primary-icon-md"></i>
-                        <h2>AI Diagram Generation</h2>
+                        <div>
+                            <h2>AI Diagram Generation</h2>
+                            <p class="modal-header-subtitle">Create Mermaid flowcharts and architecture diagrams</p>
+                        </div>
                     </div>
                     <button id="close-mermaid-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
@@ -1606,7 +1616,10 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-chart-simple text-primary-icon-md"></i>
-                        <h2>AI Vega Chart Generation</h2>
+                        <div>
+                            <h2>AI Vega Chart Generation</h2>
+                            <p class="modal-header-subtitle">Generate statistical charts from current dataset</p>
+                        </div>
                     </div>
                     <button id="close-vega-ai-modal-btn" class="modal-close-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
@@ -1635,9 +1648,12 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-layer-group text-primary-icon-md"></i>
-                        <h2>Agent Skills</h2>
+                        <div>
+                            <h2>Agent Skills</h2>
+                            <p class="modal-header-subtitle">Active analysis modules for AI responses</p>
+                        </div>
                     </div>
-                    <button id="close-agent-skills-modal-btn" class="modal-close-btn" title="Close Drawer"><i
+                    <button id="close-agent-skills-modal-btn" class="modal-close-btn" title="Close"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
                 <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
@@ -1655,13 +1671,12 @@
                 </nav>
             </div>
             <div class="modal-body modal-body-spaced">
-                <p class="set-data-dropzone-sub">Toggle which runtime skills steer the agent's next answer. The chart
-                    linter always stays on.</p>
+                <p class="set-data-dropzone-sub">Select which specialized skills the AI agent should use when answering prompts. Core chart linting is always enabled.</p>
                 <div id="agent-skills-list" class="curves-checkbox-list"></div>
             </div>
             <div class="modal-footer">
                 <button id="cancel-agent-skills-btn" class="button">Cancel</button>
-                <button id="confirm-agent-skills-btn" class="button primary">Apply</button>
+                <button id="confirm-agent-skills-btn" class="button primary">Save Skills</button>
             </div>
         </div>
     </div>
@@ -1673,9 +1688,12 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-clock-rotate-left text-primary-icon-md"></i>
-                        <h2>Load Session</h2>
+                        <div>
+                            <h2>Restore Session</h2>
+                            <p class="modal-header-subtitle">Reopen saved views, charts, and workspace state</p>
+                        </div>
                     </div>
-                    <button id="close-session-modal-btn" class="modal-close-btn" title="Close Drawer"><i
+                    <button id="close-session-modal-btn" class="modal-close-btn" title="Close"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
                 <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">
@@ -1695,12 +1713,11 @@
             <div class="modal-body modal-body-spaced">
                 <!-- Step 1: Session File -->
                 <div class="session-step">
-                    <label class="session-step-label">1. Select Session File (.json)</label>
+                    <label class="session-step-label">1. Choose Session File (.json)</label>
                     <div id="session-file-dropzone" class="set-data-dropzone session-dropzone">
                         <i class="fa-solid fa-file-code dropzone-icon"></i>
-                        <p class="set-data-dropzone-title">Drop your session JSON here or <span
-                                class="highlight">browse</span></p>
-                        <p class="set-data-dropzone-sub">Workspace configuration</p>
+                        <p class="set-data-dropzone-title"><strong>Click to browse</strong> or drag & drop exported JSON</p>
+                        <p class="set-data-dropzone-sub">Saved visualization session configuration</p>
                         <input type="file" id="session-file-input" accept=".json" class="hidden-element">
                     </div>
                     <div id="session-file-info" class="session-file-badge hidden"></div>
@@ -1738,9 +1755,12 @@
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-book-open text-primary-icon"></i>
-                        <h2>Documentation</h2>
+                        <div>
+                            <h2>Documentation</h2>
+                            <p class="modal-header-subtitle">Features, chart guides, and keyboard tips</p>
+                        </div>
                     </div>
-                    <button id="close-docs-modal-btn" class="modal-close-btn" title="Close Drawer"><i
+                    <button id="close-docs-modal-btn" class="modal-close-btn" title="Close"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
                 <nav class="inspector-drawer-nav" aria-label="Inspector Navigation">

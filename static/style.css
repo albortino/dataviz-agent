@@ -3427,9 +3427,18 @@ hr.control-divider,
 
 .modal-header h2 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.12rem;
     font-weight: 700;
     color: var(--color-text-primary);
+    line-height: 1.2;
+}
+
+.modal-header-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    line-height: 1.35;
 }
 
 .modal-body {
