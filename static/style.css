@@ -1406,8 +1406,8 @@ hr.control-divider,
 #sankey-text-editor::selection,
 #mermaid-text-editor::selection,
 #vega-text-editor::selection {
-    background: #c7d2fe;
-    color: #1e1b4b;
+    background: #bfdbfe;
+    color: #1e3a8a;
 }
 
 /* CodeMirror Highlighting & Integration for Vega Spec Editor */
@@ -1440,7 +1440,7 @@ hr.control-divider,
 
 /* Syntax Token Colors (Vibrant, high-contrast, modern) */
 #vega-sidebar .cm-property {
-    color: #0284c7;
+    color: var(--color-primary);
     font-weight: 600;
 }
 
@@ -1478,7 +1478,7 @@ hr.control-divider,
 }
 
 #vega-sidebar .CodeMirror-selected {
-    background: #e0e7ff !important;
+    background: #dbeafe !important;
 }
 
 
@@ -2387,7 +2387,7 @@ hr.control-divider,
 }
 
 .message.agent .markdown-content blockquote {
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid var(--color-primary);
     margin: 0.4rem 0;
     padding-left: 0.65rem;
     color: var(--color-secondary-hover);
@@ -2515,9 +2515,9 @@ hr.control-divider,
 
 .chat-plot-code-badge {
     font-size: 0.7rem;
-    background: rgba(99, 102, 241, 0.2);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.4);
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--color-primary);
+    border: 1px solid rgba(37, 99, 235, 0.3);
     padding: 2px 6px;
     border-radius: 4px;
     display: inline-flex;
@@ -2623,7 +2623,7 @@ hr.control-divider,
 .chat-plot-ask-fix-btn {
     align-self: flex-start;
     margin-top: 0.3rem;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    background: var(--color-primary) !important;
     color: #fff !important;
     font-size: 0.75rem !important;
     padding: 3px 10px !important;
@@ -2867,16 +2867,6 @@ hr.control-divider,
     flex-direction: column;
     gap: 1rem;
     box-sizing: border-box;
-    animation: drawerSlideIn 0.22s var(--ease-out-cubic);
-}
-
-@keyframes drawerSlideIn {
-    from {
-        transform: translateX(100%);
-    }
-    to {
-        transform: translateX(0);
-    }
 }
 
 #settings-modal .modal-content,
@@ -2921,10 +2911,12 @@ hr.control-divider,
 .inspector-drawer-nav {
     display: flex;
     align-items: center;
-    gap: 2px;
-    border-bottom: 1px solid var(--color-border);
-    padding: 0;
-    margin-top: 0.25rem;
+    background: var(--color-background-medium);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-pill);
+    padding: 3px 5px;
+    gap: 3px;
+    margin-top: 0.35rem;
     width: 100%;
     box-sizing: border-box;
 }
@@ -2938,26 +2930,35 @@ hr.control-divider,
     background: transparent;
     color: var(--color-text-secondary);
     border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    height: 32px;
-    padding: 0 4px;
+    border-radius: var(--border-radius-pill);
+    height: 2.1rem;
+    padding: 0 6px;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     font-family: inherit;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    box-shadow: none;
+    transition: none;
     white-space: nowrap;
 }
 
-.inspector-nav-tab:hover {
-    color: var(--color-text-primary);
+.inspector-nav-tab i {
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+    transition: color var(--transition-fast);
 }
 
-.inspector-nav-tab.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+.inspector-nav-tab:hover:not(.active) {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.75);
+}
+
+.inspector-nav-tab.active,
+.inspector-nav-tab.active i {
+    background: var(--color-background-light);
+    color: var(--color-primary) !important;
     font-weight: var(--font-weight-bold);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .modal-header h2 {
@@ -3093,44 +3094,45 @@ hr.control-divider,
 
 /* Route Segmented Switcher */
 #settings-modal .route-segmented-control {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    background: #f1f5f9;
-    padding: 3px;
-    border-radius: 9px;
-    border: 1px solid #e2e8f0;
-    gap: 2px;
+    display: flex;
+    background: var(--color-background-medium);
+    padding: 3px 5px;
+    border-radius: var(--border-radius-pill);
+    border: 1px solid var(--color-border);
+    gap: 3px;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 #settings-modal .route-segmented-btn {
-    height: 32px;
-    border-radius: 7px;
+    flex: 1;
+    height: 2.1rem;
+    border-radius: var(--border-radius-pill);
     border: none;
     background: transparent;
-    color: #64748b;
-    font-size: 0.78rem;
-    font-weight: 500;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
-    transition: all 0.15s ease;
+    box-shadow: none;
+    transition: none;
 }
 
-#settings-modal .route-segmented-btn.active {
-    background: #ffffff;
-    color: #0f172a;
-    font-weight: 600;
+#settings-modal .route-segmented-btn:hover:not(.active) {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.75);
+}
+
+#settings-modal .route-segmented-btn.active,
+#settings-modal .route-segmented-btn.active i {
+    background: var(--color-background-light);
+    color: var(--color-primary) !important;
+    font-weight: var(--font-weight-bold);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-#settings-modal .route-segmented-btn.active.direct i {
-    color: #0284c7;
-}
-
-#settings-modal .route-segmented-btn.active.server i {
-    color: #6366f1;
 }
 
 #settings-modal .settings-route-hint {
@@ -3452,45 +3454,58 @@ hr.control-divider,
 /* Load Data Tabs & Dropzone */
 .set-data-tabs {
     display: flex;
-    background: var(--color-background-body);
-    border-bottom: 1px solid var(--color-border);
-    padding: 0 1.5rem;
-    gap: 1.5rem;
+    background: var(--color-background-medium);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-pill);
+    padding: 3px 5px;
+    gap: 3px;
+    margin: 0.5rem 0 0;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .set-data-tab-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     background: transparent;
     border: none;
-    padding: 0.75rem 0;
-    font-size: 0.86rem;
-    font-weight: var(--font-weight-bold);
+    border-radius: var(--border-radius-pill);
+    height: 2.1rem;
+    padding: 0 12px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
     cursor: pointer;
     font-family: inherit;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
+    box-shadow: none;
+    transition: none;
+    white-space: nowrap;
+}
+
+.set-data-tab-btn i {
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
     transition: color var(--transition-fast);
 }
 
-.set-data-tab-btn:hover {
+.set-data-tab-btn:hover:not(.active) {
     color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.75);
 }
 
-.set-data-tab-btn.active {
-    color: var(--color-primary);
+.set-data-tab-btn.active,
+.set-data-tab-btn.active i {
+    background: var(--color-background-light);
+    color: var(--color-primary) !important;
+    font-weight: var(--font-weight-bold);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .set-data-tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--color-primary);
-    border-radius: 2px 2px 0 0;
+    display: none;
 }
 
 .set-data-dropzone {
@@ -3532,14 +3547,16 @@ hr.control-divider,
 
 /* Documentation Markdown Modal */
 .docs-modal-content {
-    max-width: 780px !important;
-    width: 90% !important;
-    max-height: 85vh !important;
+    max-width: 680px !important;
+    width: 680px !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
 }
 
 .docs-modal-body {
     padding: 1.25rem 1.5rem !important;
-    max-height: 65vh;
+    flex: 1 1 auto;
+    max-height: none;
     overflow-y: auto;
     font-size: 0.88rem;
     line-height: 1.6;

@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemVega = document.getElementById('plots-item-vega');
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
+    const showAgentBtn = document.getElementById('show-agent-btn');
     const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
     const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, plotsMenuToggleBtn, showAgentBtn];
 

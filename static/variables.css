@@ -30,8 +30,8 @@
     --color-light-gray: #f8fafc;
 
     /* Precision Gradients & Accents  */
-    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    --primary-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    --primary-gradient: #2563eb;
+    --primary-gradient-hover: #1d4ed8;
     --ai-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     --ai-gradient-hover: linear-gradient(135deg, #0f172a 0%, #020617 100%);
     --ai-glow: none;

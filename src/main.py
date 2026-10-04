@@ -348,6 +348,11 @@ def favicon():
     from fastapi.responses import FileResponse
     return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
 
+@app.get("/{filename:path}.map", include_in_schema=False)
+def sourcemap_fallback(filename: str):
+    from fastapi.responses import Response
+    return Response(content="{}", media_type="application/json")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
