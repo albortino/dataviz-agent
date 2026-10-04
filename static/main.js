@@ -70,8 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dataDropdownMenu = document.getElementById('data-dropdown-menu');
     const dataFilenameChip = document.getElementById('data-filename-chip');
     const dataActiveDatasetText = document.getElementById('data-active-dataset-text');
-    const sessionDropdownBtn = document.getElementById('session-dropdown-btn');
-    const sessionDropdownMenu = document.getElementById('session-dropdown-menu');
+    const workspaceDropdownBtn = document.getElementById('workspace-dropdown-btn') || document.getElementById('session-dropdown-btn');
+    const workspaceDropdownMenu = document.getElementById('workspace-dropdown-menu') || document.getElementById('session-dropdown-menu');
+    const workspaceMenuModelBtn = document.getElementById('workspace-menu-model-btn');
+    const workspaceMenuSkillsBtn = document.getElementById('workspace-menu-skills-btn');
+    const workspaceMenuDocsBtn = document.getElementById('workspace-menu-docs-btn');
 
     const setDataButton = document.getElementById('set-data-btn');
     const uploadButton = document.getElementById('upload-btn');
@@ -215,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Plots Split Hub metadata
     const plotsConfig = {
-        vega: { label: 'Vega', icon: 'fa-chart-simple', elem: plotsItemVega },
+        vega: { label: 'Charts', icon: 'fa-chart-simple', elem: plotsItemVega },
         sankey: { label: 'Sankey', icon: 'fa-diagram-project', elem: plotsItemSankey },
         mermaid: { label: 'Mermaid', icon: 'fa-code-fork', elem: plotsItemMermaid }
     };
@@ -891,9 +894,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Header Dropdown Menus (Variant 1)
-    const allDropdownMenus = [dataDropdownMenu, sessionDropdownMenu];
-    const allDropdownButtons = [dataDropdownBtn, sessionDropdownBtn];
+    // Header Dropdown Menus
+    const allDropdownMenus = [dataDropdownMenu, workspaceDropdownMenu];
+    const allDropdownButtons = [dataDropdownBtn, workspaceDropdownBtn];
 
     function closePlotsMenu() {
         if (plotsSplitHub) plotsSplitHub.classList.remove('open');
@@ -926,7 +929,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupDropdown(dataDropdownBtn, dataDropdownMenu);
-    setupDropdown(sessionDropdownBtn, sessionDropdownMenu);
+    setupDropdown(workspaceDropdownBtn, workspaceDropdownMenu);
+
+    if (workspaceMenuModelBtn) {
+        workspaceMenuModelBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            settingsMgr.loadSavedSettings();
+            if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+        });
+    }
+    if (workspaceMenuSkillsBtn) {
+        workspaceMenuSkillsBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            agentMgr.openSkillsModal();
+        });
+    }
+    if (workspaceMenuDocsBtn) {
+        workspaceMenuDocsBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            openDocsModal();
+        });
+    }
 
     if (plotsMenuToggleBtn && plotsSplitHub) {
         plotsMenuToggleBtn.addEventListener('click', (e) => {
@@ -1211,6 +1234,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 agentMgr.openSkillsModal();
             } else if (targetId === 'docs-modal') {
                 openDocsModal();
+            }
+
+            const targetModal = document.getElementById(targetId);
+            if (targetModal) {
+                const mc = targetModal.querySelector('.modal-content');
+                if (mc) mc.scrollTop = 0;
+                const mb = targetModal.querySelector('.modal-body');
+                if (mb) mb.scrollTop = 0;
             }
         });
     });
