@@ -666,7 +666,7 @@ button.utility-btn:active,
 
 #view-controls .button {
     background: transparent;
-    color: var(--color-text-muted);
+    /*color: var(--color-text-muted);*/
     border: none;
     border-radius: var(--border-radius-pill);
     padding: 0.3rem 0.9rem;
@@ -686,14 +686,14 @@ button.utility-btn:active,
 }
 
 #view-controls .button:hover:not(:disabled):not(.active) {
-    color: var(--color-text-muted);
+    color: var(--color-text-primary);
     background: rgba(255, 255, 255, 0.75);
     transform: none;
     font-weight: var(--font-weight-bold);
 }
 
 #view-controls .button:hover:not(:disabled):not(.active) i {
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
 }
 
 #view-controls .button.active,
@@ -706,7 +706,7 @@ button.utility-btn:active,
 
 #view-controls .button:disabled,
 #view-controls button:disabled {
-    color: var(--color-text-muted) !important;
+    /*color: var(--color-text-muted) !important;*/
     opacity: 0.45;
     background: transparent !important;
     border-color: transparent !important;
@@ -755,7 +755,7 @@ button.utility-btn:active,
 
 #view-controls #plots-split-hub .split-hub-toggle:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.75);
-    color: var(--color-text-muted);
+    color: var(--color-text-primary);
 }
 
 #view-controls #plots-split-hub .split-hub-toggle:hover:not(:disabled) .caret {
@@ -808,7 +808,7 @@ button.utility-btn:active,
 
 #plots-split-hub:hover:not(.active-group) .split-hub-main,
 #plots-split-hub:hover:not(.active-group) .split-hub-toggle {
-    color: var(--color-text-muted);
+    color: var(--color-text-primary);
     background: rgba(255, 255, 255, 0.75);
     font-weight: var(--font-weight-bold);
 }
@@ -827,16 +827,22 @@ button.utility-btn:active,
 .control-group {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.375rem;
+    min-width: 0;
 }
 
 .control-group label {
-    font-size: 0.68rem;
+    font-size: 0.6875rem;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
     margin-bottom: 0;
     color: var(--color-text-muted);
+    font-feature-settings: "tnum" "lnum";
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .control-select,
@@ -844,27 +850,42 @@ button.utility-btn:active,
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    background-color: var(--color-surface-2);
-    border: 1px solid var(--color-border);
+    background-color: var(--color-surface-1);
+    border: 1px solid var(--color-border-input);
     border-radius: var(--border-radius-main);
-    padding: 0.4rem 0.7rem;
-    font-size: var(--font-size-sm);
+    padding: 0.4375rem 0.625rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
     color: var(--color-text-primary);
     font-family: inherit;
     font-weight: var(--font-weight-medium);
-    min-height: 2.15rem;
+    font-feature-settings: "tnum" "lnum";
+    min-height: 2.25rem;
     box-shadow: none;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+    text-overflow: ellipsis;
+}
+
+.control-select:disabled,
+.control-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--color-surface-2);
 }
 
 select.control-select,
 select.control-input {
     cursor: pointer;
-    padding-right: 1.8rem;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.6rem center;
+    padding-right: 1.75rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
     background-repeat: no-repeat;
-    background-size: 1.1em 1.1em;
+    background-size: 0.875rem 0.875rem;
+}
+
+select.control-select:hover,
+select.control-input:hover {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
 }
 
 input.control-select,
@@ -879,8 +900,8 @@ textarea.control-input {
 select.control-select:hover,
 .control-select:hover,
 .control-input:hover {
-    border-color: var(--color-border-input);
-    background-color: var(--color-surface-1);
+    border-color: var(--color-text-muted);
+    background-color: var(--color-surface-2);
 }
 
 select.control-select:focus,
@@ -890,6 +911,19 @@ select.control-select:focus,
     outline: 0;
     background-color: var(--color-surface-1);
     box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
+/* Inspector text fields share the select skin — the global pill input is
+   reserved for header/search chrome, not the control panels */
+.controls-sidebar-body input.control-input[type="text"] {
+    height: auto;
+    min-height: 2.25rem;
+    border-radius: var(--border-radius-main);
+    background-color: var(--color-surface-1);
+    border-color: var(--color-border-input);
+    box-shadow: none;
+    padding: 0.4375rem 0.625rem;
+    font-size: 0.8125rem;
 }
 
 input[type="text"],
@@ -951,7 +985,7 @@ hr.control-divider,
 .control-divider {
     border: none;
     border-top: 1px solid var(--color-border);
-    margin: 0.15rem 0;
+    margin: 0;
     width: 100%;
     box-sizing: border-box;
 }
@@ -991,7 +1025,7 @@ hr.control-divider,
     width: 100%;
     text-align: center;
     color: var(--color-text-secondary);
-    padding: 3rem 2rem;
+    padding: 16rem 2rem;
     box-sizing: border-box;
     position: relative;
     z-index: 1;
@@ -1047,11 +1081,11 @@ hr.control-divider,
     transform: translateY(-1px);
 }
 
-/* Feature grid */
+/* Feature list */
 .empty-state-features {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
+    gap: 1.1rem 1.5rem;
     max-width: 780px;
     width: 100%;
     margin-top: 1.5rem;
@@ -1063,42 +1097,28 @@ hr.control-divider,
     }
 }
 
+/* Empty-state feature list — quiet inline rows: icon sits beside the
+   label, description runs beneath. No card chrome so the primary CTA
+   stays the loudest thing on the screen. */
 .empty-feature-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-    padding: 1.1rem 1.2rem;
-    background: #ffffff;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-card);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
-    transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.5rem;
+    row-gap: 0.15rem;
+    align-items: center;
     text-align: left;
 }
 
-.empty-feature-item:hover {
-    background: #ffffff;
-    transform: translateY(-2px);
-    border-color: #cbd5e1;
-    box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.08);
-}
-
 .empty-feature-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.35rem;
-    background: var(--color-surface-3);
     line-height: 1;
 }
 
 .empty-feature-icon i {
     font-size: 0.8rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     line-height: 1;
     width: auto;
     height: auto;
@@ -1108,14 +1128,15 @@ hr.control-divider,
 }
 
 .empty-feature-label {
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
     letter-spacing: -0.01em;
 }
 
 .empty-feature-desc {
-    font-size: 0.76rem;
+    grid-column: 1 / -1;
+    font-size: 0.74rem;
     color: var(--color-text-muted);
     line-height: 1.45;
 }
@@ -1173,6 +1194,7 @@ hr.control-divider,
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     #vega-render-output svg mark,
     #vega-render-output svg .mark-group,
     .graphic-walker-loading::before {
@@ -1185,18 +1207,6 @@ hr.control-divider,
 .lu-dialog,
 .lu-tooltip {
     font-feature-settings: "tnum" "lnum";
-}
-
-/* Empty-state: flatten secondary cards so primary CTA dominates */
-.empty-feature-item {
-    background: var(--color-surface-2);
-}
-
-.empty-feature-item:hover {
-    background: var(--color-surface-2);
-    transform: none;
-    border-color: var(--color-border-input);
-    box-shadow: var(--shadow-sm);
 }
 
 /* LineUp */
@@ -1442,8 +1452,13 @@ hr.control-divider,
 }
 
 @keyframes impeccable-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
+    from {
+        background-position: 200% 0;
+    }
+
+    to {
+        background-position: -200% 0;
+    }
 }
 
 .graphic-walker-loading i {
@@ -1596,31 +1611,36 @@ hr.control-divider,
     pointer-events: none !important;
 }
 
-/* Sidebar & Controls Headers — de-emphasized: small muted title, quiet icon */
+/* Sidebar & Controls Headers — quiet sticky inspector header: 11px
+   uppercase muted title, ghost icon + ghost collapse chevron */
 .syntax-sidebar-header,
 .controls-sidebar-header {
-    padding: 0.55rem 0.9rem;
-    background: var(--color-surface-1);
+    padding: 0.6rem 0.9rem;
+    background: color-mix(in srgb, var(--color-surface-1) 88%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--color-border);
     border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 3;
     user-select: none;
     white-space: nowrap;
     box-sizing: border-box;
+    font-weight: var(--font-weight-bold);
 }
 
-/* Unified Controls Sidebar Body & Groups — quiet hierarchy: section labels
-   whisper (uppercase 11px muted), controls carry the weight. */
+/* Unified Controls Sidebar Body & Groups — inspector rhythm: 16px inner
+   padding, 14px group gaps, 10px section gaps; dividers span edge-to-edge */
 .controls-sidebar-body {
-    padding: 1rem 0.9rem 1.25rem;
+    padding: 1rem 1rem 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 0.875rem;
     background: var(--color-surface-1);
 }
 
@@ -1631,22 +1651,72 @@ hr.control-divider,
     box-sizing: border-box;
 }
 
-.controls-sidebar-actions {
-    margin-top: 0;
+.controls-sidebar-body hr.control-divider,
+.controls-sidebar-body .control-divider {
+    margin: 0.125rem -1rem;
+    width: auto;
+}
+
+.controls-sidebar-body .controls-sidebar-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 0.625rem;
+    padding-top: 0.125rem;
 }
 
 .control-group .utility-segmented-btn-group {
     display: flex;
     width: 100%;
+    gap: 0.375rem;
     box-sizing: border-box;
 }
 
 .control-group .utility-segmented-btn-group .utility-btn {
     flex: 1;
     justify-content: center;
+}
+
+/* Sidebar action controls — stay on the white body, so keep them white
+   (surface-1) with a defined border; hover only tints faintly, no grey fill */
+.controls-sidebar-body .utility-btn,
+.controls-sidebar-body button.utility-btn {
+    background: var(--color-surface-1);
+    border-color: var(--color-border-input);
+    border-radius: var(--border-radius-main);
+    color: var(--color-text-secondary);
+    height: 2.25rem;
+    font-weight: var(--font-weight-medium);
+    box-shadow: none;
+}
+
+.controls-sidebar-body .utility-btn:hover,
+.controls-sidebar-body button.utility-btn:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-text-muted);
+    color: var(--color-text-primary);
+    box-shadow: none;
+}
+
+.controls-sidebar-body .utility-btn:active,
+.controls-sidebar-body button.utility-btn:active {
+    background: var(--color-surface-3);
+}
+
+/* Sidebar action buttons (non-primary, non-AI) also stay white rather than
+   inheriting the global surface-2 fill, so the panel reads as one clean sheet */
+.controls-sidebar-body .button:not(.primary):not(.ai-action-btn) {
+    background: var(--color-surface-1);
+    border-color: var(--color-border-input);
+}
+
+.controls-sidebar-body .button:not(.primary):not(.ai-action-btn):hover {
+    background: var(--color-surface-2);
+}
+
+.controls-sidebar-body .controls-sidebar-actions .button.icon-button {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 #sankey-text-editor,
@@ -1759,54 +1829,60 @@ hr.control-divider,
 
 .sidebar-header-title {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.68rem;
+    align-items: baseline;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
+    letter-spacing: 0.07em;
+    line-height: 1;
     white-space: nowrap;
     flex-shrink: 0;
+    font-feature-settings: "tnum" "lnum";
 }
 
 .sidebar-header-title i {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+    font-size: 0.6875rem;
+    align-self: center;
+    opacity: 0.75;
 }
 
 .sidebar-header-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     white-space: nowrap;
     flex-shrink: 0;
 }
 
 .sidebar-format-btn {
-    font-size: 0.72rem;
+    font-size: 0.625rem;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.07em;
     color: var(--color-primary);
     background: var(--color-primary-light);
     border: 1px solid #bfdbfe;
-    padding: 1px 8px;
+    padding: 0 0.5rem;
     border-radius: var(--border-radius-pill);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 20px;
+    height: 1.25rem;
     box-sizing: border-box;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .sidebar-format-btn:hover {
     background: #dbeafe;
     border-color: #93c5fd;
     color: var(--color-primary-hover);
-    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-format-btn:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .sidebar-format-btn:active {
@@ -1814,19 +1890,19 @@ hr.control-divider,
 }
 
 .sidebar-live-tag {
-    font-size: 0.75rem;
+    font-size: 0.625rem;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.07em;
     color: #047857;
     background: #ecfdf5;
     border: 1px solid #a7f3d0;
-    padding: 1px 6px;
+    padding: 0 0.45rem;
     border-radius: var(--border-radius-pill);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 20px;
+    height: 1.25rem;
     box-sizing: border-box;
 }
 
@@ -1834,23 +1910,30 @@ hr.control-divider,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: var(--border-radius-sm);
-    border: 1px solid var(--color-border-input);
-    background: var(--color-background-light);
-    color: var(--color-text-secondary);
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--border-radius-main);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.6875rem;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
     padding: 0;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: none;
 }
 
 .sidebar-collapse-btn:hover {
-    background: var(--color-background-medium);
-    color: var(--color-primary);
-    border-color: var(--color-text-muted);
-    transform: translateX(-1px);
+    background: var(--color-surface-3);
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+    transform: none;
+}
+
+.sidebar-collapse-btn:focus-visible {
+    outline: 0;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .sidebar-expand-tab {
@@ -1916,13 +1999,14 @@ hr.control-divider,
 .sankey-color-picker-row {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.625rem;
 }
 
 .sankey-color-hint {
     font-size: 0.75rem;
     color: var(--color-text-muted);
     font-weight: var(--font-weight-medium);
+    line-height: 1.4;
 }
 
 .sankey-node rect {
@@ -2015,41 +2099,47 @@ hr.control-divider,
     fill: #ffffff;
 }
 
-/* Mermaid Details & Configuration Panel */
+/* Curves sub-header — nested section label mirrors the sidebar micro-label */
 .curves-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.35rem;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
 }
 
 .curves-header-row label {
     margin: 0;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--color-text-primary);
+    font-size: 0.6875rem;
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
+    color: var(--color-text-muted);
+    font-feature-settings: "tnum" "lnum";
 }
 
 .curves-quick-actions {
     display: flex;
-    gap: 0.35rem;
+    gap: 0.375rem;
     align-items: center;
 }
 
 .curves-quick-btn {
-    background: var(--color-background-hover);
+    background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-button);
-    padding: 0.15rem 0.5rem;
-    font-size: 0.725rem;
-    font-weight: 500;
+    border-radius: var(--border-radius-main);
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
     color: var(--color-text-secondary);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .curves-quick-btn:hover {
-    background: var(--color-primary-glow);
+    background: var(--color-primary-light);
     color: var(--color-primary);
     border-color: var(--color-primary);
 }
@@ -2057,39 +2147,49 @@ hr.control-divider,
 .curves-checkbox-list {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    max-height: 140px;
+    gap: 0.125rem;
+    max-height: 160px;
     overflow-y: auto;
-    background: var(--color-background-body);
-    border: 1px solid var(--color-border-input);
-    border-radius: var(--border-radius-input);
-    padding: 0.45rem 0.6rem;
-    font-size: 0.84rem;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-main);
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
 }
 
 .curves-checkbox-item {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.5rem;
     cursor: pointer;
     color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
+    font-size: 0.8125rem;
     font-weight: var(--font-weight-medium);
+    line-height: 1.4;
     user-select: none;
-    padding: 0.15rem 0;
+    padding: 0.25rem 0.375rem;
+    margin: 0 -0.375rem;
+    border-radius: var(--border-radius-main);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .curves-checkbox-item input[type="checkbox"] {
     accent-color: var(--color-primary);
     cursor: pointer;
-    width: 15px;
-    height: 15px;
+    width: 0.9375rem;
+    height: 0.9375rem;
     margin: 0;
     flex-shrink: 0;
 }
 
 .curves-checkbox-item:hover {
     color: var(--color-text-primary);
+    background: var(--color-surface-2);
+}
+
+.curves-checkbox-item:has(input:focus-visible) {
+    outline: 0;
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 #agent-skills-list {
@@ -2142,11 +2242,13 @@ hr.control-divider,
 }
 
 .mermaid-config-details {
-    background: var(--color-surface-2);
+    gap: 0;
+    background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-main);
-    padding: 0.55rem 0.7rem;
-    transition: all var(--transition-base);
+    padding: 0;
+    overflow: hidden;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
     box-sizing: border-box;
 }
 
@@ -2155,7 +2257,7 @@ hr.control-divider,
 }
 
 .mermaid-config-details[open] {
-    background: var(--color-background-body);
+    background: var(--color-surface-1);
     border-color: var(--color-border-input);
 }
 
@@ -2171,80 +2273,93 @@ hr.control-divider,
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
     cursor: pointer;
     user-select: none;
+    border-radius: var(--border-radius-main);
 }
 
 .mermaid-config-summary label {
     margin-bottom: 0 !important;
     cursor: pointer;
-    font-size: 0.68rem;
+    font-size: 0.6875rem;
     font-weight: var(--font-weight-bold);
     color: var(--color-text-muted);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
     text-transform: uppercase;
+    font-feature-settings: "tnum" "lnum";
 }
 
 .mermaid-config-summary .details-chevron {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
-    transition: transform 0.2s ease, color var(--transition-base);
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    opacity: 0.75;
+    transition: transform 0.2s ease;
 }
 
-.mermaid-config-details:hover .details-chevron,
-.mermaid-config-details[open] .details-chevron {
-    color: var(--color-primary);
+.mermaid-config-details:hover .details-chevron {
+    opacity: 1;
 }
 
 .mermaid-config-details[open] .details-chevron {
+    opacity: 1;
     transform: rotate(180deg);
 }
 
 .mermaid-config-panel {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.625rem;
+    min-width: 0;
 }
 
 .vega-section-content {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.45rem;
-    padding-top: 0.45rem;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem 0.75rem;
     border-top: 1px solid var(--color-border);
 }
 
 .vega-sub-content {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.625rem;
 }
 
 .range-slider-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.625rem;
 }
 
 .range-slider-row input[type="range"] {
     flex: 1;
+    min-width: 0;
     cursor: pointer;
     accent-color: var(--color-primary);
 }
 
 .range-value-pill {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+    font-feature-settings: "tnum" "lnum";
     color: var(--color-text-secondary);
-    min-width: 2.2rem;
-    text-align: right;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 0.125rem 0.375rem;
+    min-width: 2.5rem;
+    text-align: center;
 }
 
 .mermaid-config-item {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.375rem;
+    min-width: 0;
 }
 
 .mermaid-config-option {
@@ -2252,39 +2367,51 @@ hr.control-divider,
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
-    color: var(--color-text-dark);
-    font-size: 0.84rem;
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
     user-select: none;
+    padding: 0.125rem 0;
 }
 
 .mermaid-config-option input[type="checkbox"] {
     accent-color: var(--color-primary);
     cursor: pointer;
+    width: 0.9375rem;
+    height: 0.9375rem;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.mermaid-config-option:hover {
+    color: var(--color-text-primary);
 }
 
 .mermaid-config-item .cfg-control {
-    font-size: 0.78rem;
-    padding: 4px 7px;
+    font-size: 0.8125rem;
+    min-height: 2.25rem;
 }
 
 .mermaid-config-item .cfg-control:disabled {
-    opacity: 0.45;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
 .mermaid-config-hint,
 .config-hint-inline {
     color: var(--color-text-muted);
-    font-size: 0.78rem;
-    font-style: italic;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    font-style: normal;
     font-weight: 400;
 }
 
 .actions-stack {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
+    gap: 0.625rem;
+    margin-top: 0;
 }
 
 .actions-stack .button {
@@ -2373,12 +2500,12 @@ hr.control-divider,
 
 /* SandDance disaggregate */
 .sanddance-disaggregate-group {
-    background: var(--color-background-body);
+    background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-input);
-    padding: 0.55rem 0.65rem;
+    border-radius: var(--border-radius-main);
+    padding: 0.625rem 0.75rem;
     box-sizing: border-box;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast);
 }
 
 .sanddance-disaggregate-group:hover {
@@ -4355,7 +4482,7 @@ hr.control-divider,
 
 .text-primary-icon-sm {
     color: var(--color-primary);
-    font-size: 0.8rem;
+    font-size: 0.6875rem;
 }
 
 .text-primary-icon-md {
@@ -4363,47 +4490,56 @@ hr.control-divider,
     font-size: 1.15rem;
 }
 
+/* Sidebar title glyph — spacing comes from the title's flex gap */
 .header-icon-primary {
     color: var(--color-primary);
-    margin-right: 6px;
 }
 
 .hint-text-sm {
     display: none;
-    font-size: 0.72rem;
-    color: var(--color-text-secondary);
-    margin-top: 0.25rem;
-    line-height: 1.3;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-top: 0.3125rem;
+    line-height: 1.45;
 }
 
 .checkbox-label-compact {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 0.5rem;
     cursor: pointer;
+    font-size: 0.8125rem;
     font-weight: var(--font-weight-medium);
-    margin-bottom: 0.35rem;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    user-select: none;
+    margin-bottom: 0;
+}
+
+.checkbox-label-compact:hover {
+    color: var(--color-text-primary);
 }
 
 .checkbox-input-custom {
-    width: 15px;
-    height: 15px;
+    width: 0.9375rem;
+    height: 0.9375rem;
     accent-color: var(--color-primary);
     cursor: pointer;
     margin: 0;
+    flex-shrink: 0;
 }
 
 .disaggregate-col-container {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 0.25rem;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
 }
 
 .disaggregate-info-text {
-    font-size: 0.72rem;
-    color: var(--color-text-secondary);
-    line-height: 1.3;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
 }
 
 .btn-full-width {
@@ -4439,19 +4575,26 @@ hr.control-divider,
 .dimensions-grid-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 0.625rem 0.75rem;
 }
 
+/* Label stacks above its field: an inline `Label: [input]` row leaves the
+   input too little width to show its value. min-width:0 stops number
+   inputs' intrinsic width from blowing out the 1fr grid tracks. */
 .dimension-input-group {
     display: flex;
-    align-items: center;
-    gap: 4px;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
 }
 
 .dimension-label-text {
-    font-size: var(--font-size-sm);
+    font-size: 0.6875rem;
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
     color: var(--color-text-secondary);
-    font-weight: var(--font-weight-medium);
 }
 
 .dimension-input-number {

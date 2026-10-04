@@ -128,8 +128,8 @@
                     <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
                     <span id="plots-primary-label">Charts</span>
                 </button>
-                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle"
-                    aria-expanded="false" title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
+                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" aria-expanded="false"
+                    title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
                     <i class="fa-solid fa-chevron-down caret"></i>
                 </button>
                 <div id="plots-popover-menu" class="dropdown-menu">
@@ -250,8 +250,8 @@
             <div id="empty-state-container" class="vis-container">
                 <div class="initial-message">
                     <h2>Your data.<br><em>Instantly visual.</em></h2>
-                    <p>Drop a CSV, paste from clipboard, or load demo data — then explore, chart, and interrogate with
-                        interactive tools or a built-in AI agent.</p>
+                    <p>Upload a CSV, paste from clipboard, or load demo data - then explore, chart, and analyze with
+                        interactive tools or the AI agent.</p>
 
                     <div class="empty-state-actions">
                         <button id="empty-set-data-btn" class="button icon-button primary"
@@ -693,13 +693,13 @@
                                 </div>
                                 <div class="dimensions-grid-2col">
                                     <div class="dimension-input-group">
-                                        <span class="dimension-label-text">Width:</span>
+                                        <span class="dimension-label-text">Width</span>
                                         <input type="number" id="sankey-custom-width"
                                             class="control-input dimension-input-number" min="200" max="4000" step="50"
                                             placeholder="Auto">
                                     </div>
                                     <div class="dimension-input-group">
-                                        <span class="dimension-label-text">Height:</span>
+                                        <span class="dimension-label-text">Height</span>
                                         <input type="number" id="sankey-custom-height"
                                             class="control-input dimension-input-number" min="150" max="3000" step="50"
                                             placeholder="Auto">
@@ -1127,13 +1127,13 @@
                                 </div>
                                 <div class="dimensions-grid-2col">
                                     <div class="dimension-input-group">
-                                        <span class="dimension-label-text">Width:</span>
+                                        <span class="dimension-label-text">Width</span>
                                         <input type="number" id="vega-custom-width"
                                             class="control-input dimension-input-number" min="100" max="4000" step="50"
                                             placeholder="Auto">
                                     </div>
                                     <div class="dimension-input-group">
-                                        <span class="dimension-label-text">Height:</span>
+                                        <span class="dimension-label-text">Height</span>
                                         <input type="number" id="vega-custom-height"
                                             class="control-input dimension-input-number" min="100" max="3000" step="50"
                                             placeholder="Auto">
@@ -1155,15 +1155,15 @@
                                         <span>Filled Marks</span>
                                     </label>
                                     <div>
-                                        <label style="font-size: 0.75rem; margin-bottom: 2px;">Opacity</label>
+                                        <label style="margin-bottom: 2px;">Opacity</label>
                                         <div class="range-slider-row">
                                             <input type="range" id="vega-mark-opacity" min="0.1" max="1" step="0.05"
                                                 value="0.85">
                                             <span id="vega-mark-opacity-val" class="range-value-pill">0.85</span>
                                         </div>
                                     </div>
-                                    <div class="control-group" style="margin-bottom: 0;">
-                                        <label for="vega-mark-shape" style="font-size: 0.75rem;">Point / Scatter
+                                    <div class="control-group">
+                                        <label for="vega-mark-shape">Point / Scatter
                                             Shape</label>
                                         <select id="vega-mark-shape" class="control-select">
                                             <option value="circle" selected>Circle</option>
@@ -1192,8 +1192,8 @@
                                     <i class="fa-solid fa-chevron-down details-chevron"></i>
                                 </summary>
                                 <div class="vega-section-content">
-                                    <div class="control-group" style="margin-bottom: 0;">
-                                        <label for="vega-x-scale" style="font-size: 0.75rem;">X Axis Scale</label>
+                                    <div class="control-group">
+                                        <label for="vega-x-scale">X Axis Scale</label>
                                         <select id="vega-x-scale" class="control-select">
                                             <option value="linear" selected>Linear (Default)</option>
                                             <option value="log">Logarithmic</option>
@@ -1202,8 +1202,8 @@
                                             <option value="band">Band / Discrete</option>
                                         </select>
                                     </div>
-                                    <div class="control-group" style="margin-bottom: 0;">
-                                        <label for="vega-y-scale" style="font-size: 0.75rem;">Y Axis Scale</label>
+                                    <div class="control-group">
+                                        <label for="vega-y-scale">Y Axis Scale</label>
                                         <select id="vega-y-scale" class="control-select">
                                             <option value="linear" selected>Linear (Default)</option>
                                             <option value="log">Logarithmic</option>
@@ -1215,8 +1215,8 @@
                                         <input type="checkbox" id="vega-zero-toggle" checked>
                                         <span>Start Axes at Zero</span>
                                     </label>
-                                    <div class="control-group" style="margin-bottom: 0;">
-                                        <label for="vega-sort-order" style="font-size: 0.75rem;">Sort Order</label>
+                                    <div class="control-group">
+                                        <label for="vega-sort-order">Sort Order</label>
                                         <select id="vega-sort-order" class="control-select">
                                             <option value="default" selected>Natural / Default</option>
                                             <option value="ascending">Ascending (A-Z, 0-9)</option>
@@ -1225,24 +1225,24 @@
                                     </div>
                                     <div class="dimensions-grid-2col">
                                         <div class="dimension-input-group">
-                                            <span class="dimension-label-text">X Title:</span>
+                                            <span class="dimension-label-text">X Title</span>
                                             <input type="text" id="vega-x-title" class="control-input"
                                                 placeholder="Auto">
                                         </div>
                                         <div class="dimension-input-group">
-                                            <span class="dimension-label-text">Y Title:</span>
+                                            <span class="dimension-label-text">Y Title</span>
                                             <input type="text" id="vega-y-title" class="control-input"
                                                 placeholder="Auto">
                                         </div>
                                     </div>
                                     <div class="dimensions-grid-2col">
                                         <div class="dimension-input-group">
-                                            <span class="dimension-label-text">Y Min:</span>
+                                            <span class="dimension-label-text">Y Min</span>
                                             <input type="number" id="vega-domain-min" class="control-input"
                                                 placeholder="Auto">
                                         </div>
                                         <div class="dimension-input-group">
-                                            <span class="dimension-label-text">Y Max:</span>
+                                            <span class="dimension-label-text">Y Max</span>
                                             <input type="number" id="vega-domain-max" class="control-input"
                                                 placeholder="Auto">
                                         </div>
@@ -1257,8 +1257,8 @@
                                     <i class="fa-solid fa-chevron-down details-chevron"></i>
                                 </summary>
                                 <div class="vega-section-content">
-                                    <div class="control-group" style="margin-bottom: 0;">
-                                        <label for="vega-facet-col" style="font-size: 0.75rem;">Facet Column</label>
+                                    <div class="control-group">
+                                        <label for="vega-facet-col">Facet Column</label>
                                         <select id="vega-facet-col" class="control-select"></select>
                                     </div>
                                 </div>
