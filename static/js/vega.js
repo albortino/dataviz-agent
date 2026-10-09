@@ -9,6 +9,7 @@
  */
 
 import { formatVegaSpec } from './spec-formatter.js';
+import { fetchAiDiagram, bindCollapsibleSidebar } from './studio-utils.js';
 
 /** Shared impeccable chart language. Mirrors src/vizkit/theme.py CATEGORICAL. */
 export const CHART_CATEGORICAL = [
@@ -116,6 +117,18 @@ export class VegaManager {
 
     init() {
         this.initCodeMirror();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'vega_sidebar_collapsed'
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'vega_controls_collapsed'
+        });
         this.initCollapseState();
         this.bindEvents();
         this.updateColumnOptions();
@@ -379,28 +392,14 @@ export class VegaManager {
     }
 
     toggleLeftSidebar(collapse) {
-        if (!this.sidebar) return;
-        if (collapse) {
-            this.sidebar.classList.add('collapsed');
-            if (this.expandBtn) this.expandBtn.classList.remove('hidden');
-        } else {
-            this.sidebar.classList.remove('collapsed');
-            if (this.expandBtn) this.expandBtn.classList.add('hidden');
-            if (this.cm) {
-                setTimeout(() => this.cm.refresh(), 200);
-            }
+        this.leftSidebarToggle?.setCollapsed(collapse);
+        if (!collapse && this.cm) {
+            setTimeout(() => this.cm.refresh(), 200);
         }
     }
 
     toggleRightSidebar(collapse) {
-        if (!this.controlsSidebar) return;
-        if (collapse) {
-            this.controlsSidebar.classList.add('collapsed');
-            if (this.controlsExpandBtn) this.controlsExpandBtn.classList.remove('hidden');
-        } else {
-            this.controlsSidebar.classList.remove('collapsed');
-            if (this.controlsExpandBtn) this.controlsExpandBtn.classList.add('hidden');
-        }
+        this.controlsSidebarToggle?.setCollapsed(collapse);
     }
 
     setZoom(level) {
@@ -937,61 +936,13 @@ export class VegaManager {
         }
 
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    message: systemPrompt,
-                    data: sampleRows,
-                    api_key: apiKey || undefined,
-                    base_url: baseUrl || undefined,
-                    model: model || undefined,
-                    api_version: apiVersion || undefined
-                })
+            const specJson = await fetchAiDiagram({
+                systemPrompt,
+                sampleData: data,
+                codeRegex: /```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i
             });
-            clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                const errDetail = errData.detail || `Server returned ${response.status}`;
-                if (response.status === 400 && errDetail.includes("No API Key")) {
-                    alert("No AI API Key configured. Please enter your API key in Settings first.");
-                    const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal) settingsModal.classList.remove('hidden');
-                    return;
-                }
-                if (response.status === 504) {
-                    throw new Error("Server gateway timed out (504). The AI model took too long to reply.");
-                }
-                throw new Error(errDetail);
-            }
-
-            const result = await response.json();
-            const answer = result.answer || '';
-            let specJson = '';
-
-            const match = answer.match(/```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i);
-            if (match) {
-                specJson = match[1].trim();
-            } else {
-                for (const log of (result.logs || [])) {
-                    const logMatch = log.match(/```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i);
-                    if (logMatch) {
-                        specJson = logMatch[1].trim();
-                        break;
-                    }
-                }
-            }
-
-            if (!specJson && answer.trim().startsWith('{') && answer.trim().endsWith('}')) {
-                specJson = answer.trim();
-            }
-
-            if (specJson) {
+            if (specJson && (specJson.startsWith('{') || specJson.includes('"mark"'))) {
                 this.loadSpec(specJson);
             } else {
                 alert('AI did not return a valid Vega-Lite specification code block.');

@@ -6,6 +6,7 @@
 
 import { aggregateValues, detectType } from './data-transform.js';
 import { formatSankeySyntax } from './spec-formatter.js';
+import { exportSvg, bindCollapsibleSidebar } from './studio-utils.js';
 
 export const CHART_CATEGORICAL = [
     '#0072B2', '#D55E00', '#009E73', '#CC79A7',
@@ -61,7 +62,21 @@ export class SankeyManager {
     }
 
     init() {
-        this.initCollapseState();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'sankey_sidebar_collapsed'
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'sankey_controls_collapsed'
+        });
+        if (window.innerWidth < 900) {
+            this.setControlsCollapsed(true);
+        }
         this.bindEvents();
     }
 
@@ -72,11 +87,7 @@ export class SankeyManager {
     }
 
     setControlsCollapsed(collapsed) {
-        if (!this.controlsSidebar) return;
-        this.controlsSidebar.classList.toggle('collapsed', collapsed);
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.controlsSidebarToggle?.setCollapsed(collapsed);
         setTimeout(() => this.renderChart(), 230);
     }
 
@@ -101,11 +112,7 @@ export class SankeyManager {
     }
 
     setSidebarCollapsed(collapsed) {
-        if (!this.sidebar) return;
-        this.sidebar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.leftSidebarToggle?.setCollapsed(collapsed);
         setTimeout(() => this.renderChart(), 230);
     }
 
@@ -665,51 +672,13 @@ export class SankeyManager {
 
         if (this.exportPngBtn) {
             this.exportPngBtn.addEventListener('click', () => {
-                const svgEl = document.getElementById('sankey-svg');
-                if (!svgEl) return;
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const URL = window.URL || window.webkitURL || window;
-                const blobURL = URL.createObjectURL(svgBlob);
-
-                const exportW = parseInt(svgEl.getAttribute('width'), 10) || svgEl.clientWidth || 1000;
-                const exportH = parseInt(svgEl.getAttribute('height'), 10) || svgEl.clientHeight || 600;
-
-                const image = new Image();
-                image.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = exportW * 2;
-                    canvas.height = exportH * 2;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                    const pngLink = document.createElement('a');
-                    pngLink.download = 'sankey-chart.png';
-                    pngLink.href = canvas.toDataURL('image/png');
-                    document.body.appendChild(pngLink);
-                    pngLink.click();
-                    document.body.removeChild(pngLink);
-                };
-                image.src = blobURL;
+                exportSvg(document.getElementById('sankey-svg'), 'png', 'sankey-chart');
             });
         }
 
         if (this.exportSvgBtn) {
             this.exportSvgBtn.addEventListener('click', () => {
-                const svgEl = document.getElementById('sankey-svg');
-                if (!svgEl) return;
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const link = document.createElement('a');
-                link.download = 'sankey-chart.svg';
-                link.href = URL.createObjectURL(blob);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                exportSvg(document.getElementById('sankey-svg'), 'svg', 'sankey-chart');
             });
         }
     }

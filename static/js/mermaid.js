@@ -15,6 +15,7 @@ import {
     deletePath
 } from './mermaid-config.js';
 import { formatMermaidSyntax } from './spec-formatter.js';
+import { exportSvg, fetchAiDiagram, bindCollapsibleSidebar } from './studio-utils.js';
 
 export const MERMAID_DEMOS = {
     sankey: `sankey-beta
@@ -238,7 +239,22 @@ export class MermaidManager {
             }
         }
 
-        this.initCollapseState();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'mermaid_sidebar_collapsed'
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'mermaid_controls_collapsed'
+        });
+        if (window.innerWidth < 900) {
+            this.setControlsCollapsed(true);
+        }
+
         this.bindEvents();
         this.updateColumnOptions();
         this.updateUIControls();
@@ -291,19 +307,11 @@ export class MermaidManager {
     }
 
     setControlsCollapsed(collapsed) {
-        if (!this.controlsSidebar) return;
-        this.controlsSidebar.classList.toggle('collapsed', collapsed);
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.controlsSidebarToggle?.setCollapsed(collapsed);
     }
 
     setSidebarCollapsed(collapsed) {
-        if (!this.sidebar) return;
-        this.sidebar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.leftSidebarToggle?.setCollapsed(collapsed);
     }
 
     updateUIControls() {
@@ -885,68 +893,23 @@ export class MermaidManager {
         this.aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
 
         try {
-            const sampleData = currentData.slice(0, 20);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    message: prompt,
-                    data: sampleData,
-                    api_key: apiKey || undefined,
-                    base_url: baseUrl || undefined,
-                    model: model || undefined,
-                    api_version: apiVersion || undefined
-                })
+            let rawCode = await fetchAiDiagram({
+                systemPrompt: prompt,
+                sampleData: currentData,
+                codeRegex: /```mermaid\s*([\s\S]*?)\s*```/i
             });
-            clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                const errDetail = errData.detail || `Server returned ${response.status}`;
-                if (response.status === 400 && errDetail.includes("No API Key")) {
-                    alert("No AI API Key configured. Please enter your API key in Settings first.");
-                    const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal) settingsModal.classList.remove('hidden');
-                    return;
-                }
-                if (response.status === 504) {
-                    throw new Error("Server gateway timed out (504). The AI model took too long to reply. Please check your API key, model selection, or network connection.");
-                }
-                throw new Error(errDetail);
-            }
-
-            const res = await response.json();
-            let rawCode = '';
-
-            const match = (res.answer || '').match(/```mermaid\s*([\s\S]*?)\s*```/i);
-            if (match) {
-                rawCode = match[1].trim();
-            } else {
-                for (const log of (res.logs || [])) {
-                    const logMatch = log.match(/```mermaid\s*([\s\S]*?)\s*```/i);
-                    if (logMatch) {
-                        rawCode = logMatch[1].trim();
-                        break;
-                    }
-                }
-            }
-
-            if (!rawCode && res.answer && (
-                res.answer.startsWith('flowchart') ||
-                res.answer.startsWith('pie') ||
-                res.answer.startsWith('erDiagram') ||
-                res.answer.startsWith('sequenceDiagram') ||
-                res.answer.startsWith('xychart') ||
-                res.answer.startsWith('radar') ||
-                res.answer.startsWith('treemap') ||
-                res.answer.startsWith('sankey')
+            if (!rawCode.includes('\n') && (
+                rawCode.startsWith('flowchart') ||
+                rawCode.startsWith('pie') ||
+                rawCode.startsWith('erDiagram') ||
+                rawCode.startsWith('sequenceDiagram') ||
+                rawCode.startsWith('xychart') ||
+                rawCode.startsWith('radar') ||
+                rawCode.startsWith('treemap') ||
+                rawCode.startsWith('sankey')
             )) {
-                rawCode = res.answer.trim();
+                // Already raw code
             }
 
             if (rawCode) {
@@ -958,11 +921,7 @@ export class MermaidManager {
             }
         } catch (err) {
             console.error("Mermaid AI generation error:", err);
-            if (err.name === 'AbortError') {
-                alert("AI generation request timed out after 45s. Please check your AI provider connection.");
-            } else {
-                alert(`AI generation failed: ${err.message}`);
-            }
+            alert(`AI generation failed: ${err.message}`);
         } finally {
             this.aiBtn.innerHTML = originalText;
             this.aiBtn.disabled = false;
@@ -1147,49 +1106,13 @@ export class MermaidManager {
 
         if (this.exportPngBtn) {
             this.exportPngBtn.addEventListener('click', () => {
-                const svgEl = this.renderOutput?.querySelector('svg');
-                if (!svgEl) return alert('No chart to export.');
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const URL = window.URL || window.webkitURL || window;
-                const blobURL = URL.createObjectURL(svgBlob);
-
-                const image = new Image();
-                image.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const rect = svgEl.getBoundingClientRect();
-                    canvas.width = Math.max(800, rect.width * 2);
-                    canvas.height = Math.max(600, rect.height * 2);
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                    const pngLink = document.createElement('a');
-                    pngLink.download = 'mermaid-chart.png';
-                    pngLink.href = canvas.toDataURL('image/png');
-                    document.body.appendChild(pngLink);
-                    pngLink.click();
-                    document.body.removeChild(pngLink);
-                };
-                image.src = blobURL;
+                exportSvg(this.renderOutput?.querySelector('svg'), 'png', 'mermaid-chart');
             });
         }
 
         if (this.exportSvgBtn) {
             this.exportSvgBtn.addEventListener('click', () => {
-                const svgEl = this.renderOutput?.querySelector('svg');
-                if (!svgEl) return alert('No chart to export.');
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const link = document.createElement('a');
-                link.download = 'mermaid-chart.svg';
-                link.href = URL.createObjectURL(blob);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                exportSvg(this.renderOutput?.querySelector('svg'), 'svg', 'mermaid-chart');
             });
         }
     }
