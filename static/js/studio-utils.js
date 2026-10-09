@@ -12,7 +12,10 @@ export function bindCollapsibleSidebar({ sidebar, collapseBtn, expandBtn, storag
 
     const setCollapsed = (collapsed) => {
         sidebar.classList.toggle('collapsed', collapsed);
-        if (expandBtn) expandBtn.classList.toggle('hidden', !collapsed);
+        if (expandBtn) {
+            expandBtn.classList.toggle('active', !collapsed);
+            expandBtn.setAttribute('aria-pressed', !collapsed ? 'true' : 'false');
+        }
         if (storageKey) {
             localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
         }
@@ -23,15 +26,22 @@ export function bindCollapsibleSidebar({ sidebar, collapseBtn, expandBtn, storag
 
     if (storageKey && localStorage.getItem(storageKey) === 'true') {
         setCollapsed(true);
-    } else if (expandBtn) {
-        expandBtn.classList.toggle('hidden', !sidebar.classList.contains('collapsed'));
+    } else {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (expandBtn) {
+            expandBtn.classList.toggle('active', !isCollapsed);
+            expandBtn.setAttribute('aria-pressed', !isCollapsed ? 'true' : 'false');
+        }
     }
 
     if (collapseBtn) {
         collapseBtn.addEventListener('click', () => setCollapsed(true));
     }
     if (expandBtn) {
-        expandBtn.addEventListener('click', () => setCollapsed(false));
+        expandBtn.addEventListener('click', () => {
+            const isCurrentlyCollapsed = sidebar.classList.contains('collapsed');
+            setCollapsed(!isCurrentlyCollapsed);
+        });
     }
 
     return { setCollapsed };
