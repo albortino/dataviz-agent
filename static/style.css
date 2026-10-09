@@ -3,6 +3,11 @@
    ========================================================================== */
 
 /* Base & Layout */
+*,
+*::before,
+*::after {
+}
+
 body {
     font-family: var(--font-sans);
     margin: 0;
@@ -117,7 +122,6 @@ body>header,
     justify-content: space-between;
     align-items: center;
     gap: var(--gap-l);
-    box-sizing: border-box;
     z-index: 5000;
 }
 
@@ -409,31 +413,16 @@ body>header,
     box-shadow: none;
 }
 
-.dropdown-item:hover:not(:disabled) .dropdown-item-icon-box {
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-}
-
-.dropdown-item:hover:not(:disabled) i {
-    color: var(--color-primary);
-}
-
-/* Selected state (e.g. active Charts engine): same tint as hover, persistent */
-.dropdown-item.active {
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-}
-
+.dropdown-item:hover:not(:disabled) .dropdown-item-icon-box,
+.dropdown-item.active,
 .dropdown-item.active .dropdown-item-icon-box {
     background: var(--color-primary-light);
     color: var(--color-primary);
 }
 
+.dropdown-item:hover:not(:disabled) i,
+.dropdown-item.active i,
 .dropdown-item.active .dropdown-item-label {
-    color: var(--color-primary);
-}
-
-.dropdown-item.active i {
     color: var(--color-primary);
 }
 
@@ -486,7 +475,6 @@ button {
     text-decoration: none;
     cursor: pointer;
     font-size: var(--font-size-button-link);
-    box-sizing: border-box;
     font-weight: var(--font-weight-medium);
     font-family: inherit;
     transition: all var(--transition-base);
@@ -647,15 +635,11 @@ button.utility-btn:active,
     transition: color var(--transition-fast);
 }
 
-#view-controls .button:hover:not(:disabled):not(.active) {
+#view-controls .button:hover:not(:disabled):not(.active),
+#view-controls .button:hover:not(:disabled):not(.active) i {
     color: var(--color-text-primary);
     background: rgba(255, 255, 255, 0.75);
     transform: none;
-    /*font-weight: var(--font-weight-bold);*/
-}
-
-#view-controls .button:hover:not(:disabled):not(.active) i {
-    color: var(--color-text-primary);
 }
 
 #view-controls .button.active,
@@ -668,7 +652,6 @@ button.utility-btn:active,
 
 #view-controls .button:disabled,
 #view-controls button:disabled {
-    /*color: var(--color-text-muted) !important;*/
     opacity: 0.45;
     background: transparent !important;
     border-color: transparent !important;
@@ -898,7 +881,6 @@ input[type="password"] {
     color: var(--color-text-primary);
     font-family: inherit;
     height: var(--height-small);
-    box-sizing: border-box;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-fast);
 }
@@ -949,7 +931,6 @@ hr.control-divider,
     border-top: 1px solid var(--color-border);
     margin: 0;
     width: 100%;
-    box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -989,7 +970,6 @@ hr.control-divider,
     text-align: center;
     color: var(--color-text-secondary);
     padding: 3.5rem 1.75rem 4rem;
-    box-sizing: border-box;
     position: relative;
     z-index: 1;
     margin: auto;
@@ -1221,7 +1201,6 @@ hr.control-divider,
     flex-grow: 1;
     position: relative;
     overflow: hidden;
-    box-sizing: border-box;
     padding: 0 0 1rem 0;
     margin: 0 20px;
 }
@@ -1295,7 +1274,6 @@ hr.control-divider,
     outline: none !important;
     box-shadow: var(--shadow-sm) !important;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast) !important;
-    height: auto !important;
 }
 
 .lu-string-search-dialog input[type="text"]:focus,
@@ -1346,9 +1324,6 @@ hr.control-divider,
     width: 100%;
     min-height: calc(100vh - 210px);
     background: var(--color-background-light);
-    /*border-radius: var(--border-radius-card);
-    overflow: hidden;
-    border: 1px solid var(--color-border);*/
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -1422,7 +1397,6 @@ hr.control-divider,
     overflow: hidden;
     margin: 0;
     gap: 0;
-    box-sizing: border-box;
 }
 
 #sanddance-canvas-wrapper,
@@ -1454,7 +1428,6 @@ hr.control-divider,
     justify-content: center;
     align-items: center;
     padding: 2rem;
-    box-sizing: border-box;
     overflow: auto;
 }
 
@@ -1497,7 +1470,6 @@ hr.control-divider,
     z-index: 10;
     overflow: hidden;
     flex-shrink: 0;
-    box-sizing: border-box;
     transition: opacity 0.24s ease, transform 0.28s var(--ease-out-cubic);
 }
 
@@ -1518,7 +1490,6 @@ hr.control-divider,
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
-    box-sizing: border-box;
     transition: opacity 0.24s ease, transform 0.28s var(--ease-out-cubic);
 }
 
@@ -1556,7 +1527,6 @@ hr.control-divider,
     z-index: 3;
     user-select: none;
     white-space: nowrap;
-    box-sizing: border-box;
     font-weight: var(--font-weight-bold);
 }
 
@@ -1574,7 +1544,6 @@ hr.control-divider,
 .controls-sidebar-body .control-select,
 .controls-sidebar-body .control-input {
     width: 100%;
-    box-sizing: border-box;
 }
 
 .controls-sidebar-body hr.control-divider,
@@ -1594,7 +1563,6 @@ hr.control-divider,
     display: flex;
     width: 100%;
     gap: 0.375rem;
-    box-sizing: border-box;
 }
 
 .control-group .utility-segmented-btn-group .utility-btn {
@@ -1642,7 +1610,6 @@ hr.control-divider,
 .controls-sidebar-body .controls-sidebar-actions .button.icon-button {
     width: 100%;
     justify-content: center;
-    box-sizing: border-box;
 }
 
 #sankey-text-editor,
@@ -1664,7 +1631,6 @@ hr.control-divider,
     -moz-tab-size: 2;
     white-space: pre;
     color: var(--color-text-primary);
-    box-sizing: border-box;
     transition: background var(--transition-fast);
 }
 
@@ -1796,7 +1762,6 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     height: 1.25rem;
-    box-sizing: border-box;
     transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
@@ -1829,7 +1794,6 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     height: 1.25rem;
-    box-sizing: border-box;
 }
 
 .sidebar-collapse-btn {
@@ -2176,7 +2140,6 @@ hr.control-divider,
     padding: 0;
     overflow: hidden;
     transition: border-color var(--transition-fast), background-color var(--transition-fast);
-    box-sizing: border-box;
 }
 
 .mermaid-config-details:hover {
@@ -2335,7 +2298,6 @@ hr.control-divider,
 .actions-stack .button {
     width: 100%;
     justify-content: center;
-    box-sizing: border-box;
 }
 
 #mermaid-error-notice {
@@ -2412,7 +2374,6 @@ hr.control-divider,
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-main);
     padding: 0.625rem 0.75rem;
-    box-sizing: border-box;
     transition: border-color var(--transition-fast);
 }
 
@@ -2460,7 +2421,6 @@ hr.control-divider,
     padding: 0.5rem 0.625rem;
     background: var(--color-surface-2);
     width: 100%;
-    box-sizing: border-box;
 }
 
 .sanddance-panel summary {
@@ -2508,7 +2468,6 @@ hr.control-divider,
     justify-content: center;
     text-align: center;
     transition: all var(--transition-fast) ease;
-    box-sizing: border-box;
 }
 
 .sanddance-panel button:hover:not(:disabled) {
@@ -2542,7 +2501,6 @@ hr.control-divider,
     margin-bottom: 0.375rem;
     overflow: visible;
     white-space: normal;
-    box-sizing: border-box;
 }
 
 /* Checkbox specific layout inside vega bindings */
@@ -2596,7 +2554,6 @@ hr.control-divider,
     color: var(--color-text-primary);
     font-family: inherit;
     font-size: var(--font-size-xs);
-    box-sizing: border-box;
 }
 
 .sanddance-panel .sanddance-legend {
@@ -3133,7 +3090,6 @@ hr.control-divider,
     white-space: pre;
     overflow-wrap: normal;
     overflow-x: auto;
-    box-sizing: border-box;
 }
 
 .chat-plot-code-editor:focus {
@@ -3388,7 +3344,6 @@ hr.control-divider,
 
 .agent-preview-header {
     min-height: 42px;
-    box-sizing: border-box;
     padding: 8px 1.25rem;
     display: flex;
     justify-content: space-between;
@@ -3479,7 +3434,6 @@ hr.control-divider,
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    box-sizing: border-box;
 }
 
 #settings-modal .modal-content,
@@ -3579,7 +3533,10 @@ hr.control-divider,
     border-color: var(--color-border);
 }
 
-.inspector-drawer-nav {
+.inspector-drawer-nav,
+#settings-modal .route-segmented-control,
+.set-data-nav,
+.set-data-tabs {
     display: flex;
     align-items: center;
     background: var(--color-background-medium);
@@ -3587,12 +3544,21 @@ hr.control-divider,
     border-radius: var(--border-radius-pill);
     padding: 3px 5px;
     gap: var(--gap-2xs);
-    margin-top: 0.35rem;
     width: 100%;
-    box-sizing: border-box;
 }
 
-.inspector-nav-tab {
+.inspector-drawer-nav {
+    margin-top: 0.35rem;
+}
+
+.set-data-nav,
+.set-data-tabs {
+    margin: 0.5rem 0 0;
+}
+
+.inspector-nav-tab,
+#settings-modal .route-segmented-btn,
+.set-data-tab-btn {
     flex: 1;
     display: inline-flex;
     align-items: center;
@@ -3613,19 +3579,27 @@ hr.control-divider,
     white-space: nowrap;
 }
 
-.inspector-nav-tab i {
+.inspector-nav-tab i,
+#settings-modal .route-segmented-btn i,
+.set-data-tab-btn i {
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
     transition: color var(--transition-fast);
 }
 
-.inspector-nav-tab:hover:not(.active) {
+.inspector-nav-tab:hover:not(.active),
+#settings-modal .route-segmented-btn:hover:not(.active),
+.set-data-tab-btn:hover:not(.active) {
     color: var(--color-text-primary);
     background: rgba(255, 255, 255, 0.75);
 }
 
 .inspector-nav-tab.active,
-.inspector-nav-tab.active i {
+.inspector-nav-tab.active i,
+#settings-modal .route-segmented-btn.active,
+#settings-modal .route-segmented-btn.active i,
+.set-data-tab-btn.active,
+.set-data-tab-btn.active i {
     background: var(--color-background-light);
     color: var(--color-primary) !important;
     font-weight: var(--font-weight-bold);
@@ -3709,7 +3683,6 @@ hr.control-divider,
     font-size: var(--font-size-base);
     color: var(--color-text-primary);
     transition: all 0.15s ease;
-    box-sizing: border-box;
 }
 
 #settings-modal .control-input:focus,
@@ -3726,49 +3699,6 @@ hr.control-divider,
 
 #settings-modal .control-input::placeholder {
     color: var(--color-text-muted);
-}
-
-/* Route Segmented Switcher */
-#settings-modal .route-segmented-control {
-    display: flex;
-    background: var(--color-background-medium);
-    padding: 3px 5px;
-    border-radius: var(--border-radius-pill);
-    border: 1px solid var(--color-border);
-    gap: var(--gap-2xs);
-    box-sizing: border-box;
-    width: 100%;
-}
-
-#settings-modal .route-segmented-btn {
-    flex: 1;
-    height: 2.1rem;
-    border-radius: var(--border-radius-pill);
-    border: none;
-    background: transparent;
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--gap-s);
-    box-shadow: none;
-    transition: none;
-}
-
-#settings-modal .route-segmented-btn:hover:not(.active) {
-    color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.75);
-}
-
-#settings-modal .route-segmented-btn.active,
-#settings-modal .route-segmented-btn.active i {
-    background: var(--color-background-light);
-    color: var(--color-primary) !important;
-    font-weight: var(--font-weight-bold);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 #settings-modal .settings-route-hint {
@@ -3931,7 +3861,6 @@ hr.control-divider,
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-card);
     padding: 0.45rem;
-    box-sizing: border-box;
 }
 
 .column-config {
@@ -3944,7 +3873,6 @@ hr.control-divider,
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-input);
     transition: all var(--transition-fast);
-    box-sizing: border-box;
 }
 
 .column-config:hover {
@@ -4020,59 +3948,6 @@ hr.control-divider,
     .import-config-section {
         grid-template-columns: 1fr;
     }
-}
-
-/* Load Data Tabs & Dropzone */
-.set-data-tabs {
-    display: flex;
-    background: var(--color-background-medium);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-pill);
-    padding: 3px 5px;
-    gap: var(--gap-2xs);
-    margin: 0.5rem 0 0;
-    box-sizing: border-box;
-    width: 100%;
-}
-
-.set-data-tab-btn {
-    flex: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--gap-2xs);
-    background: transparent;
-    border: none;
-    border-radius: var(--border-radius-pill);
-    height: 2.1rem;
-    padding: 0 12px;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    font-family: inherit;
-    box-shadow: none;
-    transition: none;
-    white-space: nowrap;
-}
-
-.set-data-tab-btn i {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-    transition: color var(--transition-fast);
-}
-
-.set-data-tab-btn:hover:not(.active) {
-    color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.75);
-}
-
-.set-data-tab-btn.active,
-.set-data-tab-btn.active i {
-    background: var(--color-background-light);
-    color: var(--color-primary) !important;
-    font-weight: var(--font-weight-bold);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .set-data-tab-btn.active::after {
@@ -4213,7 +4088,6 @@ hr.control-divider,
     color: var(--color-text-muted);
     flex-shrink: 0;
     z-index: 15;
-    box-sizing: border-box;
     position: relative;
 }
 
@@ -4245,7 +4119,6 @@ hr.control-divider,
     gap: var(--gap-2xs);
     height: 28px;
     padding: 0 0.75rem;
-    box-sizing: border-box;
     border-radius: var(--border-radius-pill);
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
@@ -4454,7 +4327,6 @@ hr.control-divider,
 .btn-full-width {
     width: 100%;
     justify-content: center;
-    box-sizing: border-box;
 }
 
 .curves-checkbox-subitem {
@@ -4543,7 +4415,6 @@ hr.control-divider,
 
 .paste-textarea-mono {
     width: 100%;
-    box-sizing: border-box;
     resize: vertical;
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
@@ -4552,7 +4423,6 @@ hr.control-divider,
 
 .modal-textarea-custom {
     width: 100%;
-    box-sizing: border-box;
     resize: vertical;
     font-family: inherit;
     font-size: var(--font-size-sm);
