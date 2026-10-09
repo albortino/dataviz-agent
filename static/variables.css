@@ -141,8 +141,7 @@
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 
     /* -------------------------------------------------------
-       Impeccable chart system — single source of truth
-       Mirrors src/vizkit/theme.py CATEGORICAL (Okabe-Ito)
+       Categorical colors based on Okabe-Ito
        ------------------------------------------------------- */
     --chart-1: #0072B2;
     --chart-2: #D55E00;

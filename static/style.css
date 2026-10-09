@@ -1009,11 +1009,11 @@ hr.control-divider,
 
 #empty-state-container {
     display: flex;
-    align-items: stretch;
-    justify-content: stretch;
+    align-items: center;
+    justify-content: center;
     flex: 1;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
     background: radial-gradient(circle at 50% 35%, rgba(37, 99, 235, 0.05) 0%, var(--color-background-body) 65%);
 }
 
@@ -1023,21 +1023,23 @@ hr.control-divider,
     justify-content: center;
     align-items: center;
     width: 100%;
+    max-width: 860px;
     text-align: center;
     color: var(--color-text-secondary);
-    padding: 16rem 2rem;
+    padding: 3.5rem 1.75rem 4rem;
     box-sizing: border-box;
     position: relative;
     z-index: 1;
+    margin: auto;
 }
 
 .initial-message h2 {
     color: var(--color-text-primary);
     margin: 0 0 0.85rem 0;
-    font-size: clamp(2rem, 4.2vw, 3rem);
+    font-size: clamp(2.1rem, 3.8vw, 3.2rem);
     font-weight: 800;
     letter-spacing: -0.035em;
-    line-height: 1.12;
+    line-height: 1.15;
 }
 
 /* Primary accent span inside heading */
@@ -1060,12 +1062,12 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
-    margin-bottom: 1rem;
+    margin-bottom: 2.75rem;
 }
 
 .empty-state-actions .button {
     font-size: var(--font-size-base);
-    padding: 0.6rem 1.35rem;
+    padding: 0.65rem 1.4rem;
     border-radius: var(--border-radius-pill);
     font-weight: 600;
     box-shadow: var(--shadow-sm);
@@ -1073,69 +1075,108 @@ hr.control-divider,
 }
 
 .empty-state-actions .button.primary {
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    background: var(--color-primary);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+    border: none;
+    color: #ffffff;
 }
 
 .empty-state-actions .button.primary:hover {
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
-    transform: translateY(-1px);
+    background: var(--color-primary-hover);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    transform: translateY(-1.5px);
 }
 
-/* Feature list */
+.empty-state-actions .button:not(.primary) {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+}
+
+.empty-state-actions .button:not(.primary):hover {
+    background: var(--color-surface-3);
+    border-color: var(--color-border-input);
+    transform: translateY(-1.5px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Feature cards grid */
 .empty-state-features {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.1rem 1.5rem;
-    max-width: 780px;
+    gap: 1rem;
+    max-width: 820px;
     width: 100%;
-    margin-top: 1.5rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
     .empty-state-features {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Empty-state feature list — quiet inline rows: icon sits beside the
-   label, description runs beneath. No card chrome so the primary CTA
-   stays the loudest thing on the screen. */
+@media (max-width: 480px) {
+    .empty-state-features {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Feature card item */
 .empty-feature-item {
     display: grid;
     grid-template-columns: auto 1fr;
-    column-gap: var(--gap-s);
-    row-gap: 0.15rem;
+    grid-template-rows: auto auto;
+    column-gap: 0.65rem;
+    row-gap: 0.4rem;
     align-items: center;
     text-align: left;
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-card);
+    padding: 1rem 1.1rem;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.empty-feature-item:hover {
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .empty-feature-icon {
+    grid-column: 1;
+    grid-row: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--border-radius-medium);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
     line-height: 1;
 }
 
 .empty-feature-icon i {
-    font-size: var(--font-size-xs);
-    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    color: inherit;
     line-height: 1;
-    width: auto;
-    height: auto;
-    margin: 0;
     display: inline-block;
-    vertical-align: middle;
 }
 
 .empty-feature-label {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    color: var(--color-text-secondary);
+    grid-column: 2;
+    grid-row: 1;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--color-text-primary);
     letter-spacing: -0.01em;
 }
 
 .empty-feature-desc {
     grid-column: 1 / -1;
+    grid-row: 2;
     font-size: var(--font-size-2xs);
     color: var(--color-text-muted);
     line-height: 1.45;
