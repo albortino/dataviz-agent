@@ -27,6 +27,42 @@ export class LineUpManager {
             });
             this.resizeObserver.observe(this.root);
         }
+
+        this.root.addEventListener('click', (e) => {
+            if (e.target.closest('.lu-side-panel-toggle') || e.target.closest('button[title*="side panel" i]')) {
+                setTimeout(() => {
+                    this.adjustColumnWidths();
+                    window.dispatchEvent(new CustomEvent('sidebar-collapsed-change'));
+                }, 60);
+            }
+        });
+    }
+
+    /**
+     * Check if LineUp side panel is currently collapsed
+     */
+    isSidePanelCollapsed() {
+        if (!this.root) return true;
+        const sidePanel = this.root.querySelector('.lu-side-panel') || this.root.querySelector('.lineup-side-panel');
+        if (!sidePanel) return true;
+        return sidePanel.classList.contains('lu-collapsed') || sidePanel.offsetWidth === 0 || sidePanel.style.display === 'none';
+    }
+
+    /**
+     * Toggle LineUp side panel (or set explicit collapse state)
+     */
+    toggleSidePanel(forceCollapse) {
+        if (!this.root) return;
+        const toggleBtn = this.root.querySelector('.lu-side-panel-toggle') ||
+                          this.root.querySelector('button[title*="side panel" i]');
+        const isCollapsed = this.isSidePanelCollapsed();
+        const shouldCollapse = (typeof forceCollapse === 'boolean') ? forceCollapse : !isCollapsed;
+
+        if (toggleBtn && (shouldCollapse !== isCollapsed || typeof forceCollapse !== 'boolean')) {
+            toggleBtn.click();
+        }
+        setTimeout(() => this.adjustColumnWidths(), 100);
+        window.dispatchEvent(new CustomEvent('sidebar-collapsed-change'));
     }
 
     /**
@@ -95,7 +131,8 @@ export class LineUpManager {
 
             // Find the side panel (config panel) width and position
             const sidePanel = this.root.querySelector('.lu-side-panel') || this.root.querySelector('.lineup-side-panel');
-            const sidePanelWidth = (sidePanel && sidePanel.offsetWidth > 0) ? sidePanel.offsetWidth : 280;
+            const isCollapsed = this.isSidePanelCollapsed();
+            const sidePanelWidth = isCollapsed ? 0 : ((sidePanel && sidePanel.offsetWidth > 0) ? sidePanel.offsetWidth : 280);
             const containerWidth = this.root.clientWidth;
 
             // Space available for the table body: container width minus the config panel and buffer

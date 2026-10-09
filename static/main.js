@@ -41,15 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
-    const chartsSidebarToggles = document.getElementById('charts-sidebar-toggles');
     const headerSpecToggleBtn = document.getElementById('header-spec-toggle-btn');
     const headerControlsToggleBtn = document.getElementById('header-controls-toggle-btn');
+    const headerControlsLabel = document.getElementById('header-controls-label');
     const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
     // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
     // buttons never fire click events, so including the Charts engine picker
     // would make the dropdown unopenable. The picker stays enabled so users
     // can always switch engines; engine items no-op until data is loaded.
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn];
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDatasetIndicator(null);
 
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
-        updateHeaderSidebarToggles(false);
+        updateHeaderSidebarToggles();
     }
 
     function getActiveChartInfo() {
@@ -275,26 +275,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncHeaderSidebarToggles() {
-        const info = getActiveChartInfo();
-        if (!info) return;
-        const isLeftOpen = info.left && !info.left.classList.contains('collapsed');
-        const isRightOpen = info.right && !info.right.classList.contains('collapsed');
-        if (headerSpecToggleBtn) {
-            headerSpecToggleBtn.classList.toggle('active', !!isLeftOpen);
-            headerSpecToggleBtn.setAttribute('aria-pressed', isLeftOpen ? 'true' : 'false');
+        if (!currentData || currentData.length === 0) {
+            headerSpecToggleBtn?.classList.add('hidden');
+            headerControlsToggleBtn?.classList.add('hidden');
+            return;
         }
-        if (headerControlsToggleBtn) {
-            headerControlsToggleBtn.classList.toggle('active', !!isRightOpen);
-            headerControlsToggleBtn.setAttribute('aria-pressed', isRightOpen ? 'true' : 'false');
+
+        if (currentActiveView === 'lineup') {
+            headerSpecToggleBtn?.classList.add('hidden');
+            headerControlsToggleBtn?.classList.remove('hidden');
+            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
+            headerControlsToggleBtn?.setAttribute('title', 'Toggle Side Panel');
+            const isOpen = !lineupMgr.isSidePanelCollapsed();
+            headerControlsToggleBtn?.classList.toggle('active', isOpen);
+            headerControlsToggleBtn?.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+            return;
         }
+
+        if (currentActiveView === 'sanddance') {
+            headerSpecToggleBtn?.classList.add('hidden');
+            headerControlsToggleBtn?.classList.remove('hidden');
+            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
+            headerControlsToggleBtn?.setAttribute('title', 'Toggle Controls (⌘I)');
+            const isOpen = sanddanceMgr.toolbar && !sanddanceMgr.toolbar.classList.contains('collapsed');
+            headerControlsToggleBtn?.classList.toggle('active', !!isOpen);
+            headerControlsToggleBtn?.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+            return;
+        }
+
+        if (currentActiveView === 'vega' || currentActiveView === 'sankey' || currentActiveView === 'mermaid') {
+            headerSpecToggleBtn?.classList.remove('hidden');
+            headerControlsToggleBtn?.classList.remove('hidden');
+            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
+            headerSpecToggleBtn?.setAttribute('title', 'Toggle Syntax / Code (⌘B)');
+            headerControlsToggleBtn?.setAttribute('title', 'Toggle Controls (⌘I)');
+
+            const info = getActiveChartInfo();
+            const isLeftOpen = info?.left && !info.left.classList.contains('collapsed');
+            const isRightOpen = info?.right && !info.right.classList.contains('collapsed');
+
+            headerSpecToggleBtn?.classList.toggle('active', !!isLeftOpen);
+            headerSpecToggleBtn?.setAttribute('aria-pressed', isLeftOpen ? 'true' : 'false');
+            headerControlsToggleBtn?.classList.toggle('active', !!isRightOpen);
+            headerControlsToggleBtn?.setAttribute('aria-pressed', isRightOpen ? 'true' : 'false');
+            return;
+        }
+
+        // For graphic-walker or others
+        headerSpecToggleBtn?.classList.add('hidden');
+        headerControlsToggleBtn?.classList.add('hidden');
     }
 
-    function updateHeaderSidebarToggles(isChartsActive) {
-        if (!chartsSidebarToggles) return;
-        chartsSidebarToggles.classList.toggle('hidden', !isChartsActive);
-        if (isChartsActive) {
-            setTimeout(syncHeaderSidebarToggles, 20);
-        }
+    function updateHeaderSidebarToggles() {
+        setTimeout(syncHeaderSidebarToggles, 20);
     }
 
     function setActiveView(targetContainer, targetButton) {
@@ -317,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updatePlotsHubState(null, isPlotsTarget);
-        updateHeaderSidebarToggles(isPlotsTarget);
+        updateHeaderSidebarToggles();
 
         // Free SVG DOM memory when leaving Sankey view
         if (targetContainer !== sankeyContainer && sankeyMgr) {
@@ -504,23 +537,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Header Sidebar Toggles (active only when Charts view is active)
+    // Header Sidebar Toggles
     if (headerSpecToggleBtn) {
         headerSpecToggleBtn.addEventListener('click', () => {
             const info = getActiveChartInfo();
             if (!info || !info.left) return;
             const isCollapsed = info.left.classList.contains('collapsed');
-            info.mgr?.leftSidebarToggle?.setCollapsed(!isCollapsed);
+            if (currentActiveView === 'vega') {
+                vegaMgr.toggleLeftSidebar(!isCollapsed);
+            } else if (currentActiveView === 'sankey') {
+                sankeyMgr.setSidebarCollapsed(!isCollapsed);
+            } else if (currentActiveView === 'mermaid') {
+                mermaidMgr.setSidebarCollapsed(!isCollapsed);
+            }
             syncHeaderSidebarToggles();
         });
     }
 
     if (headerControlsToggleBtn) {
         headerControlsToggleBtn.addEventListener('click', () => {
-            const info = getActiveChartInfo();
-            if (!info || !info.right) return;
-            const isCollapsed = info.right.classList.contains('collapsed');
-            info.mgr?.controlsSidebarToggle?.setCollapsed(!isCollapsed);
+            if (currentActiveView === 'lineup') {
+                lineupMgr.toggleSidePanel();
+            } else if (currentActiveView === 'sanddance') {
+                const isCollapsed = sanddanceMgr.toolbar?.classList.contains('collapsed');
+                sanddanceMgr.setToolbarCollapsed(!isCollapsed);
+            } else {
+                const info = getActiveChartInfo();
+                if (!info || !info.right) return;
+                const isCollapsed = info.right.classList.contains('collapsed');
+                if (currentActiveView === 'vega') {
+                    vegaMgr.toggleRightSidebar(!isCollapsed);
+                } else if (currentActiveView === 'sankey') {
+                    sankeyMgr.setControlsCollapsed(!isCollapsed);
+                } else if (currentActiveView === 'mermaid') {
+                    mermaidMgr.setControlsCollapsed(!isCollapsed);
+                }
+            }
             syncHeaderSidebarToggles();
         });
     }
@@ -530,13 +582,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('keydown', (e) => {
-        if (!chartsSidebarToggles || chartsSidebarToggles.classList.contains('hidden')) return;
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
-            e.preventDefault();
-            headerSpecToggleBtn?.click();
+            if (headerSpecToggleBtn && !headerSpecToggleBtn.classList.contains('hidden')) {
+                e.preventDefault();
+                headerSpecToggleBtn.click();
+            }
         } else if ((e.metaKey || e.ctrlKey) && (e.altKey || e.key.toLowerCase() === 'i')) {
-            e.preventDefault();
-            headerControlsToggleBtn?.click();
+            if (headerControlsToggleBtn && !headerControlsToggleBtn.classList.contains('hidden')) {
+                e.preventDefault();
+                headerControlsToggleBtn.click();
+            }
         }
     });
 

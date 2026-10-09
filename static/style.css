@@ -168,35 +168,6 @@ body>header,
     align-items: center;
 }
 
-.copilot-header-btn {
-    border-radius: var(--border-radius-pill);
-    gap: var(--gap-s);
-    font-weight: var(--font-weight-medium);
-    transition: all var(--transition-base);
-    background: var(--color-surface-1);
-    border: 1px solid var(--color-border-input);
-    box-shadow: var(--shadow-sm);
-}
-
-.copilot-header-btn:hover:not(:disabled):not(.active) {
-    background: var(--color-surface-3);
-    border-color: var(--color-border-input);
-    color: var(--color-text-primary);
-}
-
-.copilot-header-btn.active,
-.copilot-header-btn.active:hover:not(:disabled) {
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-    font-weight: var(--font-weight-bold);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
-    transform: none;
-}
-
-.copilot-header-btn.active i {
-    color: var(--color-primary);
-}
 
 /* Header with Categorized Dropdowns */
 .header-v-divider {
@@ -601,8 +572,15 @@ button.utility-btn:active,
     font-size: var(--font-size-sm);
 }
 
-/* View Selector Controls */
-#view-controls {
+/* Header Center Nav & View Selector Controls */
+.header-center-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-s);
+}
+
+#view-controls,
+.sidebars-controls-pill {
     display: inline-flex;
     align-self: center;
     align-items: center;
@@ -613,7 +591,8 @@ button.utility-btn:active,
     border: 1px solid var(--color-border);
 }
 
-#view-controls .button {
+#view-controls .button,
+.sidebars-controls-pill .copilot-header-btn {
     background: transparent;
     color: var(--color-text);
     border: none;
@@ -629,20 +608,25 @@ button.utility-btn:active,
     gap: var(--gap-s);
 }
 
-#view-controls .button i {
+#view-controls .button i,
+.sidebars-controls-pill .copilot-header-btn i {
     color: var(--color-text);
     transition: color var(--transition-fast);
 }
 
 #view-controls .button:hover:not(:disabled):not(.active),
-#view-controls .button:hover:not(:disabled):not(.active) i {
+#view-controls .button:hover:not(:disabled):not(.active) i,
+.sidebars-controls-pill .copilot-header-btn:hover:not(:disabled):not(.active),
+.sidebars-controls-pill .copilot-header-btn:hover:not(:disabled):not(.active) i {
     color: var(--color-text-primary);
     background: rgba(255, 255, 255, 0.75);
     transform: none;
 }
 
 #view-controls .button.active,
-#view-controls .button.active i {
+#view-controls .button.active i,
+.sidebars-controls-pill .copilot-header-btn.active,
+.sidebars-controls-pill .copilot-header-btn.active i {
     background: var(--color-surface-1);
     color: var(--color-primary);
     font-weight: var(--font-weight-bold);
@@ -650,7 +634,9 @@ button.utility-btn:active,
 }
 
 #view-controls .button:disabled,
-#view-controls button:disabled {
+#view-controls button:disabled,
+.sidebars-controls-pill .copilot-header-btn:disabled,
+.sidebars-controls-pill button:disabled {
     opacity: 0.45;
     background: transparent !important;
     border-color: transparent !important;
@@ -1119,7 +1105,7 @@ hr.control-divider,
     grid-column: 1 / -1;
     grid-row: 2;
     font-size: var(--font-size-2xs);
-    color: var(--color-text-muted);
+    color: var(--color-text);
     line-height: 1.45;
 }
 
@@ -1799,63 +1785,6 @@ hr.control-divider,
     box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
-/* Apple-style Header Segmented Pill for Sidebar Toggles */
-.header-segmented-pill {
-    display: inline-flex;
-    align-items: center;
-    background: var(--color-canvas);
-    padding: 2px 3px;
-    border-radius: var(--border-radius-pill);
-    border: 1px solid var(--color-border);
-    gap: 2px;
-    height: 2.0rem;
-    box-sizing: border-box;
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
-}
-
-.header-segmented-pill.hidden {
-    display: none !important;
-}
-
-.header-segmented-pill .pill-segment {
-    background: transparent;
-    color: var(--color-text-muted);
-    border: none;
-    border-radius: var(--border-radius-pill);
-    width: 28px;
-    height: 24px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: none;
-    transition: all var(--transition-fast);
-}
-
-.header-segmented-pill .pill-segment i {
-    font-size: var(--font-size-xs);
-    color: inherit;
-    transition: color var(--transition-fast);
-}
-
-.header-segmented-pill .pill-segment:hover {
-    color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.75);
-}
-
-.header-segmented-pill .pill-segment.active {
-    background: var(--color-surface-1);
-    color: var(--color-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.header-segmented-pill .pill-divider {
-    width: 1px;
-    height: 12px;
-    background: var(--color-border);
-    margin: 0 1px;
-}
 
 /* Sankey Canvas & Nodes */
 #sankey-svg {

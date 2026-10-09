@@ -104,92 +104,89 @@
             <input type="file" id="csv-file-input" accept=".csv" class="hidden-element">
         </div>
 
-        <!-- Center: Visual Workspace Modes (Step 2: Visualizations) -->
-        <nav id="view-controls" aria-label="Visual Workspace Modes">
-            <button id="show-lineup-btn" class="button icon-button" disabled
-                title="Table with live sorting, filtering, and rankings (LineUp)">
-                <i class="fa-solid fa-table-cells"></i><span>Table</span>
-            </button>
-            <button id="show-graphicwalker-btn" class="button icon-button" disabled
-                title="Drag-and-drop visual analysis and exploration (Graphic-Walker)">
-                <i class="fa-solid fa-chart-line"></i><span>Explorer</span>
-            </button>
-            <button id="show-sanddance-btn" class="button icon-button" disabled
-                title="3D particle density and multidimensional scatter (SandDance)">
-                <i class="fa-solid fa-cubes-stacked"></i><span>Particles</span>
-            </button>
-            <div class="nav-separator-dot"></div>
-            <div id="plots-split-hub" class="dropdown-wrapper">
-                <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
-                    title="Custom declarative charts and diagrams">
-                    <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
-                    <span id="plots-primary-label">Charts</span>
+        <!-- Center: Visual Workspace Modes & Sidebar Controls -->
+        <div class="header-center-nav">
+            <nav id="view-controls" aria-label="Visual Workspace Modes">
+                <button id="show-lineup-btn" class="button icon-button" disabled
+                    title="Table with live sorting, filtering, and rankings (LineUp)">
+                    <i class="fa-solid fa-table-cells"></i><span>Table</span>
                 </button>
-                <!-- Button is intentionally not disabled as it would completely disable the button for any event (see main.js)  -->
-                <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" aria-expanded="false"
-                    title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
-                    <i class="fa-solid fa-chevron-down caret"></i>
+                <button id="show-graphicwalker-btn" class="button icon-button" disabled
+                    title="Drag-and-drop visual analysis and exploration (Graphic-Walker)">
+                    <i class="fa-solid fa-chart-line"></i><span>Explorer</span>
                 </button>
-                <div id="plots-popover-menu" class="dropdown-menu">
-                    <div class="dropdown-header-block">
-                        <div class="dropdown-header-title">Visualization Libraries</div>
-                        <div class="dropdown-header-desc">Switch chart engine for the Charts view</div>
+                <button id="show-sanddance-btn" class="button icon-button" disabled
+                    title="3D particle density and multidimensional scatter (SandDance)">
+                    <i class="fa-solid fa-cubes-stacked"></i><span>Particles</span>
+                </button>
+                <div class="nav-separator-dot"></div>
+                <div id="plots-split-hub" class="dropdown-wrapper">
+                    <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
+                        title="Custom declarative charts and diagrams">
+                        <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
+                        <span id="plots-primary-label">Charts</span>
+                    </button>
+                    <!-- Button is intentionally not disabled as it would completely disable the button for any event (see main.js)  -->
+                    <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" aria-expanded="false"
+                        title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
+                        <i class="fa-solid fa-chevron-down caret"></i>
+                    </button>
+                    <div id="plots-popover-menu" class="dropdown-menu">
+                        <div class="dropdown-header-block">
+                            <div class="dropdown-header-title">Visualization Libraries</div>
+                            <div class="dropdown-header-desc">Switch chart engine for the Charts view</div>
+                        </div>
+
+                        <button type="button" id="plots-item-vega" class="dropdown-item active" data-view="vega">
+                            <div class="dropdown-item-content">
+                                <div class="dropdown-item-icon-box"><i class="fa-solid fa-chart-simple"></i></div>
+                                <div class="dropdown-item-text-group">
+                                    <span class="dropdown-item-label">Vega-Lite Charts</span>
+                                    <span class="dropdown-item-sub">Statistical charts & spec editor</span>
+                                </div>
+                            </div>
+                        </button>
+                        <button type="button" id="plots-item-sankey" class="dropdown-item" data-view="sankey">
+                            <div class="dropdown-item-content">
+                                <div class="dropdown-item-icon-box"><i class="fa-solid fa-diagram-project"></i></div>
+                                <div class="dropdown-item-text-group">
+                                    <span class="dropdown-item-label">Sankey Diagram</span>
+                                    <span class="dropdown-item-sub">Flow &amp; pathway routing</span>
+                                </div>
+                            </div>
+                        </button>
+                        <button type="button" id="plots-item-mermaid" class="dropdown-item" data-view="mermaid">
+                            <div class="dropdown-item-content">
+                                <div class="dropdown-item-icon-box"><i class="fa-solid fa-code-fork"></i></div>
+                                <div class="dropdown-item-text-group">
+                                    <span class="dropdown-item-label">Mermaid</span>
+                                    <span class="dropdown-item-sub">Architecture &amp; sequence flows</span>
+                                </div>
+                            </div>
+                        </button>
                     </div>
-
-                    <button type="button" id="plots-item-vega" class="dropdown-item active" data-view="vega">
-                        <div class="dropdown-item-content">
-                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-chart-simple"></i></div>
-                            <div class="dropdown-item-text-group">
-                                <span class="dropdown-item-label">Vega-Lite Charts</span>
-                                <span class="dropdown-item-sub">Statistical charts & spec editor</span>
-                            </div>
-                        </div>
-                    </button>
-                    <button type="button" id="plots-item-sankey" class="dropdown-item" data-view="sankey">
-                        <div class="dropdown-item-content">
-                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-diagram-project"></i></div>
-                            <div class="dropdown-item-text-group">
-                                <span class="dropdown-item-label">Sankey Diagram</span>
-                                <span class="dropdown-item-sub">Flow &amp; pathway routing</span>
-                            </div>
-                        </div>
-                    </button>
-                    <button type="button" id="plots-item-mermaid" class="dropdown-item" data-view="mermaid">
-                        <div class="dropdown-item-content">
-                            <div class="dropdown-item-icon-box"><i class="fa-solid fa-code-fork"></i></div>
-                            <div class="dropdown-item-text-group">
-                                <span class="dropdown-item-label">Mermaid</span>
-                                <span class="dropdown-item-sub">Architecture &amp; sequence flows</span>
-                            </div>
-                        </div>
-                    </button>
                 </div>
-            </div>
-        </nav>
+            </nav>
 
-        <!-- Right: Actions, AI Agent & Workspace (Step 3: Tools) -->
-        <div id="controls">
-            <!-- Sidebar Panel Toggles Pill (visible only when Charts is activated) -->
-            <div id="charts-sidebar-toggles" class="header-segmented-pill hidden" aria-label="Toggle Sidebars">
-                <button id="header-spec-toggle-btn" class="button icon-button pill-segment active"
-                    title="Toggle Spec / Code (⌘B)">
-                    <i class="fa-solid fa-table-columns"></i>
-                </button>
-                <div class="pill-divider"></div>
-                <button id="header-controls-toggle-btn" class="button icon-button pill-segment active"
+            <!-- Sidebar Controls Pill (Control, Syntax, Agent packed in the same pill) -->
+            <div id="sidebars-controls-pill" class="sidebars-controls-pill" aria-label="Sidebar Controls">
+                <button id="header-controls-toggle-btn" class="button icon-button copilot-header-btn hidden"
                     title="Toggle Controls (⌘I)">
-                    <i class="fa-solid fa-sliders"></i>
+                    <i class="fa-solid fa-sliders"></i><span id="header-controls-label">Controls</span>
+                </button>
+                <button id="header-spec-toggle-btn" class="button icon-button copilot-header-btn hidden"
+                    title="Toggle Syntax / Code (⌘B)">
+                    <i class="fa-solid fa-code"></i><span>Syntax</span>
+                </button>
+                <button id="show-agent-btn" class="button icon-button copilot-header-btn" disabled
+                    title="Toggle AI Agent assistant sidebar">
+                    <i class="fa-solid fa-robot"></i><span>Agent</span>
                 </button>
             </div>
+        </div>
 
-            <!-- Dedicated AI Agent Sidebar Toggle -->
-            <button id="show-agent-btn" class="button icon-button copilot-header-btn" disabled
-                title="Toggle AI Agent assistant sidebar">
-                <i class="fa-solid fa-robot"></i>
-                <span>Agent</span>
-            </button>
-
-            <div class="header-v-divider"></div>
+        <!-- Right: Actions & Workspace (Step 3: Tools) -->
+        <div id="controls">
 
             <!-- Unified Workspace Menu Hub -->
             <div class="dropdown-wrapper">

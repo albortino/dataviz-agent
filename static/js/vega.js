@@ -370,6 +370,15 @@ export class VegaManager {
         });
     }
 
+    initCollapseState() {
+        if (localStorage.getItem('vega_sidebar_collapsed') === 'true') {
+            this.toggleLeftSidebar(true);
+        }
+        if (localStorage.getItem('vega_controls_collapsed') === 'true') {
+            this.toggleRightSidebar(true);
+        }
+    }
+
     toggleLeftSidebar(collapse) {
         this.leftSidebarToggle?.setCollapsed(collapse);
         if (!collapse && this.cm) {
