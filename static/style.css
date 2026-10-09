@@ -5,8 +5,7 @@
 /* Base & Layout */
 *,
 *::before,
-*::after {
-}
+*::after {}
 
 body {
     font-family: var(--font-sans);
@@ -222,7 +221,7 @@ body>header,
     border-radius: var(--border-radius-pill);
     font-size: var(--font-size-button-link);
     font-weight: var(--font-weight-medium);
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
     cursor: pointer;
     transition: all var(--transition-base);
     box-shadow: var(--shadow-sm);
@@ -313,7 +312,7 @@ body>header,
 
 .dropdown-header-desc {
     font-size: var(--font-size-2xs);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     margin-top: 2px;
 }
 
@@ -338,7 +337,7 @@ body>header,
     justify-content: space-between;
     padding: 0.45rem 0.65rem;
     border-radius: var(--border-radius-main);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     text-decoration: none;
     cursor: pointer;
     transition: all var(--transition-fast);
@@ -361,8 +360,8 @@ body>header,
     width: 28px;
     height: 28px;
     border-radius: var(--border-radius-main);
-    background: var(--color-background-medium);
-    color: var(--color-text-secondary);
+    background: var(----color-surface-3);
+    color: var(--color-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -402,7 +401,7 @@ body>header,
     font-size: var(--font-size-base);
     width: 16px;
     text-align: center;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     transition: color var(--transition-fast);
 }
 
@@ -468,7 +467,7 @@ button {
     align-items: center;
     justify-content: center;
     background: var(--color-surface-2);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     border: 1px solid var(--color-border-input);
     padding: var(--padding-button);
     border-radius: var(--border-radius-pill);
@@ -576,7 +575,7 @@ button.utility-btn,
     padding: 0 12px;
     gap: var(--gap-2xs);
     font-size: var(--font-size-sm);
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border-color: var(--color-border);
     border-radius: var(--border-radius-sm);
     transition: all var(--transition-fast);
@@ -585,7 +584,7 @@ button.utility-btn,
 .utility-btn:hover,
 button.utility-btn:hover,
 .button.utility-btn:hover {
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     color: var(--color-text-primary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
     transform: none;
@@ -616,7 +615,7 @@ button.utility-btn:active,
 
 #view-controls .button {
     background: transparent;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     border: none;
     border-radius: var(--border-radius-pill);
     padding: 0.3rem 0.9rem;
@@ -631,7 +630,7 @@ button.utility-btn:active,
 }
 
 #view-controls .button i {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     transition: color var(--transition-fast);
 }
 
@@ -694,7 +693,7 @@ button.utility-btn:active,
 
 #view-controls #plots-split-hub .split-hub-toggle .caret {
     font-size: var(--font-size-mini);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     transition: transform var(--transition-fast);
 }
 
@@ -704,7 +703,7 @@ button.utility-btn:active,
 }
 
 #view-controls #plots-split-hub .split-hub-toggle:hover:not(:disabled) .caret {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 /* Open state: bold chevron, same ink as before — no color flip */
@@ -719,7 +718,7 @@ button.utility-btn:active,
 #view-controls #plots-split-hub .split-hub-toggle[aria-expanded="true"] .caret,
 #view-controls #plots-split-hub .split-hub-toggle.active .caret {
     transform: rotate(180deg);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 #plots-split-hub.open {
@@ -873,7 +872,7 @@ select.control-select:focus,
 
 input[type="text"],
 input[type="password"] {
-    background-color: var(--color-background-light);
+    background-color: var(----color-surface-1);
     border: 1px solid var(--color-border-input);
     border-radius: var(--border-radius-pill);
     padding: 0.35rem 0.95rem;
@@ -968,7 +967,7 @@ hr.control-divider,
     width: 100%;
     max-width: 860px;
     text-align: center;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     padding: 3.5rem 1.75rem 4rem;
     position: relative;
     z-index: 1;
@@ -991,7 +990,7 @@ hr.control-divider,
 }
 
 .initial-message p {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     margin: 0 0 2rem 0;
     font-size: var(--font-size-lg);
     line-height: 1.6;
@@ -1227,7 +1226,7 @@ hr.control-divider,
 .lu-dialog,
 .lu-tooltip {
     z-index: 400 !important;
-    background: var(--color-background-light) !important;
+    background: var(----color-surface-1) !important;
     border: 1px solid var(--color-border) !important;
     border-radius: var(--border-radius-card) !important;
     box-shadow: var(--shadow-xl) !important;
@@ -1246,7 +1245,7 @@ hr.control-divider,
 
 .lu-dialog label {
     font-size: var(--font-size-sm) !important;
-    color: var(--color-text-secondary) !important;
+    color: var(--color-text-muted) !important;
 }
 
 .lu-dialog .lu-checkbox:not(.lu-dialog-filter-table-entry)>span {
@@ -1287,7 +1286,7 @@ hr.control-divider,
 .lu-string-advanced-options summary {
     font-size: var(--font-size-xs) !important;
     font-weight: var(--font-weight-medium) !important;
-    color: var(--color-text-secondary) !important;
+    color: var(--color-text-muted) !important;
     cursor: pointer !important;
     padding: 0.2rem 0 !important;
 }
@@ -1297,7 +1296,7 @@ hr.control-divider,
 }
 
 .lu-dialog-button {
-    color: var(--color-text-secondary) !important;
+    color: var(--color-text-muted) !important;
     border-radius: var(--border-radius-button) !important;
     transition: all var(--transition-fast) !important;
 }
@@ -1323,7 +1322,7 @@ hr.control-divider,
     flex: 1;
     width: 100%;
     min-height: calc(100vh - 210px);
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -1375,7 +1374,7 @@ hr.control-divider,
 .graphic-walker-loading span {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
 }
 
 .graphic-walker-root {
@@ -1383,7 +1382,7 @@ hr.control-divider,
     height: 100%;
     min-height: calc(100vh - 210px);
     flex: 1;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
 }
 
 /* Sidebar & Control Sidebar Shared Components (SandDance, Sankey, Mermaid) */
@@ -1405,7 +1404,7 @@ hr.control-divider,
 #vega-canvas-wrapper {
     flex: 1;
     position: relative;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: none;
     border-radius: 0;
     box-shadow: none;
@@ -1460,7 +1459,7 @@ hr.control-divider,
 #mermaid-sidebar,
 #vega-sidebar {
     width: var(--sidebar-width-lg);
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: none;
     border-right: 1px solid var(--color-border);
     border-radius: 0;
@@ -1479,7 +1478,7 @@ hr.control-divider,
 #mermaid-controls-sidebar,
 #vega-controls-sidebar {
     width: var(--sidebar-width-sm);
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: none;
     border-left: 1px solid var(--color-border);
     border-radius: 0;
@@ -1577,7 +1576,7 @@ hr.control-divider,
     background: var(--color-surface-1);
     border-color: var(--color-border-input);
     border-radius: var(--border-radius-main);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     height: 2.25rem;
     font-weight: var(--font-weight-medium);
     box-shadow: none;
@@ -1815,7 +1814,7 @@ hr.control-divider,
 
 .sidebar-collapse-btn:hover {
     background: var(--color-surface-3);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     border-color: var(--color-border);
     transform: none;
 }
@@ -1843,7 +1842,7 @@ hr.control-divider,
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s var(--ease-out-cubic);
@@ -1867,7 +1866,7 @@ hr.control-divider,
 }
 
 .sidebar-expand-tab:hover {
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border-color: var(--color-primary);
     color: var(--color-primary);
     box-shadow: var(--shadow-md);
@@ -2023,7 +2022,7 @@ hr.control-divider,
     font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
@@ -2052,7 +2051,7 @@ hr.control-divider,
     align-items: center;
     gap: var(--gap-s);
     cursor: pointer;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
@@ -2120,7 +2119,7 @@ hr.control-divider,
 
 #agent-skills-list .curves-checkbox-item span {
     font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     line-height: 1.5;
 }
 
@@ -2236,7 +2235,7 @@ hr.control-divider,
     font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-bold);
     font-feature-settings: "tnum" "lnum";
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-sm);
@@ -2257,7 +2256,7 @@ hr.control-divider,
     align-items: center;
     gap: var(--gap-s);
     cursor: pointer;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
@@ -2339,7 +2338,7 @@ hr.control-divider,
     display: block;
     margin: 0 auto;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.04));
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     padding: 1.25rem;
     border-radius: var(--border-radius-input);
     border: 1px solid var(--color-border);
@@ -2363,7 +2362,7 @@ hr.control-divider,
     display: block;
     margin: 0 auto;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.04));
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border-radius: var(--border-radius-input);
     border: 1px solid var(--color-border);
 }
@@ -2516,7 +2515,7 @@ hr.control-divider,
 .sanddance-panel .vega-bind-name {
     font-size: var(--font-size-2xs) !important;
     font-weight: var(--font-weight-medium) !important;
-    color: var(--color-text-secondary) !important;
+    color: var(--color-text-muted) !important;
     text-transform: none !important;
     letter-spacing: normal !important;
     overflow: visible !important;
@@ -2558,7 +2557,7 @@ hr.control-divider,
 
 .sanddance-panel .sanddance-legend {
     font-size: var(--font-size-2xs);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     width: 100%;
     overflow: hidden;
     margin-top: 0.35rem;
@@ -2602,7 +2601,7 @@ hr.control-divider,
 
 .sanddance-tooltip-key {
     font-weight: var(--font-weight-medium);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     white-space: nowrap;
 }
 
@@ -2783,7 +2782,7 @@ hr.control-divider,
 
 .agent-welcome p {
     margin: 0;
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
     font-size: var(--font-size-base);
     line-height: 1.55;
 }
@@ -2832,7 +2831,7 @@ hr.control-divider,
 .agent-welcome-desc {
     margin: 0;
     font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     line-height: 1.5;
 }
 
@@ -2968,7 +2967,7 @@ hr.control-divider,
 .chat-mermaid-card,
 .chat-vega-card {
     margin-top: 0.75rem;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-input);
     overflow: hidden;
@@ -2985,13 +2984,13 @@ hr.control-divider,
     background: var(--color-background-body);
     border-bottom: 1px solid var(--color-border);
     font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-weight: var(--font-weight-bold);
 }
 
 .chat-plot-body {
     padding: 0.5rem;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -3111,7 +3110,7 @@ hr.control-divider,
 }
 
 .chat-plot-code-hint kbd {
-    background: var(--color-text-secondary);
+    background: var(--color-text-muted);
     color: var(--color-border);
     padding: 1px 4px;
     border-radius: var(--border-radius-sm);
@@ -3210,8 +3209,8 @@ hr.control-divider,
     padding: 0 8px;
     border-radius: var(--border-radius-pill);
     border: 1px solid var(--color-border);
-    background: var(--color-background-medium);
-    color: var(--color-text-secondary);
+    background: var(----color-surface-3);
+    color: var(--color-text-muted);
     font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-bold);
     display: inline-flex;
@@ -3237,7 +3236,7 @@ hr.control-divider,
 }
 
 .chat-tool-btn:active {
-    background: var(--color-background-medium);
+    background: var(----color-surface-3);
 }
 
 .chat-input-row {
@@ -3335,7 +3334,7 @@ hr.control-divider,
 }
 
 .agent-preview-card {
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -3357,7 +3356,7 @@ hr.control-divider,
 }
 
 .agent-preview-header:hover {
-    background: var(--color-background-medium);
+    background: var(----color-surface-3);
 }
 
 .agent-preview-title {
@@ -3366,7 +3365,7 @@ hr.control-divider,
     gap: 9px;
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
 }
 
 .agent-badge {
@@ -3384,7 +3383,7 @@ hr.control-divider,
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     overflow: hidden;
 }
 
@@ -3528,7 +3527,7 @@ hr.control-divider,
 }
 
 .modal-close-btn:hover {
-    background: var(--color-background-medium);
+    background: var(----color-surface-3);
     color: var(--color-text-primary);
     border-color: var(--color-border);
 }
@@ -3539,7 +3538,7 @@ hr.control-divider,
 .set-data-tabs {
     display: flex;
     align-items: center;
-    background: var(--color-background-medium);
+    background: var(----color-surface-3);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-pill);
     padding: 3px 5px;
@@ -3565,7 +3564,7 @@ hr.control-divider,
     justify-content: center;
     gap: var(--gap-2xs);
     background: transparent;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     border: none;
     border-radius: var(--border-radius-pill);
     height: 2.1rem;
@@ -3582,7 +3581,7 @@ hr.control-divider,
 .inspector-nav-tab i,
 #settings-modal .route-segmented-btn i,
 .set-data-tab-btn i {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     transition: color var(--transition-fast);
 }
@@ -3600,7 +3599,7 @@ hr.control-divider,
 #settings-modal .route-segmented-btn.active i,
 .set-data-tab-btn.active,
 .set-data-tab-btn.active i {
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     color: var(--color-primary) !important;
     font-weight: var(--font-weight-bold);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -3663,7 +3662,7 @@ hr.control-divider,
 #settings-modal .settings-form-label {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     letter-spacing: -0.01em;
     display: flex;
     justify-content: space-between;
@@ -3756,7 +3755,7 @@ hr.control-divider,
 #settings-modal .ping-status-bar.testing {
     display: flex;
     background: var(--color-surface-2);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     border: 1px solid #e2e8f0;
 }
 
@@ -3801,7 +3800,7 @@ hr.control-divider,
 .config-row label {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
@@ -3820,7 +3819,7 @@ hr.control-divider,
 .column-toolbar-title {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin: 0;
@@ -3839,7 +3838,7 @@ hr.control-divider,
     padding: 0.22rem 0.65rem;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     cursor: pointer;
     font-family: inherit;
     transition: all var(--transition-fast);
@@ -3869,7 +3868,7 @@ hr.control-divider,
     justify-content: space-between;
     gap: var(--gap-m);
     padding: 0.45rem 0.75rem;
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-input);
     transition: all var(--transition-fast);
@@ -3910,7 +3909,7 @@ hr.control-divider,
 }
 
 .column-config-label .column-sample {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     white-space: nowrap;
@@ -3988,7 +3987,7 @@ hr.control-divider,
 
 .set-data-dropzone-sub {
     font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 /* Documentation Markdown Modal */
@@ -4006,7 +4005,7 @@ hr.control-divider,
     overflow-y: auto;
     font-size: var(--font-size-base);
     line-height: 1.6;
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
 }
 
 .docs-markdown-view h1 {
@@ -4023,7 +4022,7 @@ hr.control-divider,
     font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin: 1.25rem 0 0.5rem 0;
-    border-bottom: 1px solid var(--color-background-medium);
+    border-bottom: 1px solid var(----color-surface-3);
     padding-bottom: 0.25rem;
 }
 
@@ -4036,7 +4035,7 @@ hr.control-divider,
 
 .docs-markdown-view code {
     font-family: var(--font-mono);
-    background: var(--color-background-medium);
+    background: var(----color-surface-3);
     color: var(--color-text-primary);
     padding: 0.15rem 0.35rem;
     border-radius: var(--border-radius-sm);
@@ -4066,7 +4065,7 @@ hr.control-divider,
     border-left: 1px solid var(--color-primary);
     margin: 0.75rem 0;
     padding: 0.25rem 0 0.25rem 0.85rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-style: italic;
     background: var(--color-background-body);
 }
@@ -4101,7 +4100,7 @@ hr.control-divider,
 
 .tab-intro-desc {
     margin: 0;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     flex: 1 1 auto;
@@ -4130,7 +4129,7 @@ hr.control-divider,
     flex-shrink: 0;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border-input);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
 }
@@ -4143,7 +4142,7 @@ hr.control-divider,
 
 .tab-intro-toggle-btn .toggle-chevron {
     font-size: var(--font-size-mini);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     transition: transform 0.25s var(--ease-out-cubic);
 }
 
@@ -4167,7 +4166,7 @@ hr.control-divider,
 
 .tab-intro-link i.fa-github {
     font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     transition: color var(--transition-fast);
 }
 
@@ -4213,11 +4212,11 @@ hr.control-divider,
     gap: var(--gap-s);
     padding: 0.55rem 0.85rem;
     border-radius: var(--border-radius-sm);
-    background: var(--color-background-light);
+    background: var(----color-surface-1);
     border: 1px solid var(--color-border);
     font-size: var(--font-size-sm);
     line-height: 1.5;
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
     transition: all var(--transition-base);
     box-shadow: none;
 }
@@ -4229,11 +4228,11 @@ hr.control-divider,
 }
 
 .tab-intro-pill.pill-use i {
-    color: var(--color-text-dark);
+    color: var(--color-text-primary);
 }
 
 .tab-intro-pill.pill-avoid i {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 .tab-intro-pill .pill-label {
@@ -4293,7 +4292,7 @@ hr.control-divider,
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     user-select: none;
     margin-bottom: 0;
 }
@@ -4375,7 +4374,7 @@ hr.control-divider,
     text-transform: uppercase;
     letter-spacing: 0.07em;
     line-height: 1.2;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 .dimension-input-number {
@@ -4433,7 +4432,7 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 .loading-spinner-icon {
@@ -4454,7 +4453,7 @@ hr.control-divider,
 }
 
 .agent-empty-hint {
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-style: italic;
     font-size: var(--font-size-xs);
     margin: 0.5rem 0;
@@ -4483,7 +4482,7 @@ hr.control-divider,
 .chat-tool-logs-summary {
     font-size: var(--font-size-2xs);
     cursor: pointer;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
 }
 
 .chat-mermaid-title-icon {
@@ -4729,7 +4728,7 @@ hr.control-divider,
 
 .session-step-note {
     font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     margin: 0.5rem 0;
 }
 

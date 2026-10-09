@@ -1325,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionFileInfo.innerHTML = `
                         <div>
                             <strong>Session Loaded</strong>
-                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                            <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px;">
                                 Target View: <strong>${view}</strong> | Required Columns: <strong>${expCols}</strong> | Saved Rows: <strong>${expRows.toLocaleString()}</strong>
                             </div>
                         </div>
