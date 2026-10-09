@@ -116,18 +116,16 @@
             </button>
             <button id="show-sanddance-btn" class="button icon-button" disabled
                 title="3D particle density and multidimensional scatter (SandDance)">
-                <i class="fa-solid fa-cubes-stacked"></i><span>3D Particles</span>
+                <i class="fa-solid fa-cubes-stacked"></i><span>Particles</span>
             </button>
             <div class="nav-separator-dot"></div>
-            <!-- Charts engine picker (Vega, Sankey, Mermaid).
-                 Both buttons are borderless view pills; the chevron is just a
-                 smaller square half of the joined Charts pill. -->
             <div id="plots-split-hub" class="dropdown-wrapper">
                 <button id="plots-primary-btn" class="button icon-button split-hub-main" disabled
                     title="Custom declarative charts and diagrams">
                     <i id="plots-primary-icon" class="fa-solid fa-chart-simple"></i>
                     <span id="plots-primary-label">Charts</span>
                 </button>
+                <!-- Button is intentionally not disabled as it would completely disable the button for any event (see main.js)  -->
                 <button id="plots-menu-toggle-btn" class="button icon-button split-hub-toggle" aria-expanded="false"
                     title="Switch chart engine (Vega-Lite, Sankey, Mermaid)">
                     <i class="fa-solid fa-chevron-down caret"></i>
@@ -249,7 +247,7 @@
             <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
             <div id="empty-state-container" class="vis-container">
                 <div class="initial-message">
-                    <h2>Your data.<br><em>Instantly visual.</em></h2>
+                    <h2>Your data.<br><em>Interactively analyzed.</em></h2>
                     <p>Upload a CSV, paste from clipboard, or load demo data - then explore, chart, and analyze with
                         interactive tools or the AI agent.</p>
 
@@ -295,8 +293,7 @@
             <div id="lineup-container" class="vis-container hidden">
                 <div class="tab-intro-banner">
                     <div class="tab-intro-primary-row">
-                        <p class="tab-intro-desc">Interactive tabular data exploration engine for
-                            large datasets with live sorting, filtering, and ad-hoc column combination modeling.</p>
+                        <p class="tab-intro-desc">LineUp: Interactive tabular data exploration engine with live sorting, ranking, filtering, and ad-hoc column combination modeling.</p>
                         <div class="tab-intro-actions">
                             <button class="tab-intro-info-btn" type="button" aria-expanded="false"
                                 title="Toggle Overview & Description">
@@ -344,8 +341,8 @@
             <div id="graphic-walker-container" class="vis-container hidden">
                 <div class="tab-intro-banner">
                     <div class="tab-intro-primary-row">
-                        <p class="tab-intro-desc">Automated visual data exploration engine with
-                            drag-and-drop shelves, multi-dimensional filters, and aggregations.</p>
+                        <p class="tab-intro-desc">Graphic Walker: Visual data exploration engine with
+                            drag-and-drop functionality for multi-dimensional filters and aggregations.</p>
                         <div class="tab-intro-actions">
                             <button class="tab-intro-info-btn" type="button" aria-expanded="false"
                                 title="Toggle Overview & Description">
@@ -399,11 +396,7 @@
             <div id="sanddance-container" class="vis-container hidden">
                 <div class="tab-intro-banner">
                     <div class="tab-intro-primary-row">
-                        <p class="tab-intro-desc">3D unit-visualization by Microsoft Research where every individual row
-                            is
-                            mapped to an interactive physical particle across scatter, stack, treemap, and density
-                            layouts.
-                        </p>
+                        <p class="tab-intro-desc">SandDance: 3D unit-visualization where every individual row is mapped to an interactive physical particle across scatter, stack, treemap, and density layouts.</p>
                         <div class="tab-intro-actions">
                             <button class="tab-intro-info-btn" type="button" aria-expanded="false"
                                 title="Toggle Overview & Description">

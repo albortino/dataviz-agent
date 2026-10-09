@@ -671,7 +671,7 @@ button.utility-btn:active,
     border-radius: var(--border-radius-pill);
     padding: 0.3rem 0.9rem;
     height: 2.0rem;
-    font-size: 0.8125rem;
+    /*font-size: 0.8125rem;*/
     font-weight: var(--font-weight-medium);
     box-shadow: none;
     transition: all var(--transition-base);
@@ -1203,6 +1203,10 @@ hr.control-divider,
     }
 }
 
+.lu {
+    padding-top: 5px !important;
+}
+
 /* LineUp tooltips: tighten + tabular */
 .lu-dialog,
 .lu-tooltip {
@@ -1230,6 +1234,7 @@ hr.control-divider,
 .le-header,
 .le-multi {
     z-index: 1 !important;
+    padding-bottom: 5px;
 }
 
 /* LineUp Dialogs & Search Popups - High Z-Index & Theme Styling */
@@ -1760,7 +1765,7 @@ hr.control-divider,
     flex: 1;
     height: 100%;
     font-family: var(--font-mono), 'Fira Code', 'JetBrains Mono', Menlo, Consolas, Monaco, monospace;
-    font-size: 0.8125rem;
+    font-size: 0.625rem;
     line-height: 1.6;
     background: #fafbfc;
     border-top: 1px solid var(--color-border);
@@ -1780,7 +1785,7 @@ hr.control-divider,
 #vega-sidebar .CodeMirror-linenumber {
     color: #94a3b8;
     padding: 0 6px 0 4px;
-    font-size: 0.75rem;
+    font-size: 0.625rem;
 }
 
 /* Syntax Token Colors (Vibrant, high-contrast, modern) */
@@ -2517,6 +2522,8 @@ hr.control-divider,
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .sanddance-panel-container {
@@ -2524,6 +2531,7 @@ hr.control-divider,
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
+    min-width: 0;
 }
 
 .sanddance-panel {
@@ -2531,81 +2539,169 @@ hr.control-divider,
     flex-direction: column;
     gap: 0.65rem;
     width: 100%;
+    min-width: 0;
     position: static !important;
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
-    color: var(--color-text-main);
+    color: var(--color-text-primary);
     font-family: inherit;
-    font-size: 0.825rem;
+    font-size: 0.8125rem;
 }
 
 .sanddance-panel details {
     border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-sm);
-    padding: 0.35rem 0.5rem;
-    background: var(--color-background-body);
+    border-radius: var(--border-radius-card);
+    padding: 0.5rem 0.625rem;
+    background: var(--color-surface-2);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .sanddance-panel summary {
     cursor: pointer;
-    font-weight: var(--font-weight-medium);
-    color: var(--color-text-main);
-    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+    user-select: none;
+    outline: none;
+}
+
+.sanddance-panel h3,
+.sanddance-panel h4,
+.sanddance-panel h5 {
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    text-transform: none;
+    letter-spacing: normal;
+    margin: 0.25rem 0 0.5rem 0;
+}
+
+.sanddance-panel .sanddance-selection {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.375rem;
+    width: 100%;
+    margin-top: 0.35rem;
 }
 
 .sanddance-panel button {
     font-family: inherit;
-    font-size: 0.775rem;
-    padding: 0.35rem 0.6rem;
-    border-radius: var(--border-radius-sm);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--border-radius-main);
     border: 1px solid var(--color-border);
-    background: var(--color-background-light);
-    color: var(--color-text-main);
+    background: var(--color-surface-1);
+    color: var(--color-text-primary);
     cursor: pointer;
+    text-transform: capitalize;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     transition: all var(--transition-fast) ease;
+    box-sizing: border-box;
 }
 
-.sanddance-panel button:hover {
-    background: var(--color-secondary);
+.sanddance-panel button:hover:not(:disabled) {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
     border-color: var(--color-primary);
+}
+
+.sanddance-panel button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--color-surface-2);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.sanddance-panel .sanddance-vegaControls,
+.sanddance-panel .vega-bindings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.sanddance-panel .vega-bind {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    width: 100%;
+    margin-bottom: 0.375rem;
+    overflow: visible;
+    white-space: normal;
+    box-sizing: border-box;
+}
+
+/* Checkbox specific layout inside vega bindings */
+.sanddance-panel .vega-bind:has(input[type="checkbox"]),
+.sanddance-panel label.vega-bind:has(input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.sanddance-panel label,
+.sanddance-panel .vega-bind-name {
+    font-size: 0.75rem !important;
+    font-weight: var(--font-weight-medium) !important;
+    color: var(--color-text-secondary) !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+    display: block !important;
+    width: auto !important;
 }
 
 .sanddance-panel input[type="range"] {
     width: 100%;
     accent-color: var(--color-primary);
     cursor: pointer;
+    margin: 0.2rem 0;
+}
+
+.sanddance-panel input[type="checkbox"] {
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 .sanddance-panel input[type="number"],
 .sanddance-panel input[type="text"],
 .sanddance-panel select {
     width: 100%;
-    padding: 0.3rem 0.45rem;
-    border-radius: var(--border-radius-sm);
-    border: 1px solid var(--color-border);
-    background: var(--color-background-light);
-    color: var(--color-text-main);
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--border-radius-main);
+    border: 1px solid var(--color-border-input);
+    background: var(--color-surface-1);
+    color: var(--color-text-primary);
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
     box-sizing: border-box;
 }
 
-.sanddance-panel label,
-.sanddance-panel .vega-bind-name {
-    font-size: 0.775rem;
-    font-weight: var(--font-weight-medium);
+.sanddance-panel .sanddance-legend {
+    font-size: 0.75rem;
     color: var(--color-text-secondary);
-}
-
-.sanddance-panel .vega-bind {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
     width: 100%;
-    margin-bottom: 0.5rem;
+    overflow: hidden;
+    margin-top: 0.35rem;
 }
 
 /* SandDance Hover Tooltip */
@@ -2614,28 +2710,17 @@ hr.control-divider,
     position: fixed !important;
     z-index: 99999 !important;
     pointer-events: none !important;
-    background: var(--color-background-elevated) !important;
+    background: var(--color-surface-1) !important;
     border: 1px solid var(--color-border) !important;
-    border-radius: var(--border-radius-md) !important;
+    border-radius: var(--border-radius-card) !important;
     box-shadow: var(--shadow-lg) !important;
-    padding: 0.6rem 0.75rem !important;
+    padding: 0.65rem 0.85rem !important;
     font-size: 0.75rem !important;
-    color: var(--color-text-main) !important;
+    color: var(--color-text-primary) !important;
     max-width: 320px !important;
     backdrop-filter: blur(8px) !important;
-    animation: fadeInSandDanceTooltip 0.12s ease-out;
-}
-
-@keyframes fadeInSandDanceTooltip {
-    from {
-        opacity: 0;
-        transform: translateY(3px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    opacity: 1 !important;
+    transition: opacity 0.1s ease-out;
 }
 
 .sanddance-tooltip-header {
@@ -2662,7 +2747,7 @@ hr.control-divider,
 }
 
 .sanddance-tooltip-val {
-    color: var(--color-text-main);
+    color: var(--color-text-primary);
     word-break: break-word;
     text-align: right;
 }
@@ -4239,10 +4324,8 @@ hr.control-divider,
 .tab-intro-desc {
     margin: 0;
     color: var(--color-text-muted);
-    font-size: 0.75rem;
+    font-size: 0.825rem;
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-    letter-spacing: 0;
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
