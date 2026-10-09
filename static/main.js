@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
+    const chartsSidebarToggles = document.getElementById('charts-sidebar-toggles');
+    const headerSpecToggleBtn = document.getElementById('header-spec-toggle-btn');
+    const headerControlsToggleBtn = document.getElementById('header-controls-toggle-btn');
     const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
     // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
     // buttons never fire click events, so including the Charts engine picker
@@ -255,6 +258,43 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDatasetIndicator(null);
 
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
+        updateHeaderSidebarToggles(false);
+    }
+
+    function getActiveChartInfo() {
+        if (vegaContainer && !vegaContainer.classList.contains('hidden')) {
+            return { mgr: vegaMgr, left: vegaContainer.querySelector('.syntax-sidebar'), right: vegaContainer.querySelector('.controls-sidebar') };
+        }
+        if (sankeyContainer && !sankeyContainer.classList.contains('hidden')) {
+            return { mgr: sankeyMgr, left: sankeyContainer.querySelector('.syntax-sidebar'), right: sankeyContainer.querySelector('.controls-sidebar') };
+        }
+        if (mermaidContainer && !mermaidContainer.classList.contains('hidden')) {
+            return { mgr: mermaidMgr, left: mermaidContainer.querySelector('.syntax-sidebar'), right: mermaidContainer.querySelector('.controls-sidebar') };
+        }
+        return null;
+    }
+
+    function syncHeaderSidebarToggles() {
+        const info = getActiveChartInfo();
+        if (!info) return;
+        const isLeftOpen = info.left && !info.left.classList.contains('collapsed');
+        const isRightOpen = info.right && !info.right.classList.contains('collapsed');
+        if (headerSpecToggleBtn) {
+            headerSpecToggleBtn.classList.toggle('active', !!isLeftOpen);
+            headerSpecToggleBtn.setAttribute('aria-pressed', isLeftOpen ? 'true' : 'false');
+        }
+        if (headerControlsToggleBtn) {
+            headerControlsToggleBtn.classList.toggle('active', !!isRightOpen);
+            headerControlsToggleBtn.setAttribute('aria-pressed', isRightOpen ? 'true' : 'false');
+        }
+    }
+
+    function updateHeaderSidebarToggles(isChartsActive) {
+        if (!chartsSidebarToggles) return;
+        chartsSidebarToggles.classList.toggle('hidden', !isChartsActive);
+        if (isChartsActive) {
+            setTimeout(syncHeaderSidebarToggles, 20);
+        }
     }
 
     function setActiveView(targetContainer, targetButton) {
@@ -277,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updatePlotsHubState(null, isPlotsTarget);
+        updateHeaderSidebarToggles(isPlotsTarget);
 
         // Free SVG DOM memory when leaving Sankey view
         if (targetContainer !== sankeyContainer && sankeyMgr) {
@@ -462,6 +503,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Header Sidebar Toggles (active only when Charts view is active)
+    if (headerSpecToggleBtn) {
+        headerSpecToggleBtn.addEventListener('click', () => {
+            const info = getActiveChartInfo();
+            if (!info || !info.left) return;
+            const isCollapsed = info.left.classList.contains('collapsed');
+            info.mgr?.leftSidebarToggle?.setCollapsed(!isCollapsed);
+            syncHeaderSidebarToggles();
+        });
+    }
+
+    if (headerControlsToggleBtn) {
+        headerControlsToggleBtn.addEventListener('click', () => {
+            const info = getActiveChartInfo();
+            if (!info || !info.right) return;
+            const isCollapsed = info.right.classList.contains('collapsed');
+            info.mgr?.controlsSidebarToggle?.setCollapsed(!isCollapsed);
+            syncHeaderSidebarToggles();
+        });
+    }
+
+    window.addEventListener('sidebar-collapsed-change', () => {
+        syncHeaderSidebarToggles();
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (!chartsSidebarToggles || chartsSidebarToggles.classList.contains('hidden')) return;
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+            e.preventDefault();
+            headerSpecToggleBtn?.click();
+        } else if ((e.metaKey || e.ctrlKey) && (e.altKey || e.key.toLowerCase() === 'i')) {
+            e.preventDefault();
+            headerControlsToggleBtn?.click();
+        }
+    });
 
     const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
     if (copilotCollapseBtn) {

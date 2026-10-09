@@ -22,6 +22,7 @@ export function bindCollapsibleSidebar({ sidebar, collapseBtn, expandBtn, storag
         if (typeof onToggle === 'function') {
             onToggle(collapsed);
         }
+        window.dispatchEvent(new CustomEvent('sidebar-collapsed-change', { detail: { sidebar, collapsed } }));
     };
 
     if (storageKey && localStorage.getItem(storageKey) === 'true') {

@@ -1799,44 +1799,62 @@ hr.control-divider,
     box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
-/* Apple-style Workbench Toolbar Toggle Buttons */
-.toolbar-toggle-btn {
-    height: 28px;
-    padding: 0 10px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-main);
-    font-size: var(--font-size-2xs);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-text-muted);
+/* Apple-style Header Segmented Pill for Sidebar Toggles */
+.header-segmented-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    background: var(--color-canvas);
+    padding: 2px 3px;
+    border-radius: var(--border-radius-pill);
+    border: 1px solid var(--color-border);
+    gap: 2px;
+    height: 2.0rem;
+    box-sizing: border-box;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.header-segmented-pill.hidden {
+    display: none !important;
+}
+
+.header-segmented-pill .pill-segment {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: none;
+    border-radius: var(--border-radius-pill);
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
-    user-select: none;
-    white-space: nowrap;
-    text-transform: none;
-    letter-spacing: normal;
-    flex-shrink: 0;
+    box-shadow: none;
+    transition: all var(--transition-fast);
 }
 
-.toolbar-toggle-btn:hover {
-    background: var(--color-surface-2);
+.header-segmented-pill .pill-segment i {
+    font-size: var(--font-size-xs);
+    color: inherit;
+    transition: color var(--transition-fast);
+}
+
+.header-segmented-pill .pill-segment:hover {
     color: var(--color-text-primary);
-    border-color: var(--color-border-hover);
+    background: rgba(255, 255, 255, 0.75);
 }
 
-.toolbar-toggle-btn.active {
+.header-segmented-pill .pill-segment.active {
     background: var(--color-surface-1);
     color: var(--color-primary);
-    border-color: var(--color-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.toolbar-toggle-btn i {
-    font-size: var(--font-size-2xs);
-    color: inherit;
+.header-segmented-pill .pill-divider {
+    width: 1px;
+    height: 12px;
+    background: var(--color-border);
+    margin: 0 1px;
 }
 
 /* Sankey Canvas & Nodes */
