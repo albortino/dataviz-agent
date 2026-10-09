@@ -126,6 +126,54 @@ Gas,Power generation,28.297`,
 
 export const MERMAID_PRESETS = MERMAID_DEMOS;
 
+const PRESET_CONFIGS = {
+    sankey: { col1: 'Source Column', col2: 'Target Column', val: 'Value Column', agg: true },
+    radar: { col1: 'Axis / Dimension Column', curves: true, agg: true },
+    treemap: { col1: 'Category (Level 1)', col2: 'Subcategory (Level 2)', val: 'Value Column', agg: true },
+    xychart: { col1: 'Category (X-Axis)', col2: 'Value (Y-Axis Metric)', agg: true },
+    pie: { col1: 'Category Slices', col2: 'Value (Metric)', agg: true },
+    flowchart: { col1: 'Source Node', col2: 'Target Node', agg: true }
+};
+
+const toAsciiSafe = (str) => String(str ?? '')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
+
+const safeQuote = (str) => String(str ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '').trim();
+
+const groupByKey = (items, keyFn) => {
+    if (typeof Object.groupBy === 'function') return Object.groupBy(items, keyFn);
+    return items.reduce((acc, item) => {
+        const k = keyFn(item);
+        (acc[k] = acc[k] || []).push(item);
+        return acc;
+    }, {});
+};
+
+const aggregateCategory = (data, catCol, valCol, aggFunc, limit = 10, sortByVal = false) => {
+    const groups = groupByKey(data, r => {
+        const val = r[catCol];
+        return (val !== undefined && val !== null && String(val).trim() !== '') ? String(val).trim() : 'Empty';
+    });
+
+    const entries = Object.entries(groups).map(([cat, rows]) => {
+        const vals = aggFunc === 'count'
+            ? rows.map(() => 1)
+            : rows.map(r => (valCol && r[valCol] !== undefined && r[valCol] !== null) ? r[valCol] : 1);
+        const res = Math.round(aggregateValues(vals, aggFunc) * 100) / 100;
+        return [cat, res];
+    });
+
+    const valid = entries.filter(([, v]) => v > 0);
+    if (sortByVal) valid.sort((a, b) => b[1] - a[1]);
+    return valid.slice(0, limit);
+};
+
+
 export class MermaidManager {
     constructor(options = {}) {
         this.getData = options.getData || (() => []);
@@ -261,71 +309,19 @@ export class MermaidManager {
     updateUIControls() {
         if (!this.presetSelect) return;
         const preset = this.presetSelect.value;
-        const currentData = this.getData();
-        const hasData = currentData && currentData.length > 0;
-
-        const isAggregatable = ['sankey', 'radar', 'treemap', 'xychart', 'pie', 'flowchart'].includes(preset);
+        const hasData = Boolean(this.getData()?.length);
+        const cfg = PRESET_CONFIGS[preset];
 
         if (this.titleGroup) this.titleGroup.style.display = 'flex';
+        if (this.col1Group) this.col1Group.style.display = cfg?.col1 ? 'flex' : 'none';
+        if (this.col2Group) this.col2Group.style.display = cfg?.col2 ? 'flex' : 'none';
+        if (this.curvesGroup) this.curvesGroup.style.display = cfg?.curves ? 'flex' : 'none';
+        if (this.valGroup) this.valGroup.style.display = cfg?.val ? 'flex' : 'none';
+        if (this.aggGroup) this.aggGroup.style.display = cfg?.agg ? 'flex' : 'none';
 
-        if (preset === 'sankey') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'flex';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Source Column';
-            if (this.targetLabel) this.targetLabel.textContent = 'Target Column';
-            if (this.valLabel) this.valLabel.textContent = 'Value Column';
-        } else if (preset === 'radar') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'none';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'flex';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Axis / Dimension Column';
-        } else if (preset === 'treemap') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'flex';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category (Level 1)';
-            if (this.targetLabel) this.targetLabel.textContent = 'Subcategory (Level 2)';
-            if (this.valLabel) this.valLabel.textContent = 'Value Column';
-        } else if (preset === 'xychart') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category (X-Axis)';
-            if (this.targetLabel) this.targetLabel.textContent = 'Value (Y-Axis Metric)';
-        } else if (preset === 'pie') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category Slices';
-            if (this.targetLabel) this.targetLabel.textContent = 'Value (Metric)';
-        } else if (preset === 'flowchart') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Source Node';
-            if (this.targetLabel) this.targetLabel.textContent = 'Target Node';
-        } else {
-            if (this.col1Group) this.col1Group.style.display = 'none';
-            if (this.col2Group) this.col2Group.style.display = 'none';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'none';
-        }
-
-
+        if (this.sourceLabel && cfg?.col1) this.sourceLabel.textContent = cfg.col1;
+        if (this.targetLabel && cfg?.col2) this.targetLabel.textContent = cfg.col2;
+        if (this.valLabel && cfg?.val) this.valLabel.textContent = cfg.val;
 
         if (this.demoBtn) {
             this.demoBtn.disabled = false;
@@ -333,13 +329,10 @@ export class MermaidManager {
         }
 
         if (this.aiBtn) {
-            if (hasData) {
-                this.aiBtn.disabled = false;
-                this.aiBtn.title = `Generate ${preset} with AI agent using dataset`;
-            } else {
-                this.aiBtn.disabled = true;
-                this.aiBtn.title = 'Please load a CSV dataset or dummy data first';
-            }
+            this.aiBtn.disabled = !hasData;
+            this.aiBtn.title = hasData
+                ? `Generate ${preset} with AI agent using dataset`
+                : 'Please load a CSV dataset or dummy data first';
         }
     }
 
@@ -632,8 +625,8 @@ export class MermaidManager {
             const srcValues = new Set();
             const tgtValues = new Set();
             currentData.forEach(r => {
-                const s = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                const t = String(r[col2] !== undefined && r[col2] !== null ? r[col2] : '').trim();
+                const s = String(r[col1] ?? '').trim();
+                const t = String(r[col2] ?? '').trim();
                 if (s) srcValues.add(s);
                 if (t) tgtValues.add(t);
             });
@@ -641,8 +634,8 @@ export class MermaidManager {
 
             const flowAgg = {};
             currentData.forEach(r => {
-                let s = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                let t = String(r[col2] !== undefined && r[col2] !== null ? r[col2] : '').trim();
+                let s = String(r[col1] ?? '').trim();
+                let t = String(r[col2] ?? '').trim();
                 if (!s || !t) return;
 
                 if (hasOverlap) {
@@ -656,12 +649,11 @@ export class MermaidManager {
                     const parsed = parseFloat(r[valCol]);
                     v = isNaN(parsed) ? 1 : Math.max(0, parsed);
                 }
-                if (!flowAgg[key]) flowAgg[key] = [];
-                flowAgg[key].push(v);
+                (flowAgg[key] = flowAgg[key] || []).push(v);
             });
 
             const topFlows = Object.entries(flowAgg).map(([k, vals]) => {
-                let computed = aggFunc === 'none' ? (vals.length > 0 ? vals[0] : 1) : aggregateValues(vals, aggFunc);
+                const computed = aggFunc === 'none' ? (vals[0] ?? 1) : aggregateValues(vals, aggFunc);
                 return [k, Math.round(computed * 100) / 100];
             }).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 35);
 
@@ -672,20 +664,7 @@ export class MermaidManager {
                 return;
             }
 
-            const toAsciiSafe = (str) => {
-                return String(str ?? '')
-                    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-                    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
-                    .replace(/ß/g, 'ss')
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                    .replace(/[^\x20-\x7E]/g, '')
-                    .trim();
-            };
-
-            const formatNode = (name) => {
-                const safe = toAsciiSafe(name).replace(/"/g, "'");
-                return `"${safe || 'Unknown'}"`;
-            };
+            const formatNode = (name) => `"${toAsciiSafe(name).replace(/"/g, "'") || 'Unknown'}"`;
 
             let code = `sankey-beta\n`;
             topFlows.forEach(([key, value]) => {
@@ -706,13 +685,10 @@ export class MermaidManager {
                 return;
             }
 
-            const axisGroups = {};
-            currentData.forEach(r => {
-                const ax = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                if (!ax) return;
-                if (!axisGroups[ax]) axisGroups[ax] = [];
-                axisGroups[ax].push(r);
-            });
+            const axisGroups = groupByKey(
+                currentData.filter(r => r[col1] !== undefined && r[col1] !== null && String(r[col1]).trim() !== ''),
+                r => String(r[col1]).trim()
+            );
 
             const topAxes = Object.keys(axisGroups).slice(0, 8);
             if (topAxes.length < 3) {
@@ -722,26 +698,18 @@ export class MermaidManager {
                 return;
             }
 
-            const cleanAxes = topAxes.map((ax, idx) => {
-                const safeLabel = String(ax ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
-                return `ax_${idx + 1}["${safeLabel}"]`;
-            });
+            const cleanAxes = topAxes.map((ax, idx) => `ax_${idx + 1}["${safeQuote(ax)}"]`);
             const titleStr = userTitle || `Comparison by ${col1}`;
-            let code = `radar-beta\n`;
-            code += `    title ${titleStr}\n`;
-            code += `    axis ${cleanAxes.join(', ')}\n`;
+            let code = `radar-beta\n    title ${titleStr}\n    axis ${cleanAxes.join(', ')}\n`;
 
             selectedCurves.forEach((curveCol, cIdx) => {
-                const curveId = `curve_${cIdx + 1}`;
-                const curveLabel = String(curveCol ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
-                const valList = [];
-                topAxes.forEach(ax => {
-                    const rows = axisGroups[ax];
-                    const vals = rows.map(r => r[curveCol]).filter(v => v !== undefined && v !== null);
-                    const computed = aggregateValues(vals, aggFunc);
-                    valList.push(Math.round(computed * 100) / 100);
+                const valList = topAxes.map(ax => {
+                    const vals = axisGroups[ax]
+                        .map(r => r[curveCol])
+                        .filter(v => v !== undefined && v !== null);
+                    return Math.round(aggregateValues(vals, aggFunc) * 100) / 100;
                 });
-                code += `    curve ${curveId}["${curveLabel}"]{${valList.join(', ')}}\n`;
+                code += `    curve curve_${cIdx + 1}["${safeQuote(curveCol)}"]{${valList.join(', ')}}\n`;
             });
             code += `    showLegend true\n`;
             this.textEditor.value = code;
@@ -758,10 +726,8 @@ export class MermaidManager {
             const tree = {};
 
             currentData.forEach(r => {
-                const c1 = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Other').trim() || 'Other';
-                const c2 = col2 && col2 !== col1
-                    ? String(r[col2] !== undefined && r[col2] !== null ? r[col2] : 'Detail').trim() || 'Detail'
-                    : null;
+                const c1 = String(r[col1] ?? 'Other').trim() || 'Other';
+                const c2 = col2 && col2 !== col1 ? (String(r[col2] ?? 'Detail').trim() || 'Detail') : null;
 
                 let v = 1;
                 if (valCol && r[valCol] !== undefined && r[valCol] !== null) {
@@ -769,19 +735,12 @@ export class MermaidManager {
                     v = isNaN(p) ? 1 : Math.max(0, p);
                 }
 
-                if (!tree[c1]) tree[c1] = {};
-                if (c2) {
-                    if (!tree[c1][c2]) tree[c1][c2] = [];
-                    tree[c1][c2].push(v);
-                } else {
-                    if (!tree[c1]['__self__']) tree[c1]['__self__'] = [];
-                    tree[c1]['__self__'].push(v);
-                }
+                tree[c1] = tree[c1] || {};
+                const subKey = c2 || '__self__';
+                (tree[c1][subKey] = tree[c1][subKey] || []).push(v);
             });
 
-            let code = `treemap-beta\n`;
-            code += `    "${rootTitle.replace(/"/g, "'")}"\n`;
-
+            let code = `treemap-beta\n    "${rootTitle.replace(/"/g, "'")}"\n`;
             const topC1 = Object.entries(tree).slice(0, 10);
             topC1.forEach(([c1Name, subMap]) => {
                 const subEntries = Object.entries(subMap);
@@ -801,25 +760,8 @@ export class MermaidManager {
             this.textEditor.value = code;
 
         } else if (preset === 'pie') {
-            const groups = {};
-            currentData.forEach(r => {
-                const cat = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Unknown').trim() || 'Empty';
-                if (!groups[cat]) groups[cat] = [];
-                if (aggFunc === 'count') {
-                    groups[cat].push(1);
-                } else if (col2 && r[col2] !== undefined && r[col2] !== null) {
-                    groups[cat].push(r[col2]);
-                } else {
-                    groups[cat].push(1);
-                }
-            });
-
-            const aggregated = Object.entries(groups).map(([k, vals]) => {
-                const res = aggregateValues(vals, aggFunc);
-                return [k, Math.round(res * 100) / 100];
-            }).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
-
-            const title = userTitle ? userTitle : `Distribution of ${col1} (${aggFunc === 'none' ? (col2 || 'First') : `${aggFunc.toUpperCase()} ${col2 || 'rows'}`})`;
+            const aggregated = aggregateCategory(currentData, col1, col2, aggFunc, 10, true);
+            const title = userTitle || `Distribution of ${col1} (${aggFunc === 'none' ? (col2 || 'First') : `${aggFunc.toUpperCase()} ${col2 || 'rows'}`})`;
             let code = `pie title ${title}\n`;
             aggregated.forEach(([k, v]) => {
                 code += `    "${k.replace(/"/g, "'")}" : ${v}\n`;
@@ -832,13 +774,14 @@ export class MermaidManager {
                 const s = String(r[col1] || '').trim();
                 const t = String(r[col2] || '').trim();
                 if (s && t) {
-                    const key = `${s}__${t}`;
-                    if (!pairs[key]) pairs[key] = [];
-                    pairs[key].push(1);
+                    const key = `${s}___${t}`;
+                    pairs[key] = (pairs[key] || 0) + 1;
                 }
             });
-            const topPairs = Object.entries(pairs).map(([k, vals]) => [k, aggFunc === 'none' ? 1 : vals.length])
-                .sort((a, b) => b[1] - a[1]).slice(0, 16);
+            const topPairs = Object.entries(pairs)
+                .map(([k, count]) => [k, aggFunc === 'none' ? 1 : count])
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 16);
 
             let code = `flowchart LR\n`;
             if (userTitle) code += `    %% Title: ${userTitle}\n`;
@@ -857,28 +800,11 @@ export class MermaidManager {
             this.textEditor.value = code;
 
         } else if (preset === 'xychart') {
-            const groups = {};
-            currentData.forEach(r => {
-                const k = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Unknown').trim() || 'Empty';
-                if (!groups[k]) groups[k] = [];
-                if (aggFunc === 'count') {
-                    groups[k].push(1);
-                } else if (col2 && r[col2] !== undefined && r[col2] !== null) {
-                    groups[k].push(r[col2]);
-                } else {
-                    groups[k].push(1);
-                }
-            });
-
-            const topGroups = Object.entries(groups).map(([k, vals]) => {
-                const res = aggregateValues(vals, aggFunc);
-                return [k, Math.round(res * 100) / 100];
-            }).slice(0, 10);
-
+            const topGroups = aggregateCategory(currentData, col1, col2, aggFunc, 10, false);
             const xLabels = topGroups.map(([k]) => `"${k.substring(0, 14).replace(/"/g, "'")}"`);
             const yVals = topGroups.map(([, val]) => val);
             const yLabel = aggFunc === 'none' ? (col2 || 'Value') : `${aggFunc.toUpperCase()} ${col2 || 'Count'}`;
-            const title = userTitle ? userTitle : `${col1} (${yLabel})`;
+            const title = userTitle || `${col1} (${yLabel})`;
             const maxVal = yVals.length > 0 ? Math.max(...yVals) : 10;
             const minVal = yVals.length > 0 ? Math.min(...yVals) : 0;
             const yMin = minVal < 0 ? Math.floor(minVal * 1.1) : 0;

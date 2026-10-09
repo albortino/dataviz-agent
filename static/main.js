@@ -1064,26 +1064,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Guidelines Banner Toggle Accordions
+    // Insights Banner Toggle Accordions
     document.querySelectorAll('.tab-intro-toggle-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const banner = e.currentTarget.closest('.tab-intro-banner');
             if (banner) {
                 const isOpen = banner.classList.toggle('open');
-                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-                    setTimeout(() => sanddanceMgr.resize(), 160);
-                }
-            }
-        });
-    });
-
-    // Overview & Description Toggle for Mobile Banners
-    document.querySelectorAll('.tab-intro-info-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const banner = e.currentTarget.closest('.tab-intro-banner');
-            if (banner) {
-                const isOpen = banner.classList.toggle('info-open');
                 btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
                     setTimeout(() => sanddanceMgr.resize(), 160);
