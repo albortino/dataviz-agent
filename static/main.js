@@ -281,16 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (currentActiveView === 'lineup') {
-            headerSpecToggleBtn?.classList.add('hidden');
-            headerControlsToggleBtn?.classList.remove('hidden');
-            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
-            headerControlsToggleBtn?.setAttribute('title', 'Toggle Side Panel');
-            const isOpen = !lineupMgr.isSidePanelCollapsed();
-            headerControlsToggleBtn?.classList.toggle('active', isOpen);
-            headerControlsToggleBtn?.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
-            return;
-        }
 
         if (currentActiveView === 'sanddance') {
             headerSpecToggleBtn?.classList.add('hidden');
@@ -556,9 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (headerControlsToggleBtn) {
         headerControlsToggleBtn.addEventListener('click', () => {
-            if (currentActiveView === 'lineup') {
-                lineupMgr.toggleSidePanel();
-            } else if (currentActiveView === 'sanddance') {
+            if (currentActiveView === 'sanddance') {
                 const isCollapsed = sanddanceMgr.toolbar?.classList.contains('collapsed');
                 sanddanceMgr.setToolbarCollapsed(!isCollapsed);
             } else {
