@@ -90,7 +90,7 @@ body>footer,
 
 .footer-divider {
     color: var(--color-border);
-    font-size: 0.6rem;
+    font-size: var(--font-size-2xs);
     user-select: none;
 }
 
@@ -141,8 +141,8 @@ body>header,
 
 #header-brand .brand-title {
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.03em;
     line-height: 1;
@@ -387,7 +387,7 @@ body>header,
 
 .dropdown-item-label {
     font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     line-height: 1.25;
 }
@@ -979,7 +979,7 @@ hr.control-divider,
     color: var(--color-text-primary);
     margin: 0 0 0.85rem 0;
     font-size: clamp(2.1rem, 3.8vw, 3.2rem);
-    font-weight: 800;
+    font-weight: var(--font-weight-bold);
     letter-spacing: -0.035em;
     line-height: 1.15;
 }
@@ -993,7 +993,7 @@ hr.control-divider,
 .initial-message p {
     color: var(--color-text-secondary);
     margin: 0 0 2rem 0;
-    font-size: 1.05rem;
+    font-size: var(--font-size-lg);
     line-height: 1.6;
     max-width: 540px;
 }
@@ -1011,7 +1011,7 @@ hr.control-divider,
     font-size: var(--font-size-base);
     padding: 0.65rem 1.4rem;
     border-radius: var(--border-radius-pill);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
 }
@@ -1101,7 +1101,7 @@ hr.control-divider,
 }
 
 .empty-feature-icon i {
-    font-size: 0.9rem;
+    font-size: var(--font-size-base);
     color: inherit;
     line-height: 1;
     display: inline-block;
@@ -1111,7 +1111,7 @@ hr.control-divider,
     grid-column: 2;
     grid-row: 1;
     font-size: var(--font-size-sm);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.01em;
 }
@@ -1132,7 +1132,7 @@ hr.control-divider,
 #vg-tooltip-element,
 .vg-tooltip {
     font-family: var(--font-sans) !important;
-    font-size: 11px !important;
+    font-size: var(--font-size-2xs) !important;
     line-height: 1.5 !important;
     color: var(--color-text-primary) !important;
     background: rgba(255, 255, 255, 0.97) !important;
@@ -1154,13 +1154,13 @@ hr.control-divider,
 #vg-tooltip-element table td.key,
 .vg-tooltip table td.key {
     color: var(--color-text-muted) !important;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 #vg-tooltip-element table td.value,
 .vg-tooltip table td.value {
     color: var(--color-text-primary) !important;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     text-align: right;
 }
 
@@ -1240,7 +1240,7 @@ hr.control-divider,
 .lu-tooltip strong {
     color: var(--color-text-primary) !important;
     font-size: var(--font-size-sm) !important;
-    font-weight: 600 !important;
+    font-weight: var(--font-weight-bold) !important;
     margin: 0.25rem 0 0.5rem 0 !important;
 }
 
@@ -1286,7 +1286,7 @@ hr.control-divider,
 
 .lu-string-advanced-options summary {
     font-size: var(--font-size-xs) !important;
-    font-weight: 500 !important;
+    font-weight: var(--font-weight-medium) !important;
     color: var(--color-text-secondary) !important;
     cursor: pointer !important;
     padding: 0.2rem 0 !important;
@@ -1373,7 +1373,7 @@ hr.control-divider,
 }
 
 .graphic-walker-loading span {
-    font-size: 0.95rem;
+    font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-dark);
 }
@@ -1678,7 +1678,7 @@ hr.control-divider,
 /* Syntax Token Colors (Vibrant, high-contrast, modern) */
 #vega-sidebar .cm-property {
     color: var(--color-primary);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
 }
 
 #vega-sidebar .cm-string {
@@ -1687,12 +1687,12 @@ hr.control-divider,
 
 #vega-sidebar .cm-number {
     color: #d97706;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 #vega-sidebar .cm-atom {
     color: #7c3aed;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
 }
 
 #vega-sidebar .cm-variable,
@@ -1702,7 +1702,7 @@ hr.control-divider,
 
 #vega-sidebar .cm-keyword {
     color: #db2777;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
 }
 
 #vega-sidebar .cm-punctuation,
@@ -1748,7 +1748,7 @@ hr.control-divider,
 }
 
 .sidebar-format-btn {
-    font-size: 0.625rem;
+    font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -1781,7 +1781,7 @@ hr.control-divider,
 }
 
 .sidebar-live-tag {
-    font-size: 0.625rem;
+    font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -1921,7 +1921,7 @@ hr.control-divider,
 .sankey-node text {
     pointer-events: none;
     font-family: var(--font-sans);
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     fill: #475569;
     font-weight: var(--font-weight-medium);
     font-feature-settings: "tnum" "lnum";
@@ -1958,7 +1958,7 @@ hr.control-divider,
 }
 
 .sankey-annotation text.annotation-text {
-    font-size: 12px;
+    font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-medium);
     fill: #1e293b;
     font-family: inherit;
@@ -2127,7 +2127,7 @@ hr.control-divider,
 #agent-skills-list .curves-checkbox-item span b {
     display: block;
     font-size: var(--font-size-base);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin-bottom: 0.2rem;
 }
@@ -2285,7 +2285,7 @@ hr.control-divider,
     font-size: var(--font-size-2xs);
     line-height: 1.45;
     font-style: normal;
-    font-weight: 400;
+    font-weight: var(--font-weight-medium);
 }
 
 .actions-stack {
@@ -2426,7 +2426,7 @@ hr.control-divider,
 .sanddance-panel summary {
     cursor: pointer;
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin-bottom: 0.5rem;
     user-select: none;
@@ -2584,8 +2584,8 @@ hr.control-divider,
 }
 
 .sanddance-tooltip-header {
-    font-weight: var(--font-weight-semibold);
-    font-size: 0.775rem;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-2xs);
     color: var(--color-primary);
     margin-bottom: 0.35rem;
     padding-bottom: 0.25rem;
@@ -2690,14 +2690,14 @@ hr.control-divider,
 
 .copilot-header-title {
     font-size: var(--font-size-sm);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.01em;
 }
 
 .copilot-status-chip {
     font-size: var(--font-size-2xs);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     padding: 1px 7px;
     border-radius: var(--border-radius-pill);
     background: #ecfdf5;
@@ -2761,7 +2761,7 @@ hr.control-divider,
     border: 1px solid var(--color-primary-hover);
     border-bottom-right-radius: 2px;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 .message.agent {
@@ -2791,7 +2791,7 @@ hr.control-divider,
 .agent-welcome ul {
     margin: 0 0 0 1.25rem;
     padding: 0;
-    font-size: 0.9rem;
+    font-size: var(--font-size-base);
     color: var(--color-secondary-hover);
     line-height: 1.6;
 }
@@ -2817,7 +2817,7 @@ hr.control-divider,
 .agent-welcome-title {
     margin: 0;
     font-size: var(--font-size-base);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.015em;
 }
@@ -2826,7 +2826,7 @@ hr.control-divider,
     margin: 0;
     font-size: var(--font-size-2xs);
     color: #059669;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
 }
 
 .agent-welcome-desc {
@@ -2838,7 +2838,7 @@ hr.control-divider,
 
 .agent-welcome-actions-title {
     font-size: var(--font-size-2xs);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-muted);
@@ -2860,7 +2860,7 @@ hr.control-divider,
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-main);
     font-size: var(--font-size-xs);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     color: var(--color-text-primary);
     cursor: pointer;
     text-align: left;
@@ -3213,7 +3213,7 @@ hr.control-divider,
     background: var(--color-background-medium);
     color: var(--color-text-secondary);
     font-size: var(--font-size-2xs);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     display: inline-flex;
     align-items: center;
     gap: var(--gap-2xs);
@@ -3274,7 +3274,7 @@ hr.control-divider,
 
 .chat-input-area input#chat-input::placeholder {
     color: var(--color-text-muted);
-    font-weight: 400;
+    font-weight: var(--font-weight-medium);
     font-size: var(--font-size-sm);
 }
 
@@ -3521,7 +3521,7 @@ hr.control-divider,
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: var(--font-size-base);
     padding: 0;
     box-shadow: none;
     transition: all var(--transition-fast);
@@ -3608,8 +3608,8 @@ hr.control-divider,
 
 .modal-header h2 {
     margin: 0;
-    font-size: 1.12rem;
-    font-weight: 700;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     line-height: 1.2;
 }
@@ -3618,7 +3618,7 @@ hr.control-divider,
     margin: 2px 0 0 0;
     font-size: var(--font-size-xs);
     color: var(--color-text-muted);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     line-height: 1.35;
 }
 
@@ -3662,7 +3662,7 @@ hr.control-divider,
 
 #settings-modal .settings-form-label {
     font-size: var(--font-size-xs);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-secondary);
     letter-spacing: -0.01em;
     display: flex;
@@ -3704,7 +3704,7 @@ hr.control-divider,
 #settings-modal .settings-route-hint {
     font-size: var(--font-size-2xs);
     color: var(--color-text-muted);
-    font-weight: 400;
+    font-weight: var(--font-weight-medium);
 }
 
 /* Advanced disclosure */
@@ -3717,7 +3717,7 @@ hr.control-divider,
     background: none;
     border: none;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     padding: 0.2rem 0;
 }
 
@@ -3819,7 +3819,7 @@ hr.control-divider,
 
 .column-toolbar-title {
     font-size: var(--font-size-xs);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -3838,7 +3838,7 @@ hr.control-divider,
     border-radius: var(--border-radius-pill);
     padding: 0.22rem 0.65rem;
     font-size: var(--font-size-xs);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-secondary);
     cursor: pointer;
     font-family: inherit;
@@ -3901,7 +3901,7 @@ hr.control-divider,
 }
 
 .column-config-label .column-name {
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-sm);
     color: var(--color-text-primary);
     white-space: nowrap;
@@ -3912,7 +3912,7 @@ hr.control-divider,
 .column-config-label .column-sample {
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
-    font-weight: normal;
+    font-weight: var(--font-weight-medium);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4011,7 +4011,7 @@ hr.control-divider,
 
 .docs-markdown-view h1 {
     font-size: 1.45rem;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.4rem;
@@ -4019,7 +4019,7 @@ hr.control-divider,
 }
 
 .docs-markdown-view h2 {
-    font-size: 1.18rem;
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin: 1.25rem 0 0.5rem 0;
@@ -4028,7 +4028,7 @@ hr.control-divider,
 }
 
 .docs-markdown-view h3 {
-    font-size: 1.02rem;
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin: 1rem 0 0.4rem 0;
@@ -4237,7 +4237,7 @@ hr.control-divider,
 }
 
 .tab-intro-pill .pill-label {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     font-size: var(--font-size-sm);
     letter-spacing: -0.01em;
@@ -4269,7 +4269,7 @@ hr.control-divider,
 
 .text-primary-icon-md {
     color: var(--color-primary);
-    font-size: 1.15rem;
+    font-size: var(--font-size-lg);
 }
 
 /* Sidebar title glyph — spacing comes from the title's flex gap */
@@ -4385,7 +4385,7 @@ hr.control-divider,
 
 .selected-node-hint {
     color: var(--color-primary);
-    font-weight: normal;
+    font-weight: var(--font-weight-medium);
     text-transform: none;
     margin-left: 2px;
 }
@@ -4534,14 +4534,14 @@ hr.control-divider,
 
 .gw-error-container h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--font-size-lg);
     color: #f87171;
 }
 
 .gw-error-container p {
     max-width: 480px;
     margin: 0;
-    font-size: 0.9rem;
+    font-size: var(--font-size-base);
     color: var(--color-text-muted);
 }
 
@@ -4722,7 +4722,7 @@ hr.control-divider,
 .session-step-label {
     display: block;
     font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     margin-bottom: 0.5rem;
 }
@@ -4772,7 +4772,7 @@ hr.control-divider,
     display: flex;
     align-items: center;
     gap: var(--gap-s);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold);
     margin-bottom: 0.35rem;
 }
 

@@ -31,12 +31,12 @@
     --color-background-medium: var(--color-surface-3);
 
     /* -------------------------------------------------------
-       Text - WCAG AA & AAA Compliant
+       Text - 2-Tier Impeccable Hierarchy (Primary & Muted)
        ------------------------------------------------------- */
     --color-text-primary: #0f172a;
-    --color-text-secondary: #334155;
-    --color-text-dark: #1e293b;
     --color-text-muted: #64748b;
+    --color-text-secondary: var(--color-text-muted);
+    --color-text-dark: var(--color-text-primary);
 
     /* -------------------------------------------------------
        Borders
@@ -106,16 +106,19 @@
     --shadow-xl: var(--shadow-float);
 
     /* -------------------------------------------------------
-       Typography Scale
+       Typography Scale - 5-Step Unified Hierarchy
        ------------------------------------------------------- */
-    --font-size-mini: 0.65rem;
     --font-size-2xs: 0.75rem;
     --font-size-xs: 0.8125rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 0.9375rem;
-    --font-size-button-link: 0.875rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-mini: var(--font-size-2xs);
+    --font-size-button-link: var(--font-size-sm);
     --font-weight-bold: 600;
     --font-weight-medium: 500;
+    --font-weight-semibold: var(--font-weight-bold);
 
     /* -------------------------------------------------------
        Layout Dimensions
