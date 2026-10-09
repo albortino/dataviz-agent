@@ -166,6 +166,7 @@ body>header,
     display: flex;
     gap: var(--gap-s);
     align-items: center;
+    margin-left: auto;
 }
 
 
@@ -179,7 +180,10 @@ body>header,
 
 .dropdown-wrapper {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    height: calc(2.0rem + 12px);
+    box-sizing: border-box;
 }
 
 .dropdown-trigger-btn {
@@ -188,7 +192,7 @@ body>header,
     gap: var(--gap-s);
     background: var(--color-surface-2);
     border: 1px solid var(--color-border-input);
-    padding: 0.35rem 0.85rem;
+    padding: 0 0.85rem;
     border-radius: var(--border-radius-pill);
     font-size: var(--font-size-button-link);
     font-weight: var(--font-weight-medium);
@@ -196,7 +200,8 @@ body>header,
     cursor: pointer;
     transition: all var(--transition-base);
     box-shadow: var(--shadow-sm);
-    height: var(--height-small);
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .dropdown-trigger-btn:hover {
@@ -574,9 +579,14 @@ button.utility-btn:active,
 
 /* Header Center Nav & View Selector Controls */
 .header-center-nav {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     display: inline-flex;
     align-items: center;
     gap: var(--gap-s);
+    z-index: 10;
 }
 
 #view-controls,
@@ -589,6 +599,8 @@ button.utility-btn:active,
     border-radius: var(--border-radius-pill);
     gap: var(--gap-2xs);
     border: 1px solid var(--color-border);
+    height: calc(2.0rem + 12px);
+    box-sizing: border-box;
 }
 
 #view-controls .button,
@@ -654,6 +666,8 @@ button.utility-btn:active,
     align-items: center;
     border-radius: var(--border-radius-pill);
     transition: all var(--transition-base);
+    height: 2.0rem;
+    box-sizing: border-box;
 }
 
 #view-controls #plots-split-hub .split-hub-main {
@@ -4573,6 +4587,11 @@ hr.control-divider,
         padding: 0.35rem 0.5rem;
         gap: var(--gap-s);
         justify-content: space-between;
+    }
+
+    .header-center-nav {
+        position: static;
+        transform: none;
     }
 
     #view-controls {
