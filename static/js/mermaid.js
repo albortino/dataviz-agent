@@ -970,8 +970,6 @@ export class MermaidManager {
     }
 
     bindEvents() {
-        if (this.collapseBtn) this.collapseBtn.addEventListener('click', () => this.setSidebarCollapsed(true));
-        if (this.expandBtn) this.expandBtn.addEventListener('click', () => this.setSidebarCollapsed(false));
         if (this.formatBtn) {
             this.formatBtn.addEventListener('click', () => {
                 if (this.textEditor) {
@@ -980,8 +978,6 @@ export class MermaidManager {
                 }
             });
         }
-        if (this.controlsCollapseBtn) this.controlsCollapseBtn.addEventListener('click', () => this.setControlsCollapsed(true));
-        if (this.controlsExpandBtn) this.controlsExpandBtn.addEventListener('click', () => this.setControlsCollapsed(false));
 
         if (this.presetSelect) {
             this.presetSelect.addEventListener('change', () => {

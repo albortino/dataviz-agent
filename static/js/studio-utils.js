@@ -7,25 +7,24 @@
 /**
  * Binds sidebar toggle buttons and persists collapse state in localStorage.
  */
-export function bindCollapsibleSidebar({ sidebar, collapseBtn, expandBtn, storageKey }) {
+export function bindCollapsibleSidebar({ sidebar, collapseBtn, expandBtn, storageKey, onToggle }) {
     if (!sidebar) return { setCollapsed: () => {} };
 
     const setCollapsed = (collapsed) => {
-        if (collapsed) {
-            sidebar.classList.add('collapsed');
-            if (expandBtn) expandBtn.classList.remove('hidden');
-        } else {
-            sidebar.classList.remove('collapsed');
-            if (expandBtn) expandBtn.classList.add('hidden');
-        }
+        sidebar.classList.toggle('collapsed', collapsed);
+        if (expandBtn) expandBtn.classList.toggle('hidden', !collapsed);
         if (storageKey) {
             localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
         }
+        if (typeof onToggle === 'function') {
+            onToggle(collapsed);
+        }
     };
 
-    // Restore saved state
     if (storageKey && localStorage.getItem(storageKey) === 'true') {
         setCollapsed(true);
+    } else if (expandBtn) {
+        expandBtn.classList.toggle('hidden', !sidebar.classList.contains('collapsed'));
     }
 
     if (collapseBtn) {

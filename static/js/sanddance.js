@@ -5,6 +5,7 @@
  */
 
 import { detectType } from './data-transform.js';
+import { bindCollapsibleSidebar } from './studio-utils.js';
 
 export class SandDanceManager {
     constructor(options = {}) {
@@ -56,25 +57,21 @@ export class SandDanceManager {
         this.setupResizeObserver();
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
-        this.initCollapseState();
-        this.bindEvents();
-    }
-
-    initCollapseState() {
+        this.toolbarToggle = bindCollapsibleSidebar({
+            sidebar: this.toolbar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'sanddance_toolbar_collapsed',
+            onToggle: () => setTimeout(() => this.scheduleResize(), 300)
+        });
         if (window.innerWidth < 900) {
             this.setToolbarCollapsed(true);
         }
+        this.bindEvents();
     }
 
     setToolbarCollapsed(collapsed) {
-        if (!this.toolbar) return;
-        this.toolbar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
-        setTimeout(() => {
-            this.scheduleResize();
-        }, 300);
+        this.toolbarToggle?.setCollapsed(collapsed);
     }
 
     relocatePanel() {
@@ -838,12 +835,6 @@ export class SandDanceManager {
             });
         }
 
-        if (this.collapseBtn) {
-            this.collapseBtn.addEventListener('click', () => this.setToolbarCollapsed(true));
-        }
-        if (this.expandBtn) {
-            this.expandBtn.addEventListener('click', () => this.setToolbarCollapsed(false));
-        }
 
         if (this.exportBtn) {
             this.exportBtn.addEventListener('click', () => {

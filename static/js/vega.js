@@ -121,7 +121,12 @@ export class VegaManager {
             sidebar: this.sidebar,
             collapseBtn: this.collapseBtn,
             expandBtn: this.expandBtn,
-            storageKey: 'vega_sidebar_collapsed'
+            storageKey: 'vega_sidebar_collapsed',
+            onToggle: (collapsed) => {
+                if (!collapsed && this.cm) {
+                    setTimeout(() => this.cm.refresh(), 200);
+                }
+            }
         });
         this.controlsSidebarToggle = bindCollapsibleSidebar({
             sidebar: this.controlsSidebar,
@@ -129,20 +134,8 @@ export class VegaManager {
             expandBtn: this.controlsExpandBtn,
             storageKey: 'vega_controls_collapsed'
         });
-        this.initCollapseState();
         this.bindEvents();
         this.updateColumnOptions();
-    }
-
-    initCollapseState() {
-        const isCollapsed = this.sidebar ? this.sidebar.classList.contains('collapsed') : false;
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !isCollapsed);
-        }
-        const isCtrlCollapsed = this.controlsSidebar ? this.controlsSidebar.classList.contains('collapsed') : false;
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !isCtrlCollapsed);
-        }
     }
 
     initCodeMirror() {
@@ -195,20 +188,6 @@ export class VegaManager {
     }
 
     bindEvents() {
-        // Sidebar Toggles
-        if (this.collapseBtn && this.sidebar) {
-            this.collapseBtn.addEventListener('click', () => this.toggleLeftSidebar(true));
-        }
-        if (this.expandBtn && this.sidebar) {
-            this.expandBtn.addEventListener('click', () => this.toggleLeftSidebar(false));
-        }
-        if (this.controlsCollapseBtn && this.controlsSidebar) {
-            this.controlsCollapseBtn.addEventListener('click', () => this.toggleRightSidebar(true));
-        }
-        if (this.controlsExpandBtn && this.controlsSidebar) {
-            this.controlsExpandBtn.addEventListener('click', () => this.toggleRightSidebar(false));
-        }
-
         // JSON Beautifier
         if (this.formatBtn) {
             this.formatBtn.addEventListener('click', () => this.formatJson());
