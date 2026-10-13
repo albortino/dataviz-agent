@@ -443,7 +443,7 @@ export class VegaManager {
         let numCol = cols.find(c => typeof sample[c] === 'number') || cols[1] || cols[0];
 
         if (this.presetSelect) this.presetSelect.value = 'bar';
-        if (this.chartTitleInput) this.chartTitleInput.value = `${numCol} by ${catCol}`;
+        if (this.chartTitleInput) this.chartTitleInput.value = '';
         if (this.xCol && catCol) this.xCol.value = catCol;
         if (this.yCol && numCol) this.yCol.value = numCol;
         if (this.colorCol) this.colorCol.value = '';

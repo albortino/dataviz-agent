@@ -1184,18 +1184,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Insights Banner Toggle Accordions
+    // Insights Banner Floating Popover Toggle
     document.querySelectorAll('.tab-intro-toggle-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const banner = e.currentTarget.closest('.tab-intro-banner');
             if (banner) {
-                const isOpen = banner.classList.toggle('open');
-                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-                    setTimeout(() => sanddanceMgr.resize(), 160);
+                const wasOpen = banner.classList.contains('open');
+                // Close any other open tab-intro popovers
+                document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                    b.classList.remove('open');
+                    b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+                });
+                if (!wasOpen) {
+                    banner.classList.add('open');
+                    btn.setAttribute('aria-expanded', 'true');
                 }
             }
         });
+    });
+
+    // Dismiss floating popover on outside click or Escape
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tab-intro-banner')) {
+            document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                b.classList.remove('open');
+                b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+            });
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                b.classList.remove('open');
+                b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+            });
+        }
     });
 
     // Global paste handler to import tabular data directly with Ctrl+V / Cmd+V

@@ -795,7 +795,7 @@
                             <div id="mermaid-title-group" class="control-group">
                                 <label for="mermaid-chart-title">Chart Title</label>
                                 <input type="text" id="mermaid-chart-title" class="control-input"
-                                    placeholder="e.g. Regional Flow Overview">
+                                    placeholder="e.g. Regional Overview">
                             </div>
 
                             <div id="mermaid-col1-group" class="control-group">
@@ -978,10 +978,10 @@
                                 </select>
                             </div>
 
-                            <div class="control-group">
+                            <div id="vega-title-group" class="control-group">
                                 <label for="vega-chart-title">Chart Title</label>
                                 <input type="text" id="vega-chart-title" class="control-input"
-                                    placeholder="Chart Title">
+                                    placeholder="e.g. Regional Overview">
                             </div>
 
                             <div class="control-group">
@@ -1044,7 +1044,7 @@
                             <!-- 2. Mark & Style Accordion -->
                             <details class="control-group mermaid-config-details" id="vega-mark-style-group">
                                 <summary class="mermaid-config-summary">
-                                    <label class="cursor-pointer-no-margin">Mark &amp; Style</label>
+                                    <span class="cursor-pointer-no-margin">Mark &amp; Style</span>
                                     <i class="fa-solid fa-chevron-down details-chevron"></i>
                                 </summary>
                                 <div class="vega-section-content">
@@ -1086,7 +1086,7 @@
                             <!-- 3. Axis & Scales Accordion -->
                             <details class="control-group mermaid-config-details" id="vega-axis-scales-group">
                                 <summary class="mermaid-config-summary">
-                                    <label class="cursor-pointer-no-margin">Axis &amp; Scales</label>
+                                    <span class="cursor-pointer-no-margin">Axis &amp; Scales</span>
                                     <i class="fa-solid fa-chevron-down details-chevron"></i>
                                 </summary>
                                 <div class="vega-section-content">
@@ -1151,7 +1151,7 @@
                             <!-- 4. Faceting Accordion -->
                             <details class="control-group mermaid-config-details" id="vega-faceting-group">
                                 <summary class="mermaid-config-summary">
-                                    <label class="cursor-pointer-no-margin">Facets</label>
+                                    <span class="cursor-pointer-no-margin">Facets</span>
                                     <i class="fa-solid fa-chevron-down details-chevron"></i>
                                 </summary>
                                 <div class="vega-section-content">
@@ -1244,7 +1244,6 @@
                             <button type="button" id="chat-clear-btn" class="chat-tool-btn"
                                 title="Start new conversation (clears history)">
                                 <i class="fa-solid fa-plus"></i>
-                                <span>New</span>
                             </button>
                             <button type="button" id="agent-skills-btn" class="chat-tool-btn"
                                 title="Toggle active agent skills">
@@ -1333,8 +1332,7 @@
                 <div class="control-group">
                     <div class="settings-form-label">
                         <span>Routing Mode</span>
-                        <span class="settings-route-hint" id="ai-route-hint">Full agent mode (executes python and visual
-                            transformations on backend)</span>
+
                     </div>
                     <div class="route-segmented-control" id="ai-route-switcher">
                         <button type="button" class="route-segmented-btn server active" data-mode="server"
@@ -1346,6 +1344,8 @@
                             <i class="fa-solid fa-globe"></i> <span>Direct Browser</span>
                         </button>
                     </div>
+                    <span class="settings-route-hint" id="ai-route-hint">Full agent mode (executes python and visual
+                        transformations on backend)</span>
                 </div>
 
                 <!-- Endpoint URL (Visible for Azure & Custom; hidden for standard presets) -->

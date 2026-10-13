@@ -381,7 +381,7 @@ export class MermaidManager {
 
             const summary = document.createElement('summary');
             summary.className = 'mermaid-config-summary';
-            summary.innerHTML = `<label class="cursor-pointer-no-margin">${cat.label}</label><i class="fa-solid fa-chevron-down details-chevron"></i>`;
+            summary.innerHTML = `<span class="cursor-pointer-no-margin">${cat.label}</span><i class="fa-solid fa-chevron-down details-chevron"></i>`;
 
             const content = document.createElement('div');
             content.className = 'vega-section-content';
