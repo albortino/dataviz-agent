@@ -1,7 +1,11 @@
 ---
 name: data-audit
 runtime: dataviz-agent-only
-description: Quick pandas-only health check before analysis (missingness, skew, id-like columns).
+title: Data Health Audit
+icon: fa-solid fa-shield-halved
+badge: Pre-Flight Health Gate
+description: Pre-flight dataset sanity check screening for missingness, skew, high cardinality, and constant or ID columns.
+capabilities: ["Missingness Screen", "Numeric Skew Gate", "Cardinality Check", "ID-Column Protection"]
 ---
 
 # Data Audit Skill (P0, pandas only, no scipy)

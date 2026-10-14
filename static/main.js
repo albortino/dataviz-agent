@@ -18,7 +18,7 @@ import { SankeyManager } from './js/sankey.js';
 import { VegaManager } from './js/vega.js';
 import { SandDanceManager } from './js/sanddance.js';
 import { GraphicWalkerManager } from './js/graphic-walker.js';
-import { AgentManager } from './js/agent.js';
+import { AgentManager } from './js/agent.js?v=2';
 import { SettingsManager } from './js/settings.js';
 import { exportSession, validateDatasetForSession, restoreSessionState } from './js/session.js';
 

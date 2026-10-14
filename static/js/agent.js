@@ -5,7 +5,7 @@
  */
 
 import { ClientDataTools } from './data-transform.js';
-import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js';
+import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js?v=2';
 import { validateBrowserDirectConnection, runBrowserDirectAgent } from './browser-agent.js';
 
 export const CHAT_STORAGE_KEY = 'ai_agent_chat_history_v1';

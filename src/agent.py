@@ -79,6 +79,8 @@ class ReActAgent:
         self.active_skills = normalize_active_skills(active_skills)
         self.dataviz_on = "dataviz" in self.active_skills
         self.audit_on = "data-audit" in self.active_skills
+        self.narrative_on = "executive-narrative" in self.active_skills
+        self.forecast_on = "predictive-forecast" in self.active_skills
         
         self.api_key = api_key or os.getenv("LLM_API_KEY") or ""
         self.base_url = (base_url or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com").strip()
@@ -220,6 +222,22 @@ class ReActAgent:
             base += (
                 "CHART INTEGRITY (always on): Use Seaborn (`sns.*`), bar axes start at 0, sort categorical bars by value, no single-series legends, "
                 "always label scatter/continuous axes (xlabel/ylabel), and titles must state a takeaway with numbers. Fix LINT warnings on re-run.\n\n"
+            )
+        if self.narrative_on:
+            base += (
+                "EXECUTIVE NARRATIVE SKILL (Minto Pyramid Decision Memo):\n"
+                "- Structure your textual response strictly as a C-suite Executive Decision Brief:\n"
+                "  1. **Bottom-Line Up Front (BLUF)**: 1 definitive takeaway sentence stating the primary metric outcome, magnitude, and business impact with exact figures.\n"
+                "  2. **Driver Decomposition**: MECE root-cause breakdown of why this occurred (Pareto 80/20 driver attribution, segment vs base variance).\n"
+                "  3. **Strategic Action Matrix**: 2-3 prioritized next steps with owner/timeframe, expected upside, and trade-off or risk.\n"
+                "- When generating charts, prioritize `narrative` mode using `VK_apply_narrative_layout(ax, action_title, callout)` highlighting the primary lever.\n\n"
+            )
+        if self.forecast_on:
+            base += (
+                "PREDICTIVE FORECAST & ANOMALIES SKILL (Forward Projections & Inflections):\n"
+                "- Forward Extrapolation: For sequential/time-series metrics, compute trend projections (+N future periods) using rolling regression (`np.polyfit`) or exponential smoothing.\n"
+                "- Confidence Horizons: Plot the historical series as solid line, forecast as dashed/dotted line (`linestyle='--'`), and render uncertainty bounds using `ax.fill_between(future_x, lower_bound, upper_bound, alpha=0.15, color=VK_PRIMARY)`.\n"
+                "- Anomaly & Inflection Detection: Calculate outlier bounds (Z-score |z|>2.5 or IQR 1.5x) and inflection points (second derivative sign change). Annotate any detected anomaly or inflection with an in-plot highlight marker or callout.\n\n"
             )
         base += (
             "VISUALIZATION CAPABILITY:\n"
