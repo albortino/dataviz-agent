@@ -3042,14 +3042,30 @@ hr.control-divider,
     max-width: 95%;
 }
 
-.message.user:has(.chat-mermaid-card) {
-    max-width: 95%;
+.message.user:has(.chat-mermaid-card),
+.message.user:has(.chat-vega-card),
+.message.user:has(.chat-plot-card),
+.message.user.has-chart {
+    width: 100%;
+    max-width: 100%;
     background-color: var(--color-surface-1);
     color: var(--color-text-primary);
     border: 1px solid var(--color-border);
+    box-sizing: border-box;
+    padding: 0.6rem 0.75rem;
 }
 
-.message.user:has(.chat-mermaid-card) .user-message-text {
+.message.agent:has(.chat-mermaid-card),
+.message.agent:has(.chat-vega-card),
+.message.agent:has(.chat-plot-card),
+.message.agent.has-chart {
+    width: 100%;
+    max-width: 100%;
+}
+
+.message.user:has(.chat-mermaid-card) .user-message-text,
+.message.user:has(.chat-vega-card) .user-message-text,
+.message.user.has-chart .user-message-text {
     font-weight: var(--font-weight-medium);
     margin-bottom: 0.5rem;
     color: var(--color-text-primary);
@@ -3294,6 +3310,8 @@ hr.control-divider,
 .chat-plot-card,
 .chat-mermaid-card,
 .chat-vega-card {
+    width: 100%;
+    box-sizing: border-box;
     margin-top: 0.75rem;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
@@ -3322,6 +3340,8 @@ hr.control-divider,
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-plot-img {
@@ -3335,16 +3355,34 @@ hr.control-divider,
 
 .chat-mermaid-body,
 .chat-vega-body {
-    padding: 0.75rem;
+    padding: 0.5rem;
     overflow-x: auto;
     display: flex;
     justify-content: center;
+    align-items: center;
     background: #fafafa;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.chat-mermaid-body svg,
+.chat-mermaid-card:not(.chat-vega-card) .chat-mermaid-body svg {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+
+.chat-vega-body .vega-embed,
+.chat-vega-card .vega-embed {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .chat-vega-body svg,
-.chat-vega-body canvas {
+.chat-vega-body canvas,
+.chat-vega-card svg,
+.chat-vega-card canvas {
     max-width: 100%;
     height: auto;
 }

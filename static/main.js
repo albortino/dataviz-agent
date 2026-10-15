@@ -793,6 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data && data.length > 0) {
             agentMgr.renderPreviewTable(data.slice(0, 5));
+            agentMgr.refreshCharts?.();
             if (duckdbEngine) {
                 if (window._duckdbLoadedFromCSV) {
                     window._duckdbLoadedFromCSV = false;

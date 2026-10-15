@@ -34,12 +34,37 @@ const CHART_TYPES = {
         render: async (targetEl, specString, mgr) => {
             if (!specString || !window.vegaEmbed) return;
             let spec = typeof specString === 'string' ? JSON.parse(specString) : specString;
+            spec = JSON.parse(JSON.stringify(spec));
+
             if (!spec.data || !spec.data.values || spec.data.values.length === 0) {
-                spec = JSON.parse(JSON.stringify(spec));
-                spec.data = { values: mgr.getData() || [] };
+                const current = mgr.getData() || [];
+                const fallbackData = targetEl._cachedData || [];
+                const values = current.length > 0 ? current : fallbackData;
+                if (!values || values.length === 0) {
+                    targetEl.innerHTML = '<div class="chat-rendering-notice"><i class="fa-solid fa-database"></i> Load dataset or demo data to view chart</div>';
+                    return;
+                }
+                spec.data = { values };
             }
+
+            // Scale chart width to 100% of the bubble container so it never squashes
+            const containerW = targetEl.clientWidth || targetEl.parentElement?.clientWidth || 360;
+            const availableW = Math.max(260, Math.floor(containerW - 20));
+            spec.width = availableW;
+            if (Array.isArray(spec.layer)) {
+                spec.layer.forEach(l => { if (l.width) delete l.width; });
+            }
+            if (!spec.height || (typeof spec.height === 'number' && spec.height < 180)) {
+                spec.height = 240;
+            }
+            spec.autosize = { type: 'fit-x', contains: 'padding' };
+
             targetEl.innerHTML = '';
-            await window.vegaEmbed(targetEl, spec, { actions: false, renderer: 'svg', mode: 'vega-lite' });
+            await window.vegaEmbed(targetEl, spec, {
+                actions: false,
+                renderer: 'svg',
+                mode: 'vega-lite'
+            });
         },
         open: (mgr, spec, chartId) => mgr.onOpenVega(spec, chartId)
     }
@@ -627,6 +652,7 @@ export class AgentManager {
         const conf = CHART_TYPES[type];
         if (!conf) return '';
         const cardClass = conf.cardClass ? ` ${conf.cardClass}` : '';
+        const bodyClass = type === 'vega' ? 'chat-vega-body' : 'chat-mermaid-body';
         return `
         <div class="chat-mermaid-card${cardClass}" id="card-${chartId}" data-chart-id="${chartId}" data-chart-type="${type}">
           <div class="chat-mermaid-header">
@@ -636,13 +662,13 @@ export class AgentManager {
               <button class="button icon-button" id="open-${chartId}" title="${conf.openTitle}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
             </div>
           </div>
-          <div class="chat-mermaid-body" id="${chartId}">
+          <div class="${bodyClass}" id="${chartId}">
             <div class="chat-rendering-notice">Rendering ${conf.title.toLowerCase()}...</div>
           </div>
         </div>`;
     }
 
-    mountChartCard(chartId, type, content) {
+    mountChartCard(chartId, type, content, data = null) {
         const conf = CHART_TYPES[type];
         if (!conf || !content) return;
 
@@ -659,6 +685,9 @@ export class AgentManager {
         setTimeout(async () => {
             const targetEl = document.getElementById(chartId);
             if (!targetEl) return;
+            if (data && Array.isArray(data) && data.length > 0) {
+                targetEl._cachedData = data;
+            }
             try {
                 await conf.render(targetEl, content, this);
             } catch (e) {
@@ -676,8 +705,9 @@ export class AgentManager {
         if (!bodyEl || !cardEl) return false;
 
         const type = cardEl.getAttribute('data-chart-type') || (chartId.includes('vega') ? 'vega' : 'mermaid');
+        const activeData = (type === 'vega' && this.getData) ? (this.getData() || []).slice(0, 300) : null;
         bodyEl.innerHTML = `<div class="chat-rendering-notice">Updating diagram...</div>`;
-        this.mountChartCard(chartId, type, newContent);
+        this.mountChartCard(chartId, type, newContent, activeData);
 
         const history = this.getChatHistory();
         for (const item of history) {
@@ -687,6 +717,7 @@ export class AgentManager {
             }
             if (item.vegaId === chartId) {
                 item.vegaSpec = newContent;
+                if (activeData) item.vegaData = activeData;
                 break;
             }
         }
@@ -711,9 +742,10 @@ export class AgentManager {
         const fenceTag = type === 'mermaid' ? 'mermaid' : 'vega-lite';
         const promptLabel = `Here is the ${conf.title} I created in the workbench:`;
         const rawContent = `${promptLabel}\n\`\`\`${fenceTag}\n${content}\n\`\`\``;
+        const activeData = (type === 'vega' && this.getData) ? (this.getData() || []).slice(0, 300) : null;
 
         const uMsg = document.createElement('div');
-        uMsg.className = 'message user';
+        uMsg.className = 'message user has-chart';
         uMsg.innerHTML = this.renderUserMessageContent({
             content: promptLabel,
             mermaidCode: type === 'mermaid' ? content : null,
@@ -723,7 +755,7 @@ export class AgentManager {
         });
         this.messagesContainer.appendChild(uMsg);
 
-        this.mountChartCard(chartId, type, content);
+        this.mountChartCard(chartId, type, content, activeData);
 
         const history = this.getChatHistory();
         history.push({
@@ -733,7 +765,8 @@ export class AgentManager {
             mermaidCode: type === 'mermaid' ? content : null,
             mermaidId: type === 'mermaid' ? chartId : null,
             vegaSpec: type === 'vega' ? content : null,
-            vegaId: type === 'vega' ? chartId : null
+            vegaId: type === 'vega' ? chartId : null,
+            vegaData: activeData
         });
         this.saveChatHistory(history);
 
@@ -768,8 +801,8 @@ export class AgentManager {
     renderMermaidCard(chartId) { return this.renderChartCard('mermaid', chartId); }
     renderVegaCard(chartId) { return this.renderChartCard('vega', chartId); }
     initMermaidDiagram(chartId, code) { this.mountChartCard(chartId, 'mermaid', code); }
-    initVegaDiagram(chartId, spec) { this.mountChartCard(chartId, 'vega', spec); }
-    setupVegaButtons(chartId, specString) { this.mountChartCard(chartId, 'vega', specString); }
+    initVegaDiagram(chartId, spec, data = null) { this.mountChartCard(chartId, 'vega', spec, data); }
+    setupVegaButtons(chartId, specString, data = null) { this.mountChartCard(chartId, 'vega', specString, data); }
     setupMermaidButtons(chartId, code) { this.mountChartCard(chartId, 'mermaid', code); }
 
     renderAgentMessageContent({ content, images = [], codeBlocks = [], plots = [], mermaidCode = null, chartId = null, vegaSpec = null, vegaId = null, logs = [] }) {
@@ -805,9 +838,9 @@ export class AgentManager {
         history.forEach(item => {
             if (item.role === 'user') {
                 const uMsg = document.createElement('div');
-                uMsg.className = 'message user';
                 const chartId = item.mermaidId || (item.mermaidCode ? `hist-mermaid-${item.timestamp || Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
                 const vegaId = item.vegaId || (item.vegaSpec ? `hist-vega-${item.timestamp || Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
+                uMsg.className = (chartId || vegaId) ? 'message user has-chart' : 'message user';
 
                 if (chartId || vegaId) {
                     const promptText = (item.content || '').split('\n```')[0].trim() || 'Shared chart from workbench:';
@@ -820,17 +853,17 @@ export class AgentManager {
                     });
                     this.messagesContainer.appendChild(uMsg);
                     if (item.mermaidCode && chartId) this.mountChartCard(chartId, 'mermaid', item.mermaidCode);
-                    if (item.vegaSpec && vegaId) this.mountChartCard(vegaId, 'vega', item.vegaSpec);
+                    if (item.vegaSpec && vegaId) this.mountChartCard(vegaId, 'vega', item.vegaSpec, item.vegaData || null);
                 } else {
                     uMsg.textContent = item.content;
                     this.messagesContainer.appendChild(uMsg);
                 }
             } else if (item.role === 'agent') {
                 const aMsg = document.createElement('div');
-                aMsg.className = 'message agent';
                 const chartId = item.mermaidId || (item.mermaidCode ? `hist-mermaid-${Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
                 const vegaId = item.vegaId || (item.vegaSpec ? `hist-vega-${Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
-                
+                aMsg.className = (chartId || vegaId) ? 'message agent has-chart' : 'message agent';
+
                 let codeBlocks = item.codeBlocks;
                 if ((!codeBlocks || codeBlocks.length === 0) && item.logs) {
                     codeBlocks = this.extractCodeBlocksFromLogs(item.logs);
@@ -857,7 +890,7 @@ export class AgentManager {
                     this.initMermaidDiagram(chartId, item.mermaidCode);
                 }
                 if (item.vegaSpec && vegaId) {
-                    this.initVegaDiagram(vegaId, item.vegaSpec);
+                    this.initVegaDiagram(vegaId, item.vegaSpec, item.vegaData || null);
                 }
 
                 itemPlots.forEach((p, idx) => {
@@ -1179,8 +1212,9 @@ export class AgentManager {
             if (mermaidCode && chartId) {
                 this.initMermaidDiagram(chartId, mermaidCode);
             }
+            const agentVegaData = (vegaSpec && this.getData) ? (this.getData() || []).slice(0, 300) : null;
             if (vegaSpec && vegaId) {
-                this.initVegaDiagram(vegaId, vegaSpec);
+                this.initVegaDiagram(vegaId, vegaSpec, agentVegaData);
             }
 
             plots.forEach((p, idx) => {
@@ -1199,6 +1233,7 @@ export class AgentManager {
                 mermaidId: chartId,
                 vegaSpec: vegaSpec,
                 vegaId: vegaId,
+                vegaData: agentVegaData,
                 logs: result.logs || [],
                 timestamp: msgTimestamp
             });
@@ -1269,7 +1304,7 @@ export class AgentManager {
             try {
                 const raw = localStorage.getItem('agent_active_skills_v1');
                 if (raw) skills = JSON.parse(raw);
-            } catch (_) {}
+            } catch (_) { }
         }
         return {
             history: this.getChatHistory(),
@@ -1289,6 +1324,19 @@ export class AgentManager {
         if (Array.isArray(state.activeSkills)) {
             setActiveSkills(state.activeSkills);
             this.updateSkillsLabel();
+        }
+    }
+
+    refreshCharts() {
+        const history = this.getChatHistory();
+        for (const item of history) {
+            const chartId = item.vegaId || (item.vegaSpec ? item.chartId : null);
+            if (item.vegaSpec && chartId) {
+                const targetEl = document.getElementById(chartId);
+                if (targetEl) {
+                    this.mountChartCard(chartId, 'vega', item.vegaSpec);
+                }
+            }
         }
     }
 }
