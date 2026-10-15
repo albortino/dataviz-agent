@@ -272,8 +272,8 @@ class ReActAgent:
                 ]
             return res
 
+        system_prompt = self._build_system_prompt()
         if messages is None:
-            system_prompt = self._build_system_prompt()
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query or "Please analyze the dataset."}
@@ -281,6 +281,10 @@ class ReActAgent:
         else:
             # Rehydrating conversation from client turn
             messages = [serialize_msg(m) for m in messages]
+            if not messages or messages[0].get("role") != "system":
+                messages.insert(0, {"role": "system", "content": system_prompt})
+            if user_query and (not messages or messages[-1].get("content") != user_query):
+                messages.append({"role": "user", "content": user_query})
             if tool_results:
                 for tr in tool_results:
                     tr_id = tr.get("tool_call_id") or tr.get("id")

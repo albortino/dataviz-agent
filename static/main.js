@@ -158,9 +158,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleAgent(true);
             if (sourceChartId) {
                 const updated = agentMgr.updateChart(sourceChartId, code);
-                if (!updated) agentMgr.appendChartCard('mermaid', code);
+                if (!updated) agentMgr.appendUserChartMessage('mermaid', code);
             } else {
-                agentMgr.appendChartCard('mermaid', code);
+                agentMgr.appendUserChartMessage('mermaid', code);
             }
         }
     });
@@ -175,9 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleAgent(true);
             if (sourceChartId) {
                 const updated = agentMgr.updateChart(sourceChartId, spec);
-                if (!updated) agentMgr.appendChartCard('vega', spec);
+                if (!updated) agentMgr.appendUserChartMessage('vega', spec);
             } else {
-                agentMgr.appendChartCard('vega', spec);
+                agentMgr.appendUserChartMessage('vega', spec);
             }
         }
     });

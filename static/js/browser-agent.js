@@ -335,6 +335,7 @@ export async function executeBrowserTool(callName, callArgs, duckdbEngine) {
  */
 export async function runBrowserDirectAgent({
     userQuery,
+    messages: inputMessages,
     apiKey,
     baseUrl,
     model,
@@ -375,10 +376,21 @@ ABOUT THIS WORKBENCH & VISUALIZATION ENVIRONMENT:
 - DATASET MODIFICATIONS: If the user asks to add, calculate, rename, or drop columns, or transform/filter the dataset permanently, you MUST execute a SQL statement on table 'dataset' using \`execute_sql\` (e.g. \`ALTER TABLE dataset ADD COLUMN col_name INT DEFAULT 1;\` or \`CREATE OR REPLACE TABLE dataset AS SELECT *, 1 AS col_ones, 2 AS col_twos FROM dataset;\`). This permanently updates table 'dataset' so that the user's Live Data State preview reflects the new columns.
 - Present direct, concise answers without redundant filler text.`;
 
-    const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userQuery || 'Please analyze the dataset.' }
-    ];
+    let messages = [];
+    if (Array.isArray(inputMessages) && inputMessages.length > 0) {
+        messages = [
+            { role: 'system', content: systemPrompt },
+            ...inputMessages.filter(m => m.role !== 'system')
+        ];
+        if (userQuery && (!messages.length || messages[messages.length - 1].content !== userQuery)) {
+            messages.push({ role: 'user', content: userQuery });
+        }
+    } else {
+        messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userQuery || 'Please analyze the dataset.' }
+        ];
+    }
 
     let requestUrl = '';
     const headers = { 'Content-Type': 'application/json' };

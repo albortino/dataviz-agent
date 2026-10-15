@@ -695,30 +695,40 @@ export class AgentManager {
         return true;
     }
 
-    appendChartCard(type, content) {
+    renderUserMessageContent({ content, mermaidCode = null, chartId = null, vegaSpec = null, vegaId = null }) {
+        const textHtml = `<div class="user-message-text">${escapeHtml(content).replace(/\n/g, '<br>')}</div>`;
+        const mermaidHtml = (mermaidCode && chartId) ? this.renderChartCard('mermaid', chartId) : '';
+        const vegaHtml = (vegaSpec && vegaId) ? this.renderChartCard('vega', vegaId) : '';
+        return `${textHtml}${mermaidHtml}${vegaHtml}`;
+    }
+
+    appendUserChartMessage(type, content) {
         const conf = CHART_TYPES[type];
         if (!conf || !content) return;
 
         const timestamp = Date.now();
-        const chartId = `chat-${type}-${timestamp}-${Math.floor(Math.random() * 1000)}`;
+        const chartId = `user-${type}-${timestamp}-${Math.floor(Math.random() * 1000)}`;
+        const fenceTag = type === 'mermaid' ? 'mermaid' : 'vega-lite';
+        const promptLabel = `Here is the ${conf.title} I created in the workbench:`;
+        const rawContent = `${promptLabel}\n\`\`\`${fenceTag}\n${content}\n\`\`\``;
 
-        const aMsg = document.createElement('div');
-        aMsg.className = 'message agent';
-        aMsg.innerHTML = this.renderAgentMessageContent({
-            content: `Updated ${conf.title}:`,
+        const uMsg = document.createElement('div');
+        uMsg.className = 'message user';
+        uMsg.innerHTML = this.renderUserMessageContent({
+            content: promptLabel,
             mermaidCode: type === 'mermaid' ? content : null,
             chartId: type === 'mermaid' ? chartId : null,
             vegaSpec: type === 'vega' ? content : null,
             vegaId: type === 'vega' ? chartId : null
         });
-        this.messagesContainer.appendChild(aMsg);
+        this.messagesContainer.appendChild(uMsg);
 
         this.mountChartCard(chartId, type, content);
 
         const history = this.getChatHistory();
         history.push({
-            role: 'agent',
-            content: `Updated ${conf.title}:`,
+            role: 'user',
+            content: rawContent,
             timestamp: timestamp,
             mermaidCode: type === 'mermaid' ? content : null,
             mermaidId: type === 'mermaid' ? chartId : null,
@@ -729,6 +739,30 @@ export class AgentManager {
 
         const cardEl = document.getElementById(`card-${chartId}`);
         if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    appendChartCard(type, content) {
+        return this.appendUserChartMessage(type, content);
+    }
+
+    buildConversationMessages() {
+        const history = this.getChatHistory();
+        const messages = [];
+
+        for (const item of history) {
+            const role = item.role === 'user' ? 'user' : 'assistant';
+            let content = item.content || '';
+
+            if (item.mermaidCode && !content.includes('```mermaid')) {
+                content += `\n\`\`\`mermaid\n${item.mermaidCode}\n\`\`\``;
+            } else if (item.vegaSpec && !content.includes('```vega')) {
+                content += `\n\`\`\`vega-lite\n${item.vegaSpec}\n\`\`\``;
+            }
+
+            messages.push({ role, content });
+        }
+
+        return messages;
     }
 
     renderMermaidCard(chartId) { return this.renderChartCard('mermaid', chartId); }
@@ -772,8 +806,25 @@ export class AgentManager {
             if (item.role === 'user') {
                 const uMsg = document.createElement('div');
                 uMsg.className = 'message user';
-                uMsg.textContent = item.content;
-                this.messagesContainer.appendChild(uMsg);
+                const chartId = item.mermaidId || (item.mermaidCode ? `hist-mermaid-${item.timestamp || Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
+                const vegaId = item.vegaId || (item.vegaSpec ? `hist-vega-${item.timestamp || Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
+
+                if (chartId || vegaId) {
+                    const promptText = (item.content || '').split('\n```')[0].trim() || 'Shared chart from workbench:';
+                    uMsg.innerHTML = this.renderUserMessageContent({
+                        content: promptText,
+                        mermaidCode: item.mermaidCode,
+                        chartId: chartId,
+                        vegaSpec: item.vegaSpec,
+                        vegaId: vegaId
+                    });
+                    this.messagesContainer.appendChild(uMsg);
+                    if (item.mermaidCode && chartId) this.mountChartCard(chartId, 'mermaid', item.mermaidCode);
+                    if (item.vegaSpec && vegaId) this.mountChartCard(vegaId, 'vega', item.vegaSpec);
+                } else {
+                    uMsg.textContent = item.content;
+                    this.messagesContainer.appendChild(uMsg);
+                }
             } else if (item.role === 'agent') {
                 const aMsg = document.createElement('div');
                 aMsg.className = 'message agent';
@@ -919,8 +970,10 @@ export class AgentManager {
             const datasetProfile = hasDuckDB ? await window.duckdbEngine.summarizeDataset() : null;
             const previewData = data.slice(0, 50);
 
+            const conversationMessages = this.buildConversationMessages();
             let chatPayload = {
                 message: text,
+                messages: conversationMessages,
                 data: previewData,
                 row_count: totalRowCount,
                 dataset_profile: datasetProfile,
@@ -954,6 +1007,7 @@ export class AgentManager {
 
                 result = await runBrowserDirectAgent({
                     userQuery: text,
+                    messages: conversationMessages,
                     apiKey,
                     baseUrl,
                     model,
