@@ -14,6 +14,8 @@ body {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -231,10 +233,10 @@ body>header,
 .button.dropdown-trigger-btn[aria-expanded="true"],
 .dropdown-trigger-btn.active,
 .dropdown-trigger-btn[aria-expanded="true"] {
-    border-color: var(--color-primary);
-    background: var(--color-primary-light);
-    color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    border-color: var(--color-border);
+    background: #ffffff !important;
+    color: var(--color-text-primary);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.08);
     font-weight: var(--font-weight-bold);
 }
 
@@ -253,7 +255,7 @@ body>header,
 
 .dropdown-trigger-btn.active i,
 .dropdown-trigger-btn[aria-expanded="true"] i {
-    color: var(--color-primary);
+    color: var(--color-text-primary);
 }
 
 .dropdown-trigger-btn .caret {
@@ -270,7 +272,7 @@ body>header,
 .dropdown-trigger-btn.active .caret,
 .dropdown-trigger-btn[aria-expanded="true"] .caret {
     transform: rotate(180deg);
-    color: var(--color-primary);
+    color: var(--color-text-primary);
 }
 
 /* Dropdown Menu Popover */
@@ -5032,11 +5034,12 @@ hr.control-divider,
    Responsive Breakpoints
    ========================================================================== */
 
-/* Header: Below 1350px, collapse Load Data and Demo Data buttons (hide label text) */
+/* Header: Below 1350px, collapse sidebar controls pill to icons first */
 @media (max-width: 1350px) {
 
     #set-data-btn span,
-    #dummy-data-btn span {
+    #dummy-data-btn span,
+    .sidebars-controls-pill .copilot-header-btn span {
         display: none;
     }
 
@@ -5045,26 +5048,14 @@ hr.control-divider,
         padding: 0.45rem 0.75rem;
         min-width: auto;
     }
-}
 
-/* Header: Below 1100px, collapse view-controls navigation tab labels */
-@media (max-width: 1100px) {
-    #view-controls .button span {
-        display: none;
-    }
-
-    #view-controls .button {
+    .sidebars-controls-pill .copilot-header-btn {
         padding: 0.35rem 0.65rem;
     }
+}
 
-    .icon-button span {
-        display: none;
-    }
-
-    .icon-button {
-        padding: 0.4rem 0.6rem;
-    }
-
+/* Header: Below 1100px */
+@media (max-width: 1100px) {
     .tab-intro-criteria {
         grid-template-columns: 1fr;
     }
@@ -5154,6 +5145,10 @@ hr.control-divider,
     }
 
     #view-controls::-webkit-scrollbar {
+        display: none;
+    }
+
+    #view-controls .button span {
         display: none;
     }
 
