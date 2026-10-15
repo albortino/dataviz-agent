@@ -147,13 +147,8 @@ export async function fetchAiDiagram({ systemPrompt, sampleData = [], codeRegex,
         const answer = res.answer || '';
 
         if (codeRegex) {
-            const match = answer.match(codeRegex);
-            if (match) return match[1].trim();
-
-            for (const log of (res.logs || [])) {
-                const logMatch = log.match(codeRegex);
-                if (logMatch) return logMatch[1].trim();
-            }
+            const extracted = extractCodeFence(answer, res.logs || [], codeRegex);
+            if (extracted) return extracted;
         }
 
         return answer.trim();
@@ -238,4 +233,51 @@ export function bindAiModal({ aiBtn, modal, input, closeBtn, cancelBtn, submitBt
     }
 
     return { open, close, submit };
+}
+
+/**
+ * Extracts a code fence matching regex from markdown or log traces
+ */
+export function extractCodeFence(text, logs = [], regex) {
+    if (!regex) return (text || '').trim();
+    if (text) {
+        const match = text.match(regex);
+        if (match) return match[1].trim();
+    }
+    for (const log of logs) {
+        if (typeof log === 'string') {
+            const logMatch = log.match(regex);
+            if (logMatch) return logMatch[1].trim();
+        }
+    }
+    return null;
+}
+
+/**
+ * Copies text to clipboard with temporary button checkmark feedback
+ */
+export function copyToClipboard(text, btn) {
+    if (!text) return Promise.resolve();
+    return navigator.clipboard.writeText(text).then(() => {
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
+}
+
+/**
+ * Wraps an async operation with button spinner and disabled state
+ */
+export async function withButtonSpinner(btn, asyncFn) {
+    if (!btn) return asyncFn();
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
+    try {
+        return await asyncFn();
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
 }

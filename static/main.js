@@ -153,7 +153,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const mermaidMgr = new MermaidManager({
-        getData
+        getData,
+        onApplyToChat: ({ code, sourceChartId }) => {
+            toggleAgent(true);
+            if (sourceChartId) {
+                const updated = agentMgr.updateChart(sourceChartId, code);
+                if (!updated) agentMgr.appendChartCard('mermaid', code);
+            } else {
+                agentMgr.appendChartCard('mermaid', code);
+            }
+        }
     });
 
     const sankeyMgr = new SankeyManager({
@@ -161,7 +170,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const vegaMgr = new VegaManager({
-        getData
+        getData,
+        onApplyToChat: ({ spec, sourceChartId }) => {
+            toggleAgent(true);
+            if (sourceChartId) {
+                const updated = agentMgr.updateChart(sourceChartId, spec);
+                if (!updated) agentMgr.appendChartCard('vega', spec);
+            } else {
+                agentMgr.appendChartCard('vega', spec);
+            }
+        }
     });
 
     const sanddanceMgr = new SandDanceManager({
@@ -174,12 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const agentMgr = new AgentManager({
         getData,
-        onOpenMermaid: (code) => {
-            if (mermaidMgr.textEditor) mermaidMgr.textEditor.value = code;
+        onOpenMermaid: (code, chartId) => {
+            mermaidMgr.loadDiagram(code, chartId);
             showMermaid();
         },
-        onOpenVega: (spec) => {
-            vegaMgr.loadSpec(spec);
+        onOpenVega: (spec, chartId) => {
+            vegaMgr.loadSpec(spec, chartId);
             showVega();
         }
     });

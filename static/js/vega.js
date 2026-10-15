@@ -14,7 +14,9 @@ import {
     bindCollapsibleSidebar,
     populateColumnSelects,
     bindAiModal,
-    CHART_CATEGORICAL
+    CHART_CATEGORICAL,
+    withButtonSpinner,
+    copyToClipboard
 } from './studio-utils.js';
 
 export { CHART_CATEGORICAL };
@@ -115,6 +117,9 @@ export class VegaManager {
         this.aiModalCloseBtn = document.getElementById('close-vega-ai-modal-btn');
         this.aiModalCancelBtn = document.getElementById('cancel-vega-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-vega-ai-modal-btn');
+        this.applyChatBtn = document.getElementById('vega-apply-chat-btn');
+        this.sourceChartId = null;
+        this.onApplyToChat = options.onApplyToChat || null;
     }
 
     init() {
@@ -338,6 +343,16 @@ export class VegaManager {
             submitBtn: this.aiModalSubmitBtn,
             onSubmit: (prompt) => this.generateWithAI(prompt)
         });
+
+        if (this.applyChatBtn) {
+            this.applyChatBtn.addEventListener('click', () => {
+                const spec = this.getSpecText()?.trim();
+                if (!spec) return;
+                if (typeof this.onApplyToChat === 'function') {
+                    this.onApplyToChat({ spec, sourceChartId: this.sourceChartId });
+                }
+            });
+        }
 
         // Zoom Controls
         if (this.zoomInBtn) this.zoomInBtn.addEventListener('click', () => this.setZoom(this.zoomLevel + 0.15));
@@ -835,8 +850,19 @@ export class VegaManager {
         }
     }
 
-    loadSpec(spec) {
+    setSourceChartId(chartId) {
+        this.sourceChartId = chartId;
+        if (this.applyChatBtn) {
+            this.applyChatBtn.innerHTML = chartId
+                ? '<i class="fa-solid fa-arrows-rotate"></i><span>Update in Chat</span>'
+                : '<i class="fa-solid fa-paper-plane"></i><span>Send to Chat</span>';
+            this.applyChatBtn.title = chartId ? 'Update this chart in the originating chat card' : 'Send this chart to chat as a new card';
+        }
+    }
+
+    loadSpec(spec, sourceChartId = null) {
         if (!spec) return;
+        this.setSourceChartId(sourceChartId);
         const text = formatVegaSpec(spec);
         this.setSpecText(text);
         this.syncControlsFromSpec();
@@ -903,32 +929,23 @@ export class VegaManager {
         if (customPrompt) systemPrompt += `User Instructions: ${customPrompt}\n`;
         systemPrompt += `IMPORTANT: Output ONLY the valid Vega-Lite specification JSON enclosed in \`\`\`vega-lite ... \`\`\` code fence. Do NOT embed full data rows; use "data": { "name": "source" } or omit data so the client injects the dataset. Do NOT include conversational commentary outside the fence.`;
 
-        const originalBtnHtml = this.aiBtn ? this.aiBtn.innerHTML : '';
-        if (this.aiBtn) {
-            this.aiBtn.disabled = true;
-            this.aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
-        }
-
         try {
-            const specJson = await fetchAiDiagram({
-                systemPrompt,
-                sampleData: data,
-                codeRegex: /```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i
-            });
+            await withButtonSpinner(this.aiBtn, async () => {
+                const specJson = await fetchAiDiagram({
+                    systemPrompt,
+                    sampleData: data,
+                    codeRegex: /```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i
+                });
 
-            if (specJson && (specJson.startsWith('{') || specJson.includes('"mark"'))) {
-                this.loadSpec(specJson);
-            } else {
-                alert('AI did not return a valid Vega-Lite specification code block.');
-            }
+                if (specJson && (specJson.startsWith('{') || specJson.includes('"mark"'))) {
+                    this.loadSpec(specJson);
+                } else {
+                    alert('AI did not return a valid Vega-Lite specification code block.');
+                }
+            });
         } catch (err) {
             console.error('Vega AI error:', err);
             alert(`AI generation failed: ${err.message}`);
-        } finally {
-            if (this.aiBtn) {
-                this.aiBtn.disabled = false;
-                this.aiBtn.innerHTML = originalBtnHtml;
-            }
         }
     }
 
@@ -979,14 +996,7 @@ export class VegaManager {
     }
 
     copyJson() {
-        const text = this.getSpecText() || '';
-        navigator.clipboard.writeText(text).then(() => {
-            if (this.copyJsonBtn) {
-                const orig = this.copyJsonBtn.innerHTML;
-                this.copyJsonBtn.innerHTML = `<i class="fa-solid fa-check"></i><span>Copied</span>`;
-                setTimeout(() => { this.copyJsonBtn.innerHTML = orig; }, 2000);
-            }
-        });
+        copyToClipboard(this.getSpecText() || '', this.copyJsonBtn);
     }
 
     exportState() {

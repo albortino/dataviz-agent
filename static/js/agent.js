@@ -7,8 +7,43 @@
 import { ClientDataTools } from './data-transform.js';
 import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js?v=2';
 import { validateBrowserDirectConnection, runBrowserDirectAgent } from './browser-agent.js';
+import { copyToClipboard, extractCodeFence } from './studio-utils.js';
 
 export const CHAT_STORAGE_KEY = 'ai_agent_chat_history_v1';
+
+const CHART_TYPES = {
+    mermaid: {
+        title: 'Mermaid Diagram',
+        icon: 'fa-code-fork',
+        cardClass: '',
+        copyTitle: 'Copy Mermaid Syntax',
+        openTitle: 'Open in Mermaid Workbench',
+        render: async (targetEl, code) => {
+            if (!code || !window.mermaid) return;
+            const { svg } = await window.mermaid.render(`svg-${targetEl.id}`, code);
+            targetEl.innerHTML = svg;
+        },
+        open: (mgr, code, chartId) => mgr.onOpenMermaid(code, chartId)
+    },
+    vega: {
+        title: 'Vega Chart',
+        icon: 'fa-chart-line',
+        cardClass: 'chat-vega-card',
+        copyTitle: 'Copy Vega-Lite JSON',
+        openTitle: 'Open in Vega Studio',
+        render: async (targetEl, specString, mgr) => {
+            if (!specString || !window.vegaEmbed) return;
+            let spec = typeof specString === 'string' ? JSON.parse(specString) : specString;
+            if (!spec.data || !spec.data.values || spec.data.values.length === 0) {
+                spec = JSON.parse(JSON.stringify(spec));
+                spec.data = { values: mgr.getData() || [] };
+            }
+            targetEl.innerHTML = '';
+            await window.vegaEmbed(targetEl, spec, { actions: false, renderer: 'svg', mode: 'vega-lite' });
+        },
+        open: (mgr, spec, chartId) => mgr.onOpenVega(spec, chartId)
+    }
+};
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -432,10 +467,7 @@ export class AgentManager {
 
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(editor.value).then(() => {
-                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-                    setTimeout(() => { copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy'; }, 2000);
-                });
+                copyToClipboard(editor.value, copyBtn);
             });
         }
 
@@ -591,97 +623,120 @@ export class AgentManager {
         return `<details class="chat-tool-logs-details"><summary class="chat-tool-logs-summary">View Tool Execution Steps (${logs.length})</summary>${logItems}</details>`;
     }
 
-    renderMermaidCard(chartId) {
+    renderChartCard(type, chartId) {
+        const conf = CHART_TYPES[type];
+        if (!conf) return '';
+        const cardClass = conf.cardClass ? ` ${conf.cardClass}` : '';
         return `
-        <div class="chat-mermaid-card">
+        <div class="chat-mermaid-card${cardClass}" id="card-${chartId}" data-chart-id="${chartId}" data-chart-type="${type}">
           <div class="chat-mermaid-header">
-            <span><i class="fa-solid fa-code-fork chat-mermaid-title-icon"></i>Mermaid Diagram</span>
+            <span><i class="fa-solid ${conf.icon} chat-mermaid-title-icon"></i>${conf.title}</span>
             <div class="chat-mermaid-actions">
-              <button class="button icon-button" id="copy-${chartId}" title="Copy Mermaid Syntax"><i class="fa-regular fa-copy"></i> Copy</button>
-              <button class="button icon-button" id="open-${chartId}" title="Open in Mermaid Workbench"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
+              <button class="button icon-button" id="copy-${chartId}" title="${conf.copyTitle}"><i class="fa-regular fa-copy"></i> Copy</button>
+              <button class="button icon-button" id="open-${chartId}" title="${conf.openTitle}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
             </div>
           </div>
           <div class="chat-mermaid-body" id="${chartId}">
-            <div class="chat-rendering-notice">Rendering diagram...</div>
+            <div class="chat-rendering-notice">Rendering ${conf.title.toLowerCase()}...</div>
           </div>
         </div>`;
     }
 
-    renderVegaCard(chartId) {
-        return `
-        <div class="chat-mermaid-card chat-vega-card">
-          <div class="chat-mermaid-header chat-vega-header">
-            <span><i class="fa-solid fa-chart-line chat-mermaid-title-icon"></i>Vega Chart</span>
-            <div class="chat-mermaid-actions chat-vega-actions">
-              <button class="button icon-button" id="copy-${chartId}" title="Copy Vega-Lite JSON"><i class="fa-regular fa-copy"></i> Copy</button>
-              <button class="button icon-button" id="open-${chartId}" title="Open in Vega Studio"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
-            </div>
-          </div>
-          <div class="chat-mermaid-body chat-vega-body" id="${chartId}">
-            <div class="chat-rendering-notice">Rendering chart...</div>
-          </div>
-        </div>`;
-    }
+    mountChartCard(chartId, type, content) {
+        const conf = CHART_TYPES[type];
+        if (!conf || !content) return;
 
-    initMermaidDiagram(chartId, code) {
-        if (!code || !window.mermaid) return;
-        setTimeout(async () => {
-            const targetEl = document.getElementById(chartId);
-            if (targetEl) {
-                try {
-                    const { svg } = await mermaid.render(`svg-${chartId}`, code);
-                    targetEl.innerHTML = svg;
-                } catch (e) {
-                    console.warn("Mermaid render error:", e);
-                    targetEl.innerHTML = `<div class="chat-diagram-render-error">Diagram rendering error: ${e.message || String(e)}</div>`;
-                }
-            }
-            this.setupMermaidButtons(chartId, code);
-            this.scrollChatToBottom();
-        }, 50);
-    }
-
-    initVegaDiagram(chartId, specString) {
-        if (!specString || !window.vegaEmbed) return;
-        setTimeout(async () => {
-            const targetEl = document.getElementById(chartId);
-            if (targetEl) {
-                try {
-                    let spec = typeof specString === 'string' ? JSON.parse(specString) : specString;
-                    if (!spec.data || !spec.data.values || spec.data.values.length === 0) {
-                        spec = JSON.parse(JSON.stringify(spec));
-                        spec.data = { values: this.getData() || [] };
-                    }
-                    targetEl.innerHTML = '';
-                    await window.vegaEmbed(targetEl, spec, { actions: false, renderer: 'svg', mode: 'vega-lite' });
-                } catch (e) {
-                    console.warn("Vega render error:", e);
-                    targetEl.innerHTML = `<div class="chat-diagram-render-error">Vega rendering error: ${e.message || String(e)}</div>`;
-                }
-            }
-            this.setupVegaButtons(chartId, specString);
-            this.scrollChatToBottom();
-        }, 50);
-    }
-
-    setupVegaButtons(chartId, specString) {
         const copyBtn = document.getElementById(`copy-${chartId}`);
         if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(specString).then(() => {
-                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-                    setTimeout(() => { copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy'; }, 2000);
-                });
-            });
+            copyBtn.onclick = () => copyToClipboard(content, copyBtn);
         }
 
         const openBtn = document.getElementById(`open-${chartId}`);
         if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                this.onOpenVega(specString);
-            });
+            openBtn.onclick = () => conf.open(this, content, chartId);
         }
+
+        setTimeout(async () => {
+            const targetEl = document.getElementById(chartId);
+            if (!targetEl) return;
+            try {
+                await conf.render(targetEl, content, this);
+            } catch (e) {
+                console.warn(`${conf.title} render error:`, e);
+                targetEl.innerHTML = `<div class="chat-diagram-render-error">${conf.title} rendering error: ${e.message || String(e)}</div>`;
+            }
+            this.scrollChatToBottom();
+        }, 50);
     }
+
+    updateChart(chartId, newContent) {
+        if (!chartId || !newContent) return false;
+        const bodyEl = document.getElementById(chartId);
+        const cardEl = document.getElementById(`card-${chartId}`) || bodyEl?.closest('.chat-mermaid-card');
+        if (!bodyEl || !cardEl) return false;
+
+        const type = cardEl.getAttribute('data-chart-type') || (chartId.includes('vega') ? 'vega' : 'mermaid');
+        bodyEl.innerHTML = `<div class="chat-rendering-notice">Updating diagram...</div>`;
+        this.mountChartCard(chartId, type, newContent);
+
+        const history = this.getChatHistory();
+        for (const item of history) {
+            if (item.mermaidId === chartId || item.chartId === chartId) {
+                item.mermaidCode = newContent;
+                break;
+            }
+            if (item.vegaId === chartId) {
+                item.vegaSpec = newContent;
+                break;
+            }
+        }
+        this.saveChatHistory(history);
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return true;
+    }
+
+    appendChartCard(type, content) {
+        const conf = CHART_TYPES[type];
+        if (!conf || !content) return;
+
+        const timestamp = Date.now();
+        const chartId = `chat-${type}-${timestamp}-${Math.floor(Math.random() * 1000)}`;
+
+        const aMsg = document.createElement('div');
+        aMsg.className = 'message agent';
+        aMsg.innerHTML = this.renderAgentMessageContent({
+            content: `Updated ${conf.title}:`,
+            mermaidCode: type === 'mermaid' ? content : null,
+            chartId: type === 'mermaid' ? chartId : null,
+            vegaSpec: type === 'vega' ? content : null,
+            vegaId: type === 'vega' ? chartId : null
+        });
+        this.messagesContainer.appendChild(aMsg);
+
+        this.mountChartCard(chartId, type, content);
+
+        const history = this.getChatHistory();
+        history.push({
+            role: 'agent',
+            content: `Updated ${conf.title}:`,
+            timestamp: timestamp,
+            mermaidCode: type === 'mermaid' ? content : null,
+            mermaidId: type === 'mermaid' ? chartId : null,
+            vegaSpec: type === 'vega' ? content : null,
+            vegaId: type === 'vega' ? chartId : null
+        });
+        this.saveChatHistory(history);
+
+        const cardEl = document.getElementById(`card-${chartId}`);
+        if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    renderMermaidCard(chartId) { return this.renderChartCard('mermaid', chartId); }
+    renderVegaCard(chartId) { return this.renderChartCard('vega', chartId); }
+    initMermaidDiagram(chartId, code) { this.mountChartCard(chartId, 'mermaid', code); }
+    initVegaDiagram(chartId, spec) { this.mountChartCard(chartId, 'vega', spec); }
+    setupVegaButtons(chartId, specString) { this.mountChartCard(chartId, 'vega', specString); }
+    setupMermaidButtons(chartId, code) { this.mountChartCard(chartId, 'mermaid', code); }
 
     renderAgentMessageContent({ content, images = [], codeBlocks = [], plots = [], mermaidCode = null, chartId = null, vegaSpec = null, vegaId = null, logs = [] }) {
         let finalPlots = plots;
@@ -762,24 +817,6 @@ export class AgentManager {
         this.scrollChatToBottom(false);
     }
 
-    setupMermaidButtons(chartId, code) {
-        const copyBtn = document.getElementById(`copy-${chartId}`);
-        if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(code).then(() => {
-                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-                    setTimeout(() => { copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy'; }, 2000);
-                });
-            });
-        }
-
-        const openBtn = document.getElementById(`open-${chartId}`);
-        if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                this.onOpenMermaid(code);
-            });
-        }
-    }
 
     async handleSend() {
         const text = this.chatInput?.value?.trim();
@@ -1047,26 +1084,13 @@ export class AgentManager {
                 }
             }
             let rawAnswer = result.answer || '';
-            let mermaidCode = null;
-            let vegaSpec = null;
-
-            const match = rawAnswer.match(/```mermaid\s*([\s\S]*?)\s*```/i);
-            if (match) {
-                mermaidCode = match[1].trim();
+            const mermaidCode = extractCodeFence(rawAnswer, result.logs || [], /```mermaid\s*([\s\S]*?)\s*```/i);
+            if (mermaidCode) {
                 rawAnswer = rawAnswer.replace(/```mermaid\s*[\s\S]*?\s*```/i, '').trim();
-            } else {
-                for (const log of (result.logs || [])) {
-                    const logMatch = log.match(/Observation:\s*```mermaid\s*([\s\S]*?)\s*```/i);
-                    if (logMatch) {
-                        mermaidCode = logMatch[1].trim();
-                        break;
-                    }
-                }
             }
 
-            const vegaMatch = rawAnswer.match(/```(?:vega-lite|vega)\s*([\s\S]*?)\s*```/i);
-            if (vegaMatch) {
-                vegaSpec = vegaMatch[1].trim();
+            const vegaSpec = extractCodeFence(rawAnswer, result.logs || [], /```(?:vega-lite|vega)\s*([\s\S]*?)\s*```/i);
+            if (vegaSpec) {
                 rawAnswer = rawAnswer.replace(/```(?:vega-lite|vega)\s*[\s\S]*?\s*```/i, '').trim();
             }
 

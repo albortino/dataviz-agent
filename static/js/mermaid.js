@@ -20,7 +20,8 @@ import {
     fetchAiDiagram,
     bindCollapsibleSidebar,
     populateColumnSelects,
-    bindAiModal
+    bindAiModal,
+    withButtonSpinner
 } from './studio-utils.js';
 
 export const MERMAID_DEMOS = {
@@ -230,6 +231,28 @@ export class MermaidManager {
         this.aiModalCloseBtn = document.getElementById('close-mermaid-ai-modal-btn');
         this.aiModalCancelBtn = document.getElementById('cancel-mermaid-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-mermaid-ai-modal-btn');
+        this.applyChatBtn = document.getElementById('mermaid-apply-chat-btn');
+        this.sourceChartId = null;
+        this.onApplyToChat = options.onApplyToChat || null;
+    }
+
+    setSourceChartId(chartId) {
+        this.sourceChartId = chartId;
+        if (this.applyChatBtn) {
+            this.applyChatBtn.innerHTML = chartId
+                ? '<i class="fa-solid fa-arrows-rotate"></i><span>Update in Chat</span>'
+                : '<i class="fa-solid fa-paper-plane"></i><span>Send to Chat</span>';
+            this.applyChatBtn.title = chartId ? 'Update this diagram in the originating chat card' : 'Send this diagram to chat as a new card';
+        }
+    }
+
+    loadDiagram(code, sourceChartId = null) {
+        if (!code) return;
+        this.setSourceChartId(sourceChartId);
+        if (this.textEditor) this.textEditor.value = code;
+        this.renderConfigPanel();
+        this.updateUIControls();
+        this.renderChart();
     }
 
     init() {
@@ -837,43 +860,25 @@ export class MermaidManager {
 
         prompt += ` Output ONLY the valid Mermaid diagram code enclosed in \`\`\`mermaid ... \`\`\` code fence. Do not include conversational markdown outside the code fence.`;
 
-        const originalText = this.aiBtn.innerHTML;
-        this.aiBtn.disabled = true;
-        this.aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
-
         try {
-            let rawCode = await fetchAiDiagram({
-                systemPrompt: prompt,
-                sampleData: currentData,
-                codeRegex: /```mermaid\s*([\s\S]*?)\s*```/i
+            await withButtonSpinner(this.aiBtn, async () => {
+                const rawCode = await fetchAiDiagram({
+                    systemPrompt: prompt,
+                    sampleData: currentData,
+                    codeRegex: /```mermaid\s*([\s\S]*?)\s*```/i
+                });
+
+                if (rawCode) {
+                    this.textEditor.value = rawCode;
+                    this.renderConfigPanel();
+                    this.renderChart();
+                } else {
+                    alert("AI response did not contain a valid Mermaid diagram code fence. Please check AI settings or try again.");
+                }
             });
-
-            if (!rawCode.includes('\n') && (
-                rawCode.startsWith('flowchart') ||
-                rawCode.startsWith('pie') ||
-                rawCode.startsWith('erDiagram') ||
-                rawCode.startsWith('sequenceDiagram') ||
-                rawCode.startsWith('xychart') ||
-                rawCode.startsWith('radar') ||
-                rawCode.startsWith('treemap') ||
-                rawCode.startsWith('sankey')
-            )) {
-                // Already raw code
-            }
-
-            if (rawCode) {
-                this.textEditor.value = rawCode;
-                this.renderConfigPanel();
-                this.renderChart();
-            } else {
-                alert("AI response did not contain a valid Mermaid diagram code fence. Please check AI settings or try again.");
-            }
         } catch (err) {
             console.error("Mermaid AI generation error:", err);
             alert(`AI generation failed: ${err.message}`);
-        } finally {
-            this.aiBtn.innerHTML = originalText;
-            this.aiBtn.disabled = false;
         }
     }
 
@@ -949,6 +954,16 @@ export class MermaidManager {
         }
 
         if (this.demoBtn) this.demoBtn.addEventListener('click', () => this.showDemo());
+
+        if (this.applyChatBtn) {
+            this.applyChatBtn.addEventListener('click', () => {
+                const code = this.textEditor?.value?.trim();
+                if (!code) return;
+                if (typeof this.onApplyToChat === 'function') {
+                    this.onApplyToChat({ code, sourceChartId: this.sourceChartId });
+                }
+            });
+        }
         
         bindAiModal({
             aiBtn: this.aiBtn,
