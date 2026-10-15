@@ -4,14 +4,11 @@
  * D3 interactive graph layout, node dragging, dynamic colors, annotations, and exports.
  */
 
-import { aggregateValues, detectType } from './data-transform.js';
+import { aggregateValues, detectType, aggregateFlows } from './data-transform.js';
 import { formatSankeySyntax } from './spec-formatter.js';
-import { exportSvg, bindCollapsibleSidebar } from './studio-utils.js';
+import { exportSvg, bindCollapsibleSidebar, populateColumnSelects, CHART_CATEGORICAL } from './studio-utils.js';
 
-export const CHART_CATEGORICAL = [
-    '#0072B2', '#D55E00', '#009E73', '#CC79A7',
-    '#56B4E9', '#E69F00', '#999999'
-];
+export { CHART_CATEGORICAL };
 export const CHART_SINGLE = '#0072B2';
 export const CHART_HIGHLIGHT = '#D55E00';
 
@@ -222,51 +219,13 @@ export class SankeyManager {
             }
         }
 
-        const srcValues = new Set();
-        const tgtValues = new Set();
-        currentData.forEach(row => {
-            const s = String(row[srcCol] || '').trim();
-            const t = String(row[tgtCol] || '').trim();
-            if (s) srcValues.add(s);
-            if (t) tgtValues.add(t);
+        const flowList = aggregateFlows(currentData, {
+            sourceCol: srcCol,
+            targetCol: tgtCol,
+            valCol,
+            aggFunc,
+            disambiguate
         });
-
-        const hasOverlap = Array.from(srcValues).some(v => tgtValues.has(v));
-        const shouldDisambiguate = disambiguate && hasOverlap;
-
-        const flowAgg = {};
-        currentData.forEach(row => {
-            let s = String(row[srcCol] || '').trim();
-            let t = String(row[tgtCol] || '').trim();
-            if (!s || !t) return;
-
-            if (shouldDisambiguate) {
-                s = `${s} (${srcCol})`;
-                t = `${t} (${tgtCol})`;
-            }
-
-            const key = `${s}___${t}`;
-            let val = 1;
-            if (valCol && row[valCol] !== undefined && row[valCol] !== null) {
-                const parsed = parseFloat(row[valCol]);
-                val = isNaN(parsed) ? 1 : Math.max(0, parsed);
-            }
-            if (!flowAgg[key]) flowAgg[key] = [];
-            flowAgg[key].push(val);
-        });
-
-        const flowList = Object.entries(flowAgg).map(([key, vals]) => {
-            const [s, t] = key.split('___');
-            let computedVal;
-            if (aggFunc === 'none') {
-                computedVal = vals.length > 0 ? vals[0] : 1;
-            } else {
-                computedVal = aggregateValues(vals, aggFunc);
-            }
-            return { s, t, val: computedVal };
-        }).filter(item => item.val > 0);
-
-        flowList.sort((a, b) => b.val - a.val);
 
         const MAX_FLOWS = 50;
         const topFlows = flowList.slice(0, MAX_FLOWS);
@@ -278,15 +237,15 @@ export class SankeyManager {
         }
 
         topFlows.forEach(item => {
-            text += `${item.s} [${Math.round(item.val * 100) / 100}] ${item.t}\n`;
+            text += `${item.source} [${item.value}] ${item.target}\n`;
         });
 
         if (remainingFlows.length > 0) {
-            const otherVal = remainingFlows.reduce((sum, item) => sum + item.val, 0);
+            const otherVal = Math.round(remainingFlows.reduce((sum, item) => sum + item.value, 0) * 100) / 100;
             if (otherVal > 0) {
-                const otherSource = shouldDisambiguate ? `Other (${srcCol})` : 'Other';
-                const otherTarget = shouldDisambiguate ? `Other (${tgtCol})` : 'Other';
-                text += `${otherSource} [${Math.round(otherVal * 100) / 100}] ${otherTarget}\n`;
+                const otherSource = disambiguate ? `Other (${srcCol})` : 'Other';
+                const otherTarget = disambiguate ? `Other (${tgtCol})` : 'Other';
+                text += `${otherSource} [${otherVal}] ${otherTarget}\n`;
             }
         }
 
@@ -298,34 +257,12 @@ export class SankeyManager {
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
 
-        [this.sourceCol, this.targetCol, this.valCol].forEach((sel, idx) => {
-            if (!sel) return;
-            const currentVal = sel.value;
-            sel.innerHTML = '';
-            if (idx === 2) {
-                const countOpt = document.createElement('option');
-                countOpt.value = "";
-                countOpt.textContent = "Row Count (1 per row)";
-                sel.appendChild(countOpt);
-            }
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                sel.appendChild(opt);
-            });
-
-            if (currentVal && columns.includes(currentVal)) {
-                sel.value = currentVal;
-            } else if (idx === 0 && columns.length > 0) {
-                sel.value = columns[0];
-            } else if (idx === 1 && columns.length > 1) {
-                sel.value = columns[1];
-            } else if (idx === 2) {
-                const numCol = columns.find(c => detectType(currentData[0][c]) === 'Number');
-                sel.value = numCol || "";
-            }
-        });
+        const numCol = columns.find(c => detectType(currentData[0][c]) === 'Number');
+        populateColumnSelects([
+            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.targetCol, defaultIndex: 1 },
+            { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
+        ], columns);
     }
 
     async renderChart() {

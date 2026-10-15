@@ -4,6 +4,12 @@
  * AI diagram generation, and column dropdown populations.
  */
 
+/** Shared categorical color palette across studio charts. */
+export const CHART_CATEGORICAL = [
+    '#0072B2', '#D55E00', '#009E73', '#CC79A7',
+    '#56B4E9', '#E69F00', '#999999'
+];
+
 /**
  * Binds sidebar toggle buttons and persists collapse state in localStorage.
  */
@@ -162,22 +168,74 @@ export async function fetchAiDiagram({ systemPrompt, sampleData = [], codeRegex,
 
 /**
  * Populates select dropdown elements with dataset column names, preserving selection.
+ * Supports passing either an HTMLSelectElement or an object { select, includeNone, noneText, defaultVal, defaultIndex }.
  */
-export function populateColumnSelects(selectElements, columns, emptyOptionText = '(None)') {
-    const validCols = (columns || []).filter(c =>
-        c && c !== 'GL_ORDINAL' && c !== '_unit_id' && !c.startsWith('__')
-    );
+export function populateColumnSelects(selectConfigs, columns, defaultIncludeNone = false) {
+    const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
+    const validCols = (columns || []).filter(c => c && !isInternalCol(c));
 
-    selectElements.forEach(select => {
+    (selectConfigs || []).forEach(item => {
+        const select = item?.nodeType ? item : item?.select;
         if (!select) return;
+
+        const includeNone = item?.includeNone !== undefined ? Boolean(item.includeNone) : Boolean(defaultIncludeNone);
+        const noneText = item?.noneText || '(None)';
         const currentVal = select.value;
-        const opts = emptyOptionText !== null ? [`<option value="">${emptyOptionText}</option>`] : [];
+
+        const opts = includeNone ? [`<option value="">${noneText}</option>`] : [];
         validCols.forEach(col => {
             opts.push(`<option value="${col}">${col}</option>`);
         });
         select.innerHTML = opts.join('');
-        if (currentVal && validCols.includes(currentVal)) {
+
+        if (currentVal && (validCols.includes(currentVal) || (includeNone && currentVal === ''))) {
             select.value = currentVal;
+        } else if (item?.defaultVal && validCols.includes(item.defaultVal)) {
+            select.value = item.defaultVal;
+        } else if (item?.defaultIndex !== undefined && validCols[item.defaultIndex]) {
+            select.value = validCols[item.defaultIndex];
         }
     });
+}
+
+/**
+ * Binds AI diagram/chart prompt modal events (open, close, submit, keydown).
+ */
+export function bindAiModal({ aiBtn, modal, input, closeBtn, cancelBtn, submitBtn, onSubmit }) {
+    const open = () => {
+        if (!modal) {
+            if (typeof onSubmit === 'function') onSubmit('');
+            return;
+        }
+        if (input) input.value = '';
+        modal.classList.remove('hidden');
+        input?.focus();
+    };
+
+    const close = () => {
+        if (modal) modal.classList.add('hidden');
+    };
+
+    const submit = () => {
+        const prompt = input?.value?.trim() || '';
+        close();
+        if (typeof onSubmit === 'function') onSubmit(prompt);
+    };
+
+    if (aiBtn) aiBtn.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (cancelBtn) cancelBtn.addEventListener('click', close);
+    if (submitBtn) submitBtn.addEventListener('click', submit);
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+            } else if (e.key === 'Escape') {
+                close();
+            }
+        });
+    }
+
+    return { open, close, submit };
 }

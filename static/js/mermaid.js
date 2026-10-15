@@ -4,7 +4,7 @@
  * AI diagram generation via backend agent, live rendering, zoom, and exports.
  */
 
-import { aggregateValues } from './data-transform.js';
+import { aggregateValues, aggregateFlows } from './data-transform.js';
 import {
     SHARED_CONFIG_OPTIONS,
     MERMAID_CONFIG_OPTIONS,
@@ -15,7 +15,13 @@ import {
     deletePath
 } from './mermaid-config.js';
 import { formatMermaidSyntax } from './spec-formatter.js';
-import { exportSvg, fetchAiDiagram, bindCollapsibleSidebar } from './studio-utils.js';
+import {
+    exportSvg,
+    fetchAiDiagram,
+    bindCollapsibleSidebar,
+    populateColumnSelects,
+    bindAiModal
+} from './studio-utils.js';
 
 export const MERMAID_DEMOS = {
     sankey: `sankey-beta
@@ -178,7 +184,7 @@ const aggregateCategory = (data, catCol, valCol, aggFunc, limit = 10, sortByVal 
 export class MermaidManager {
     constructor(options = {}) {
         this.getData = options.getData || (() => []);
-        this.zoomLevel = 1.75;
+        this.zoomLevel = 1.0;
         this.renderTimeout = null;
 
         // DOM elements
@@ -209,6 +215,7 @@ export class MermaidManager {
         this.targetLabel = document.getElementById('mermaid-target-label');
         this.valLabel = document.getElementById('mermaid-val-label');
         this.renderOutput = document.getElementById('mermaid-render-output');
+        this.canvasWrapper = document.getElementById('mermaid-canvas-wrapper');
         this.errorNotice = document.getElementById('mermaid-error-notice');
         this.zoomInBtn = document.getElementById('mermaid-zoom-in');
         this.zoomOutBtn = document.getElementById('mermaid-zoom-out');
@@ -549,39 +556,16 @@ export class MermaidManager {
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
 
-        [this.sourceCol, this.targetCol, this.valCol].forEach((sel, idx) => {
-            if (!sel) return;
-            const currentVal = sel.value;
-            sel.innerHTML = '';
-
-            if (idx === 2) {
-                const countOpt = document.createElement('option');
-                countOpt.value = '';
-                countOpt.textContent = 'Row Count (1 per row)';
-                sel.appendChild(countOpt);
-            }
-
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                sel.appendChild(opt);
-            });
-
-            if (currentVal && (columns.includes(currentVal) || (idx === 2 && currentVal === ''))) {
-                sel.value = currentVal;
-            } else if (idx === 0 && columns.length > 0) {
-                sel.value = columns[0];
-            } else if (idx === 1 && columns.length > 1) {
-                sel.value = columns[1];
-            } else if (idx === 2) {
-                const numCol = columns.find(c => {
-                    const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
-                    return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
-                });
-                sel.value = numCol || '';
-            }
+        const numCol = columns.find(c => {
+            const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
+            return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
         });
+
+        populateColumnSelects([
+            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.targetCol, defaultIndex: 1 },
+            { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
+        ], columns);
 
         if (this.curvesList) {
             const numericCols = columns.filter(c => currentData.some(r => r[c] !== null && r[c] !== undefined && !isNaN(parseFloat(r[c]))));
@@ -623,47 +607,13 @@ export class MermaidManager {
         const aggFunc = this.aggFunc ? this.aggFunc.value : 'sum';
 
         if (preset === 'sankey') {
-            if (!col1 || !col2 || col1 === col2) {
-                this.textEditor.value = '';
-                this.renderConfigPanel();
-                this.renderChart();
-                return;
-            }
-
-            const srcValues = new Set();
-            const tgtValues = new Set();
-            currentData.forEach(r => {
-                const s = String(r[col1] ?? '').trim();
-                const t = String(r[col2] ?? '').trim();
-                if (s) srcValues.add(s);
-                if (t) tgtValues.add(t);
+            const topFlows = aggregateFlows(currentData, {
+                sourceCol: col1,
+                targetCol: col2,
+                valCol,
+                aggFunc,
+                limit: 35
             });
-            const hasOverlap = Array.from(srcValues).some(v => tgtValues.has(v));
-
-            const flowAgg = {};
-            currentData.forEach(r => {
-                let s = String(r[col1] ?? '').trim();
-                let t = String(r[col2] ?? '').trim();
-                if (!s || !t) return;
-
-                if (hasOverlap) {
-                    s = `${s} (${col1})`;
-                    t = `${t} (${col2})`;
-                }
-
-                const key = `${s}___${t}`;
-                let v = 1;
-                if (valCol && r[valCol] !== undefined && r[valCol] !== null) {
-                    const parsed = parseFloat(r[valCol]);
-                    v = isNaN(parsed) ? 1 : Math.max(0, parsed);
-                }
-                (flowAgg[key] = flowAgg[key] || []).push(v);
-            });
-
-            const topFlows = Object.entries(flowAgg).map(([k, vals]) => {
-                const computed = aggFunc === 'none' ? (vals[0] ?? 1) : aggregateValues(vals, aggFunc);
-                return [k, Math.round(computed * 100) / 100];
-            }).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 35);
 
             if (topFlows.length === 0) {
                 this.textEditor.value = '';
@@ -675,9 +625,8 @@ export class MermaidManager {
             const formatNode = (name) => `"${toAsciiSafe(name).replace(/"/g, "'") || 'Unknown'}"`;
 
             let code = `sankey-beta\n`;
-            topFlows.forEach(([key, value]) => {
-                const [s, t] = key.split('___');
-                code += `${formatNode(s)},${formatNode(t)},${value}\n`;
+            topFlows.forEach(({ source, target, value }) => {
+                code += `${formatNode(source)},${formatNode(target)},${value}\n`;
             });
             this.textEditor.value = code;
 
@@ -949,7 +898,7 @@ export class MermaidManager {
             const uniqueId = `mermaid-svg-${Date.now()}`;
             const { svg } = await mermaid.render(uniqueId, code);
             this.renderOutput.innerHTML = svg;
-            this.applyZoom();
+            this.setZoom(this.zoomLevel);
         } catch (err) {
             console.warn("Mermaid render error:", err);
             const stray = document.querySelectorAll(`[id^="dmermaid-svg-"], [id^="mermaid-svg-"]`);
@@ -963,10 +912,15 @@ export class MermaidManager {
         }
     }
 
-    applyZoom() {
+    setZoom(level) {
+        this.zoomLevel = Math.max(0.2, Math.min(10.0, Math.round(level * 100) / 100));
         if (this.renderOutput) {
             this.renderOutput.style.transform = `scale(${this.zoomLevel})`;
         }
+    }
+
+    applyZoom() {
+        this.setZoom(this.zoomLevel);
     }
 
     bindEvents() {
@@ -996,37 +950,15 @@ export class MermaidManager {
 
         if (this.demoBtn) this.demoBtn.addEventListener('click', () => this.showDemo());
         
-        if (this.aiBtn) {
-            this.aiBtn.addEventListener('click', () => {
-                if (this.aiModal) {
-                    if (this.aiModalPrompt) this.aiModalPrompt.value = '';
-                    this.aiModal.classList.remove('hidden');
-                    if (this.aiModalPrompt) this.aiModalPrompt.focus();
-                } else {
-                    this.generateWithAI('');
-                }
-            });
-        }
-
-        if (this.aiModalCloseBtn) {
-            this.aiModalCloseBtn.addEventListener('click', () => {
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-            });
-        }
-
-        if (this.aiModalCancelBtn) {
-            this.aiModalCancelBtn.addEventListener('click', () => {
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-            });
-        }
-
-        if (this.aiModalSubmitBtn) {
-            this.aiModalSubmitBtn.addEventListener('click', () => {
-                const customPrompt = this.aiModalPrompt ? this.aiModalPrompt.value.trim() : '';
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-                this.generateWithAI(customPrompt);
-            });
-        }
+        bindAiModal({
+            aiBtn: this.aiBtn,
+            modal: this.aiModal,
+            input: this.aiModalPrompt,
+            closeBtn: this.aiModalCloseBtn,
+            cancelBtn: this.aiModalCancelBtn,
+            submitBtn: this.aiModalSubmitBtn,
+            onSubmit: (prompt) => this.generateWithAI(prompt)
+        });
 
         if (this.curvesSelectAllBtn) {
             this.curvesSelectAllBtn.addEventListener('click', () => {
@@ -1081,23 +1013,53 @@ export class MermaidManager {
 
         if (this.zoomInBtn) {
             this.zoomInBtn.addEventListener('click', () => {
-                this.zoomLevel = Math.min(3.0, this.zoomLevel + 0.15);
-                this.applyZoom();
+                const step = this.zoomLevel < 1.5 ? 0.15 : (this.zoomLevel < 3.0 ? 0.3 : 0.6);
+                this.setZoom(this.zoomLevel + step);
             });
         }
 
         if (this.zoomOutBtn) {
             this.zoomOutBtn.addEventListener('click', () => {
-                this.zoomLevel = Math.max(0.4, this.zoomLevel - 0.15);
-                this.applyZoom();
+                const step = this.zoomLevel <= 1.5 ? 0.15 : (this.zoomLevel <= 3.0 ? 0.3 : 0.6);
+                this.setZoom(this.zoomLevel - step);
             });
         }
 
         if (this.zoomResetBtn) {
-            this.zoomResetBtn.addEventListener('click', () => {
-                this.zoomLevel = 1.75;
-                this.applyZoom();
+            this.zoomResetBtn.addEventListener('click', () => this.setZoom(1.0));
+        }
+
+        if (this.canvasWrapper) {
+            let isDragging = false;
+            let startX = 0, startY = 0;
+            let scrollLeft = 0, scrollTop = 0;
+
+            this.canvasWrapper.addEventListener('mousedown', (e) => {
+                if (e.button !== 0 || e.target.closest('button, input, select, textarea')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                scrollLeft = this.canvasWrapper.scrollLeft;
+                scrollTop = this.canvasWrapper.scrollTop;
             });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                this.canvasWrapper.scrollLeft = scrollLeft - (e.clientX - startX);
+                this.canvasWrapper.scrollTop = scrollTop - (e.clientY - startY);
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            this.canvasWrapper.addEventListener('wheel', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                    this.setZoom(this.zoomLevel + delta);
+                }
+            }, { passive: false });
         }
 
         if (this.exportPngBtn) {
@@ -1122,7 +1084,7 @@ export class MermaidManager {
             targetCol: (this.targetCol && this.targetCol.value) || '',
             valCol: (this.valCol && this.valCol.value) || '',
             aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
-            zoomLevel: this.zoomLevel || 1.75
+            zoomLevel: this.zoomLevel || 1.0
         };
     }
 
@@ -1139,8 +1101,7 @@ export class MermaidManager {
         if (state.valCol && this.valCol) this.valCol.value = state.valCol;
         if (state.aggFunc && this.aggFunc) this.aggFunc.value = state.aggFunc;
         if (typeof state.zoomLevel === 'number') {
-            this.zoomLevel = state.zoomLevel;
-            this.applyZoom();
+            this.setZoom(state.zoomLevel);
         }
         if (state.text !== undefined && this.textEditor) {
             this.textEditor.value = state.text;

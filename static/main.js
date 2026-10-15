@@ -533,13 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const info = getActiveChartInfo();
             if (!info || !info.left) return;
             const isCollapsed = info.left.classList.contains('collapsed');
-            if (currentActiveView === 'vega') {
-                vegaMgr.toggleLeftSidebar(!isCollapsed);
-            } else if (currentActiveView === 'sankey') {
-                sankeyMgr.setSidebarCollapsed(!isCollapsed);
-            } else if (currentActiveView === 'mermaid') {
-                mermaidMgr.setSidebarCollapsed(!isCollapsed);
-            }
+            info.mgr?.setSidebarCollapsed(!isCollapsed);
             syncHeaderSidebarToggles();
         });
     }
@@ -553,13 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const info = getActiveChartInfo();
                 if (!info || !info.right) return;
                 const isCollapsed = info.right.classList.contains('collapsed');
-                if (currentActiveView === 'vega') {
-                    vegaMgr.toggleRightSidebar(!isCollapsed);
-                } else if (currentActiveView === 'sankey') {
-                    sankeyMgr.setControlsCollapsed(!isCollapsed);
-                } else if (currentActiveView === 'mermaid') {
-                    mermaidMgr.setControlsCollapsed(!isCollapsed);
-                }
+                info.mgr?.setControlsCollapsed(!isCollapsed);
             }
             syncHeaderSidebarToggles();
         });

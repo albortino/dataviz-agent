@@ -2543,6 +2543,7 @@ hr.control-divider,
     justify-content: center;
     align-items: center;
     margin: auto;
+    width: 100%;
     max-width: 100%;
     transition: transform 0.15s ease-out;
     transform-origin: center center;
@@ -2560,8 +2561,7 @@ hr.control-divider,
 }
 
 #mermaid-render-output svg {
-    max-width: none !important;
-    min-width: 320px;
+    max-width: 100%;
     height: auto;
     display: block;
     margin: 0 auto;

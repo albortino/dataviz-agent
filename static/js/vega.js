@@ -9,13 +9,15 @@
  */
 
 import { formatVegaSpec } from './spec-formatter.js';
-import { fetchAiDiagram, bindCollapsibleSidebar } from './studio-utils.js';
+import {
+    fetchAiDiagram,
+    bindCollapsibleSidebar,
+    populateColumnSelects,
+    bindAiModal,
+    CHART_CATEGORICAL
+} from './studio-utils.js';
 
-/** Shared impeccable chart language. Mirrors src/vizkit/theme.py CATEGORICAL. */
-export const CHART_CATEGORICAL = [
-    '#0072B2', '#D55E00', '#009E73', '#CC79A7',
-    '#56B4E9', '#E69F00', '#999999'
-];
+export { CHART_CATEGORICAL };
 export const CHART_CONFIG = {
     background: '#FFFFFF',
     font: 'Inter, system-ui, sans-serif',
@@ -326,20 +328,16 @@ export class VegaManager {
         if (this.demoBtn) {
             this.demoBtn.addEventListener('click', () => this.loadSensibleDefaults());
         }
-        if (this.aiBtn) {
-            this.aiBtn.addEventListener('click', () => this.openAiModal());
-        }
 
-        // AI Modal Events
-        if (this.aiModalCloseBtn) this.aiModalCloseBtn.addEventListener('click', () => this.closeAiModal());
-        if (this.aiModalCancelBtn) this.aiModalCancelBtn.addEventListener('click', () => this.closeAiModal());
-        if (this.aiModalSubmitBtn) {
-            this.aiModalSubmitBtn.addEventListener('click', () => {
-                const prompt = this.aiModalPrompt?.value?.trim() || '';
-                this.closeAiModal();
-                this.generateWithAI(prompt);
-            });
-        }
+        bindAiModal({
+            aiBtn: this.aiBtn,
+            modal: this.aiModal,
+            input: this.aiModalPrompt,
+            closeBtn: this.aiModalCloseBtn,
+            cancelBtn: this.aiModalCancelBtn,
+            submitBtn: this.aiModalSubmitBtn,
+            onSubmit: (prompt) => this.generateWithAI(prompt)
+        });
 
         // Zoom Controls
         if (this.zoomInBtn) this.zoomInBtn.addEventListener('click', () => this.setZoom(this.zoomLevel + 0.15));
@@ -379,15 +377,23 @@ export class VegaManager {
         }
     }
 
-    toggleLeftSidebar(collapse) {
+    setSidebarCollapsed(collapse) {
         this.leftSidebarToggle?.setCollapsed(collapse);
         if (!collapse && this.cm) {
             setTimeout(() => this.cm.refresh(), 200);
         }
     }
 
-    toggleRightSidebar(collapse) {
+    setControlsCollapsed(collapse) {
         this.controlsSidebarToggle?.setCollapsed(collapse);
+    }
+
+    toggleLeftSidebar(collapse) {
+        this.setSidebarCollapsed(collapse);
+    }
+
+    toggleRightSidebar(collapse) {
+        this.setControlsCollapsed(collapse);
     }
 
     setZoom(level) {
@@ -401,33 +407,13 @@ export class VegaManager {
         const data = this.getData() || [];
         if (!data || data.length === 0) return;
 
-        const sample = data[0] || {};
-        const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
-        const columns = Object.keys(sample).filter(c => !isInternalCol(c));
-
-        const populate = (select, includeNone = false, defaultVal = '') => {
-            if (!select) return;
-            const currentVal = select.value || defaultVal;
-            select.innerHTML = '';
-            if (includeNone) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '(None)';
-                select.appendChild(opt);
-            }
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                if (col === currentVal) opt.selected = true;
-                select.appendChild(opt);
-            });
-        };
-
-        populate(this.xCol, false);
-        populate(this.yCol, false);
-        populate(this.colorCol, true);
-        populate(this.facetColSelect, true);
+        const columns = Object.keys(data[0] || {});
+        populateColumnSelects([
+            this.xCol,
+            this.yCol,
+            { select: this.colorCol, includeNone: true },
+            { select: this.facetColSelect, includeNone: true }
+        ], columns);
     }
 
     loadSensibleDefaults() {
