@@ -222,11 +222,11 @@ export class SandDanceManager {
                                 const prefix = (this.style && this.style.cssPrefix) || 'sanddance-';
                                 if (typeName) {
                                     el = document.querySelector(`.${prefix}${typeName}`) ||
-                                         document.querySelector(`[class*="${typeName}"]`);
+                                        document.querySelector(`[class*="${typeName}"]`);
                                 }
                                 if (!el && (type === 2 || type === 'panel')) {
                                     el = document.querySelector('.sanddance-panel') ||
-                                         document.getElementById('sanddance-panel-container');
+                                        document.getElementById('sanddance-panel-container');
                                 }
                             }
                             return el;
@@ -517,14 +517,14 @@ export class SandDanceManager {
         if (!disaggCol) {
             const cols = Object.keys(currentData[0] || {});
             disaggCol = cols.find(c => /qty|quantity|count|amount|total|volume|headcount/i.test(c)) ||
-                        cols.find(c => typeof currentData[0][c] === 'number') || '';
+                cols.find(c => typeof currentData[0][c] === 'number') || '';
             if (this.disaggregateCol && disaggCol) {
                 this.disaggregateCol.value = disaggCol;
             }
         }
         if (!disaggCol) return currentData.map(r => ({ ...r }));
 
-        const maxTotalPoints = 60000;
+        const maxTotalPoints = 2000000;
         let totalCount = 0;
         let isCapped = false;
         const unrolled = [];
