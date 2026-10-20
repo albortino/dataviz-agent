@@ -7,8 +7,8 @@
     <title>Dataviz-Agent</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="shortcut icon" href="/static/favicon.ico">
-    <link rel="stylesheet" href="/static/variables.css">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/variables.css?v=20261020_v7">
+    <link rel="stylesheet" href="/static/style.css?v=20261020_v7">
     <!-- LineUp.js CSS and JS from a CDN -->
     <link rel="stylesheet" href="https://unpkg.com/lineupjs/build/LineUpJS.css">
     <!-- Font Awesome for Icons -->
@@ -172,16 +172,16 @@
         <!-- Right: Controls & Workspace (Step 3: Tools) -->
         <div id="controls">
             <div id="sidebars-controls-pill" class="sidebars-controls-pill" aria-label="Sidebar Controls">
-                <button id="header-spec-toggle-btn" class="button icon-button copilot-header-btn hidden"
+                <button id="header-spec-toggle-btn" class="icon-button copilot-header-btn hidden"
                     title="Toggle Syntax / Code (⌘B)">
                     <i class="fa-solid fa-code"></i><span>Syntax</span>
                 </button>
-                <button id="header-controls-toggle-btn" class="button icon-button copilot-header-btn hidden"
+                <button id="header-controls-toggle-btn" class="icon-button copilot-header-btn hidden"
                     title="Toggle Controls (⌘I)">
                     <i class="fa-solid fa-sliders"></i><span id="header-controls-label">Controls</span>
                 </button>
 
-                <button id="show-agent-btn" class="button icon-button copilot-header-btn" disabled
+                <button id="show-agent-btn" class="icon-button copilot-header-btn" disabled
                     title="Toggle AI Agent assistant sidebar">
                     <i class="fa-solid fa-robot"></i><span>Agent</span>
                 </button>
@@ -192,7 +192,7 @@
                     aria-expanded="false" title="Workspace management, sessions, settings &amp; docs">
                     <i class="fa-solid fa-sliders"></i>
                     <!--span>Workspace</span-->
-                    <i class="fa-solid fa-chevron-down caret"></i>
+                    <!--i class="fa-solid fa-chevron-down caret"></i-->
                 </button>
                 <div id="workspace-dropdown-menu" class="dropdown-menu">
                     <div class="dropdown-header-block">
@@ -304,11 +304,11 @@
                         <button class="button icon-button tab-intro-toggle-btn" type="button" aria-expanded="false"
                             title="Expand to view insights and recommendations">
                             <i class="fa-solid fa-lightbulb"></i>
-                            <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                            <!--i class="fa-solid fa-chevron-down toggle-chevron"></i-->
                         </button>
                         <p class="tab-intro-desc">LineUp: Interactive tabular data exploration engine with live sorting,
                             ranking, filtering, and ad-hoc column combination modeling.</p>
-                        <a href="https://github.com/lineupjs/lineup.js" target="_blank" rel="noopener noreferrer"
+                        <a href="https://github.com/lineupjs/lineupjs" target="_blank" rel="noopener noreferrer"
                             class="button icon-button tab-intro-link" title="Open official LineUp repository">
                             <i class="fa-brands fa-github"></i><span>Repo</span>
                         </a>
@@ -1426,7 +1426,7 @@
                 <div class="control-group" id="ai-api-key-group">
                     <div class="settings-form-label">
                         <span>API Key</span>
-                        <span class="settings-route-hint">Stored safely in your browser (never sent elsewhere)</span>
+                        <span class="settings-route-hint">Stored safely in your browser</span>
                     </div>
                     <input type="password" id="ai-api-key" class="control-input font-mono" placeholder="sk-...">
                 </div>
@@ -1455,7 +1455,7 @@
                 <div class="ping-status-bar" id="ai-ping-status"></div>
             </div>
             <div class="modal-footer">
-                <button id="test-connection-btn" class="button" type="button">
+                <button id="test-connection-btn" class="button icon-button" type="button">
                     <i class="fa-solid fa-bolt"></i> <span>Test Ping</span>
                 </button>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1496,16 +1496,16 @@
                 </nav>
             </div>
 
-            <div class="set-data-tabs">
-                <button id="set-data-tab-upload" class="set-data-tab-btn active">
+            <div class="route-segmented-control set-data-tabs">
+                <button type="button" id="set-data-tab-upload" class="route-segmented-btn set-data-tab-btn active">
                     <i class="fa-solid fa-cloud-arrow-up"></i><span>Upload CSV</span>
                 </button>
-                <button id="set-data-tab-paste" class="set-data-tab-btn">
+                <button type="button" id="set-data-tab-paste" class="route-segmented-btn set-data-tab-btn">
                     <i class="fa-solid fa-paste"></i><span>Paste Data</span>
                 </button>
             </div>
 
-            <div class="modal-body modal-body-spaced">
+            <div class="modal-body">
                 <!-- Tab Pane: Upload -->
                 <div id="set-data-pane-upload" class="set-data-pane">
                     <div id="set-data-dropzone" class="set-data-dropzone">
@@ -1518,7 +1518,8 @@
                 <!-- Tab Pane: Paste -->
                 <div id="set-data-pane-paste" class="set-data-pane hidden">
                     <div class="paste-pane-header">
-                        <label for="set-data-paste-textarea" class="paste-pane-label">Paste CSV / Tabular Text</label>
+                        <label for="set-data-paste-textarea" class="modal-section-label">Paste CSV / Tabular
+                            Text</label>
                         <button id="set-data-clipboard-btn" class="button icon-button paste-clipboard-btn">
                             <i class="fa-regular fa-clipboard"></i><span>Paste Clipboard</span>
                         </button>
@@ -1649,19 +1650,20 @@
                             class="fa-solid fa-book-open"></i><span>Docs</span></button>
                 </nav>
             </div>
-            <div class="modal-body modal-body-spaced">
+            <div class="modal-body">
                 <div class="skills-summary-banner">
+                    <label class="modal-section-label" style="margin-bottom: 0;">Active Capabilities</label>
                     <div class="skills-active-counter">
                         <span class="skills-pulse-dot"></span>
                         <span id="agent-skills-active-count">4 skills active</span>
                     </div>
                 </div>
-                <p class="set-data-dropzone-sub">Modular reasoning engines and verification gates for the AI Copilot.
-                </p>
+                <p class="modal-section-desc">Modular reasoning engines and verification gates for the AI Copilot.</p>
                 <div id="agent-skills-list" class="agent-skills-list"></div>
             </div>
             <div class="modal-footer">
-                <button id="cancel-agent-skills-btn" class="button">Close</button>
+                <button id="cancel-agent-skills-btn" class="button" type="button">Close</button>
+                <button id="confirm-agent-skills-btn" class="button primary" type="button">Save Skills</button>
             </div>
         </div>
     </div>
@@ -1697,24 +1699,24 @@
                 </nav>
             </div>
 
-            <div class="modal-body modal-body-spaced">
+            <div class="modal-body">
                 <!-- Session Management -->
-                <div class="control-group" id="settings-session-group" style="margin-bottom: 1.25rem;">
-                    <label class="settings-form-label">Export Current Session</label>
-                    <button type="button" id="settings-export-session-btn" class="button" style="width: 100%;"
-                        title="Export Session (.json)">
+                <div class="session-step" id="settings-session-group">
+                    <label class="modal-section-label">Export Current Session</label>
+                    <button type="button" id="settings-export-session-btn" class="button icon-button"
+                        style="width: 100%;">
                         <i class="fa-solid fa-file-export"></i> <span>Export Session (.json)</span>
                     </button>
                 </div>
 
                 <!-- Step 1: Session File -->
                 <div class="session-step">
-                    <label class="session-step-label">1. Choose Session File (.json)</label>
-                    <div id="session-file-dropzone" class="set-data-dropzone session-dropzone">
-                        <i class="fa-solid fa-file-code dropzone-icon"></i>
-                        <p class="set-data-dropzone-title"><strong>Click to browse</strong> or drag & drop exported JSON
+                    <label class="modal-section-label">1. Choose Session File (.json)</label>
+                    <div id="session-file-dropzone" class="set-data-dropzone">
+                        <i class="fa-solid fa-file-arrow-up set-data-dropzone-icon"></i>
+                        <p class="set-data-dropzone-text"><strong>Click to browse</strong> or drag & drop exported JSON
                         </p>
-                        <p class="set-data-dropzone-sub">Saved visualization session configuration</p>
+                        <span class="set-data-dropzone-sub">Saved visualization session configuration (.json)</span>
                         <input type="file" id="session-file-input" accept=".json" class="hidden-element">
                     </div>
                     <div id="session-file-info" class="session-file-badge hidden"></div>
@@ -1722,15 +1724,16 @@
 
                 <!-- Step 2: Dataset Verification -->
                 <div id="session-dataset-step" class="session-step hidden">
-                    <label class="session-step-label">2. Dataset Verification</label>
+                    <label class="modal-section-label">2. Dataset Verification</label>
                     <div id="session-dataset-status" class="session-status-card"></div>
 
                     <div id="session-dataset-upload-prompt" class="hidden">
                         <p class="session-step-note">Upload the dataset to resume analysis (columns must match):</p>
-                        <div id="session-data-dropzone" class="set-data-dropzone session-dropzone">
-                            <i class="fa-solid fa-file-csv dropzone-icon"></i>
-                            <p class="set-data-dropzone-title">Drop matching CSV file here or <span
-                                    class="highlight">browse</span></p>
+                        <div id="session-data-dropzone" class="set-data-dropzone">
+                            <i class="fa-solid fa-cloud-arrow-up set-data-dropzone-icon"></i>
+                            <p class="set-data-dropzone-text"><strong>Click to browse</strong> or drag & drop matching
+                                CSV</p>
+                            <span class="set-data-dropzone-sub">Supports .csv tabular files</span>
                             <input type="file" id="session-data-input" accept=".csv" class="hidden-element">
                         </div>
                     </div>
@@ -1739,7 +1742,7 @@
             <div class="modal-footer">
                 <button id="cancel-session-btn" class="button">Cancel</button>
                 <button id="apply-session-btn" class="button primary" disabled>
-                    <i class="fa-solid fa-play"></i><span>Restore Session</span>
+                    <span>Restore Session</span>
                 </button>
             </div>
         </div>
@@ -1751,7 +1754,7 @@
             <div class="modal-header">
                 <div class="modal-header-top-row">
                     <div class="modal-header-brand-row">
-                        <i class="fa-solid fa-book-open text-primary-icon"></i>
+                        <i class="fa-solid fa-book-open text-primary-icon-md"></i>
                         <div>
                             <h2>Documentation</h2>
                             <p class="modal-header-subtitle">Features, chart guides, and keyboard tips</p>
@@ -1835,7 +1838,7 @@
         </div>
     </footer>
 
-    <script type="module" src="/static/main.js?v=2"></script>
+    <script type="module" src="/static/main.js?v=20261020_v6"></script>
 </body>
 
 </html>

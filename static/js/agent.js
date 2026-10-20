@@ -5,7 +5,7 @@
  */
 
 import { ClientDataTools } from './data-transform.js';
-import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js?v=2';
+import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js?v=20261020_v6';
 import { validateBrowserDirectConnection, runBrowserDirectAgent } from './browser-agent.js';
 import { copyToClipboard, extractCodeFence } from './studio-utils.js';
 
@@ -126,17 +126,24 @@ export class AgentManager {
 
     updateSkillsLabel() {
         if (!this.skillsLabel || !this.allSkills.length) return;
-        this.skillsLabel.textContent = `Skills (${this.allSkills.length})`;
+        const activeCount = getActiveSkills(this.allSkills).length;
+        this.skillsLabel.textContent = `Skills (${activeCount})`;
     }
 
     openSkillsModal() {
         if (!this.skillsModal || !this.skillsList) return;
-        renderSkillsModal(this.skillsList, this.allSkills);
+        renderSkillsModal(this.skillsList, this.allSkills, getActiveSkills(this.allSkills));
         this.skillsModal.classList.remove('hidden');
     }
 
-    closeSkillsModal() {
+    closeSkillsModal(save = false) {
         if (!this.skillsModal) return;
+        if (save && this.skillsList) {
+            const activeIds = Array.from(this.skillsList.querySelectorAll('input[data-skill-id]:checked'))
+                .map(input => input.dataset.skillId);
+            setActiveSkills(activeIds);
+        }
+        this.updateSkillsLabel();
         this.skillsModal.classList.add('hidden');
     }
 

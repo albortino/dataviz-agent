@@ -59,7 +59,17 @@ export async function fetchAgentSkills() {
 }
 
 export function getActiveSkills(allSkills) {
-    return (allSkills || []).map(s => s.id);
+    try {
+        const raw = localStorage.getItem(AGENT_SKILLS_STORAGE_KEY);
+        if (!raw) return (allSkills || []).filter(s => Boolean(s.default_on)).map(s => s.id);
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('invalid stored skills');
+        const known = new Set((allSkills || []).map(s => s.id));
+        return parsed.filter(id => known.has(id));
+    } catch (e) {
+        console.warn('Error reading active skills, falling back to defaults:', e);
+        return (allSkills || []).filter(s => Boolean(s.default_on)).map(s => s.id);
+    }
 }
 
 export function setActiveSkills(ids) {
@@ -70,18 +80,39 @@ export function setActiveSkills(ids) {
     }
 }
 
-export function renderSkillsModal(listEl, allSkills) {
+export function renderSkillsModal(listEl, allSkills, activeIds) {
     if (!listEl) return;
     listEl.innerHTML = '';
 
-    const counterEl = document.getElementById('agent-skills-active-count');
-    if (counterEl) {
-        counterEl.textContent = `${allSkills.length} skills active`;
+    if (!Array.isArray(activeIds)) {
+        activeIds = getActiveSkills(allSkills);
     }
 
+    const updateCounterAndStates = () => {
+        const checkedBoxes = listEl.querySelectorAll('input[data-skill-id]:checked');
+        const count = checkedBoxes.length;
+        const total = allSkills.length;
+        const counterEl = document.getElementById('agent-skills-active-count');
+        if (counterEl) {
+            counterEl.textContent = `${count} of ${total} skills active`;
+        }
+        const currentActive = [];
+        listEl.querySelectorAll('.skill-card').forEach(card => {
+            const box = card.querySelector('input[data-skill-id]');
+            if (box && box.checked) {
+                card.classList.add('active');
+                currentActive.push(box.dataset.skillId);
+            } else {
+                card.classList.remove('active');
+            }
+        });
+        setActiveSkills(currentActive);
+    };
+
     allSkills.forEach(skill => {
+        const isActive = activeIds.includes(skill.id);
         const card = document.createElement('div');
-        card.className = 'skill-card';
+        card.className = `skill-card ${isActive ? 'active' : ''}`;
         card.dataset.skillId = skill.id;
 
         card.innerHTML = `
@@ -92,10 +123,31 @@ export function renderSkillsModal(listEl, allSkills) {
                 <span class="skill-name">${escapeHtml(skill.title || skill.id)}</span>
                 <p class="skill-description">${escapeHtml(skill.description || '')}</p>
             </div>
+            <div class="skill-switch-container">
+                <label class="skill-switch" title="Toggle ${escapeHtml(skill.title || skill.id)}">
+                    <input type="checkbox" data-skill-id="${escapeHtml(skill.id)}" ${isActive ? 'checked' : ''} class="skill-checkbox-input" />
+                    <span class="skill-switch-slider"></span>
+                </label>
+            </div>
         `;
+
+        const box = card.querySelector('input[data-skill-id]');
+        if (box) {
+            box.addEventListener('change', () => updateCounterAndStates());
+        }
+
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.skill-switch') || e.target.tagName === 'INPUT') return;
+            if (box) {
+                box.checked = !box.checked;
+                updateCounterAndStates();
+            }
+        });
 
         listEl.appendChild(card);
     });
+
+    updateCounterAndStates();
 }
 
 function escapeHtml(str) {
