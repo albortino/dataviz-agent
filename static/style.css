@@ -2460,6 +2460,20 @@ hr.control-divider,
     margin-top: 0;
 }
 
+.actions-stack label {
+    font-size: var(--fs-12);
+    font-weight: var(--fw-semi);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
+    margin-bottom: 0;
+    color: var(--c-muted);
+    font-feature-settings: "tnum" "lnum";
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .actions-stack .button {
     width: 100%;
     justify-content: center;
