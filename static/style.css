@@ -209,21 +209,23 @@ body>header,
     align-items: center;
     gap: var(--gap-s);
     background: var(--color-surface-2);
-    border: 1px solid var(--color-border-input);
+    border: 1px solid var(--color-border);
     padding: 0 0.85rem;
     border-radius: var(--border-radius-pill);
     font-size: var(--font-size-button-link);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-primary);
     cursor: pointer;
-    /*transition: all var(--transition-base);*/
     box-shadow: var(--shadow-sm);
     height: 100%;
     box-sizing: border-box;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .button.dropdown-trigger-btn:hover,
-.dropdown-trigger-btn:hover {
+.dropdown-trigger-btn:hover,
+#data-dropdown-btn:hover,
+#workspace-dropdown-btn:hover {
     border-color: var(--color-border-input);
     background: var(--color-surface-2);
     color: var(--color-text-primary);
@@ -247,12 +249,14 @@ body>header,
     transition: color var(--transition-fast);
 }
 
+.button.dropdown-trigger-btn:hover i,
 .dropdown-trigger-btn:hover i,
 #data-dropdown-btn:hover i,
 #workspace-dropdown-btn:hover i {
-    color: var(--color-text-primary);
+    color: var(--color-text-primary) !important;
 }
 
+.button.dropdown-trigger-btn.active i,
 .dropdown-trigger-btn.active i,
 .dropdown-trigger-btn[aria-expanded="true"] i {
     color: var(--color-text-primary);
@@ -1576,7 +1580,11 @@ hr.control-divider,
 .syntax-sidebar-header,
 .controls-sidebar-header {
     height: 38px;
+    min-height: 38px;
+    max-height: 38px;
     padding: 0 0.75rem;
+    flex-shrink: 0;
+    box-sizing: border-box;
     background: var(--color-surface-1);
     border-bottom: 1px solid var(--color-border);
     border-radius: 0;
@@ -1683,7 +1691,6 @@ hr.control-divider,
     letter-spacing: -0.01em;
     padding: 1rem 1.1rem;
     border: none;
-    border-top: 1px solid var(--color-border);
     resize: none;
     outline: none;
     background: #fafbfc;
@@ -1716,7 +1723,7 @@ hr.control-divider,
     font-size: var(--font-size-2xs);
     line-height: 1.5;
     background: #fafbfc;
-    border-top: 1px solid var(--color-border);
+    border: none;
     color: var(--color-text-primary);
 }
 
@@ -2319,11 +2326,11 @@ hr.control-divider,
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.skill-switch input:checked + .skill-switch-slider {
+.skill-switch input:checked+.skill-switch-slider {
     background-color: var(--color-primary);
 }
 
-.skill-switch input:checked + .skill-switch-slider:before {
+.skill-switch input:checked+.skill-switch-slider:before {
     transform: translateX(16px);
 }
 
