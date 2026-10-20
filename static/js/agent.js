@@ -126,24 +126,17 @@ export class AgentManager {
 
     updateSkillsLabel() {
         if (!this.skillsLabel || !this.allSkills.length) return;
-        const active = getActiveSkills(this.allSkills);
-        this.skillsLabel.textContent = `Skills (${active.length}/${this.allSkills.length})`;
+        this.skillsLabel.textContent = `Skills (${this.allSkills.length})`;
     }
 
     openSkillsModal() {
         if (!this.skillsModal || !this.skillsList) return;
-        renderSkillsModal(this.skillsList, this.allSkills, getActiveSkills(this.allSkills));
+        renderSkillsModal(this.skillsList, this.allSkills);
         this.skillsModal.classList.remove('hidden');
     }
 
-    closeSkillsModal(save) {
+    closeSkillsModal() {
         if (!this.skillsModal) return;
-        if (save && this.skillsList) {
-            const ids = [...this.skillsList.querySelectorAll('input[data-skill-id]:checked')]
-                .map(el => el.dataset.skillId);
-            setActiveSkills(ids);
-            this.updateSkillsLabel();
-        }
         this.skillsModal.classList.add('hidden');
     }
 

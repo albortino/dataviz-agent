@@ -142,7 +142,7 @@
                                 <div class="dropdown-item-icon-box"><i class="fa-solid fa-chart-simple"></i></div>
                                 <div class="dropdown-item-text-group">
                                     <span class="dropdown-item-label">Vega-Lite Charts</span>
-                                    <span class="dropdown-item-sub">Statistical charts & spec editor</span>
+                                    <span class="dropdown-item-sub">Sophisticated charting library</span>
                                 </div>
                             </div>
                         </button>
@@ -160,7 +160,7 @@
                                 <div class="dropdown-item-icon-box"><i class="fa-solid fa-code-fork"></i></div>
                                 <div class="dropdown-item-text-group">
                                     <span class="dropdown-item-label">Mermaid</span>
-                                    <span class="dropdown-item-sub">Architecture &amp; sequence flows</span>
+                                    <span class="dropdown-item-sub">Effective charts for Markdown</span>
                                 </div>
                             </div>
                         </button>
@@ -191,7 +191,7 @@
                 <button id="workspace-dropdown-btn" class="button icon-button dropdown-trigger-btn"
                     aria-expanded="false" title="Workspace management, sessions, settings &amp; docs">
                     <i class="fa-solid fa-sliders"></i>
-                    <span>Workspace</span>
+                    <!--span>Workspace</span-->
                     <i class="fa-solid fa-chevron-down caret"></i>
                 </button>
                 <div id="workspace-dropdown-menu" class="dropdown-menu">
@@ -510,6 +510,18 @@
                             <hr class="control-divider">
                             <div class="controls-sidebar-actions">
                                 <div class="control-group">
+                                    <label>Session Management</label>
+                                    <div class="utility-segmented-btn-group">
+                                        <button class="utility-btn export-session-action-btn"
+                                            title="Export current session (.json)">
+                                            <i class="fa-solid fa-file-export"></i><span>Export</span>
+                                        </button>
+                                        <button class="utility-btn load-session-action-btn" title="Load saved session">
+                                            <i class="fa-solid fa-folder-open"></i><span>Load</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="control-group">
                                     <label>Capture Chart</label>
                                     <button id="sanddance-export-btn" class="button icon-button btn-full-width"
                                         title="Export as Image">
@@ -680,6 +692,19 @@
                             <hr class="control-divider">
 
                             <div class="controls-sidebar-actions">
+                                <div class="control-group">
+                                    <label>Session Management</label>
+                                    <div class="utility-segmented-btn-group">
+                                        <button class="utility-btn export-session-action-btn"
+                                            title="Export current session (.json)">
+                                            <i class="fa-solid fa-file-export"></i><span>Export</span>
+                                        </button>
+                                        <button class="utility-btn load-session-action-btn" title="Load saved session">
+                                            <i class="fa-solid fa-folder-open"></i><span>Load</span>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div class="control-group">
                                     <label>Annotations</label>
                                     <button id="sankey-add-text-btn" class="button icon-button"
@@ -863,6 +888,19 @@
 
 
                             <div class="controls-sidebar-actions">
+                                <div class="control-group">
+                                    <label>Session Management</label>
+                                    <div class="utility-segmented-btn-group">
+                                        <button class="utility-btn export-session-action-btn"
+                                            title="Export current session (.json)">
+                                            <i class="fa-solid fa-file-export"></i><span>Export</span>
+                                        </button>
+                                        <button class="utility-btn load-session-action-btn" title="Load saved session">
+                                            <i class="fa-solid fa-folder-open"></i><span>Load</span>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div class="control-group">
                                     <label>Zoom Controls</label>
                                     <div class="utility-segmented-btn-group">
@@ -1185,6 +1223,19 @@
                             <hr class="control-divider">
 
                             <div class="controls-sidebar-actions">
+                                <div class="control-group">
+                                    <label>Session Management</label>
+                                    <div class="utility-segmented-btn-group">
+                                        <button class="utility-btn export-session-action-btn"
+                                            title="Export current session (.json)">
+                                            <i class="fa-solid fa-file-export"></i><span>Export</span>
+                                        </button>
+                                        <button class="utility-btn load-session-action-btn" title="Load saved session">
+                                            <i class="fa-solid fa-folder-open"></i><span>Load</span>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div class="control-group">
                                     <label>Zoom Controls</label>
                                     <div class="utility-segmented-btn-group">
@@ -1602,20 +1653,15 @@
                 <div class="skills-summary-banner">
                     <div class="skills-active-counter">
                         <span class="skills-pulse-dot"></span>
-                        <span id="agent-skills-active-count">2 of 4 skills active</span>
+                        <span id="agent-skills-active-count">4 skills active</span>
                     </div>
-                    <button type="button" id="agent-skills-reset-btn" class="skills-reset-btn"
-                        title="Reset to standard defaults">
-                        <i class="fa-solid fa-rotate-left"></i><span>Reset Defaults</span>
-                    </button>
                 </div>
                 <p class="set-data-dropzone-sub">Modular reasoning engines and verification gates for the AI Copilot.
-                    Activate skills to guide analytical depth and chart style.</p>
+                </p>
                 <div id="agent-skills-list" class="agent-skills-list"></div>
             </div>
             <div class="modal-footer">
-                <button id="cancel-agent-skills-btn" class="button">Cancel</button>
-                <button id="confirm-agent-skills-btn" class="button primary">Save Skills</button>
+                <button id="cancel-agent-skills-btn" class="button">Close</button>
             </div>
         </div>
     </div>
@@ -1628,8 +1674,9 @@
                     <div class="modal-header-brand-row">
                         <i class="fa-solid fa-clock-rotate-left text-primary-icon-md"></i>
                         <div>
-                            <h2>Restore Session</h2>
-                            <p class="modal-header-subtitle">Reopen saved views, charts, and workspace state</p>
+                            <h2>Manage Session</h2>
+                            <p class="modal-header-subtitle">Store and Reopen saved views, charts, and workspace state
+                            </p>
                         </div>
                     </div>
                     <button id="close-session-modal-btn" class="modal-close-btn" title="Close"><i
@@ -1649,7 +1696,17 @@
                             class="fa-solid fa-book-open"></i><span>Docs</span></button>
                 </nav>
             </div>
+
             <div class="modal-body modal-body-spaced">
+                <!-- Session Management -->
+                <div class="control-group" id="settings-session-group" style="margin-bottom: 1.25rem;">
+                    <label class="settings-form-label">Export Current Session</label>
+                    <button type="button" id="settings-export-session-btn" class="button" style="width: 100%;"
+                        title="Export Session (.json)">
+                        <i class="fa-solid fa-file-export"></i> <span>Export Session (.json)</span>
+                    </button>
+                </div>
+
                 <!-- Step 1: Session File -->
                 <div class="session-step">
                     <label class="session-step-label">1. Choose Session File (.json)</label>

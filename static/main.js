@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportSessionBtn = document.getElementById('export-session-btn');
     const loadSessionBtn = document.getElementById('load-session-btn');
     const emptyLoadSessionBtn = document.getElementById('empty-load-session-btn');
+    const settingsExportSessionBtn = document.getElementById('settings-export-session-btn');
 
     // Dataset name tracking (surfaced in Data dropdown "Active Dataset")
     let currentDatasetName = null;
@@ -273,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (resetButton) resetButton.disabled = true;
         if (exportSessionBtn) exportSessionBtn.disabled = true;
+        if (settingsExportSessionBtn) settingsExportSessionBtn.disabled = true;
         updateDatasetIndicator(null);
 
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
@@ -774,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (resetButton) resetButton.disabled = false;
         if (exportSessionBtn) exportSessionBtn.disabled = false;
+        if (settingsExportSessionBtn) settingsExportSessionBtn.disabled = false;
         updateDatasetIndicator(currentDatasetName, data ? data.length : 0);
 
         sanddanceMgr.updateOptions();
@@ -1058,8 +1061,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupDropdown(dataDropdownBtn, dataDropdownMenu);
-    setupDropdown(workspaceDropdownBtn, workspaceDropdownMenu);
     setupDropdown(plotsMenuToggleBtn, plotsPopoverMenu);
+
+    if (workspaceDropdownBtn) {
+        workspaceDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeAllDropdowns();
+            settingsMgr.loadSavedSettings();
+            if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+        });
+    }
 
     if (workspaceMenuModelBtn) {
         workspaceMenuModelBtn.addEventListener('click', () => {
@@ -1477,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionFileInfo.innerHTML = `
                         <div>
                             <strong>Session Loaded</strong>
-                            <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px;">
+                            <div style="font-size: 0.75rem; color: var(--c-muted); margin-top: 2px;">
                                 Target View: <strong>${view}</strong> | Required Columns: <strong>${expCols}</strong> | Saved Rows: <strong>${expRows.toLocaleString()}</strong>
                             </div>
                         </div>
@@ -1499,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionDatasetStatus.className = 'session-status-card';
                         sessionDatasetStatus.innerHTML = `
                             <div class="session-status-header">
-                                <i class="fa-solid fa-circle-info" style="color: var(--color-primary);"></i>
+                                <i class="fa-solid fa-circle-info" style="color: var(--c-primary);"></i>
                                 <span>Dataset Required</span>
                             </div>
                             <div>Please upload the CSV dataset with columns: <code>${cleanCols.slice(0, 6).join(', ')}${cleanCols.length > 6 ? '...' : ''}</code></div>
@@ -1536,31 +1547,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const triggerExportSession = () => {
+        try {
+            exportSession({
+                currentData,
+                datasetName: currentDatasetName,
+                activeView: currentActiveView,
+                managers: {
+                    graphicWalker: graphicWalkerMgr,
+                    sanddance: sanddanceMgr,
+                    sankey: sankeyMgr,
+                    mermaid: mermaidMgr,
+                    vega: vegaMgr,
+                    agent: agentMgr
+                },
+                lineupInstance
+            });
+        } catch (err) {
+            alert(err.message || 'Failed to export session.');
+        }
+    };
+
     if (exportSessionBtn) {
-        exportSessionBtn.addEventListener('click', () => {
-            try {
-                exportSession({
-                    currentData,
-                    datasetName: currentDatasetName,
-                    activeView: currentActiveView,
-                    managers: {
-                        graphicWalker: graphicWalkerMgr,
-                        sanddance: sanddanceMgr,
-                        sankey: sankeyMgr,
-                        mermaid: mermaidMgr,
-                        vega: vegaMgr,
-                        agent: agentMgr
-                    },
-                    lineupInstance
-                });
-            } catch (err) {
-                alert(err.message || 'Failed to export session.');
-            }
-        });
+        exportSessionBtn.addEventListener('click', triggerExportSession);
     }
+    if (settingsExportSessionBtn) {
+        settingsExportSessionBtn.addEventListener('click', triggerExportSession);
+    }
+    document.querySelectorAll('.export-session-action-btn').forEach(btn => {
+        btn.addEventListener('click', triggerExportSession);
+    });
 
     if (loadSessionBtn) loadSessionBtn.addEventListener('click', openSessionModal);
     if (emptyLoadSessionBtn) emptyLoadSessionBtn.addEventListener('click', openSessionModal);
+    document.querySelectorAll('.load-session-action-btn').forEach(btn => {
+        btn.addEventListener('click', openSessionModal);
+    });
     if (cancelSessionBtn) cancelSessionBtn.addEventListener('click', closeSessionModal);
 
     if (sessionFileDropzone && sessionFileInput) {

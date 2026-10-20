@@ -59,17 +59,7 @@ export async function fetchAgentSkills() {
 }
 
 export function getActiveSkills(allSkills) {
-    try {
-        const raw = localStorage.getItem(AGENT_SKILLS_STORAGE_KEY);
-        if (!raw) return allSkills.filter(s => Boolean(s.default_on)).map(s => s.id);
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) throw new Error('invalid stored skills');
-        const known = new Set(allSkills.map(s => s.id));
-        return parsed.filter(id => known.has(id));
-    } catch (e) {
-        console.warn('Error reading active skills, falling back to defaults:', e);
-        return allSkills.filter(s => Boolean(s.default_on)).map(s => s.id);
-    }
+    return (allSkills || []).map(s => s.id);
 }
 
 export function setActiveSkills(ids) {
@@ -80,103 +70,32 @@ export function setActiveSkills(ids) {
     }
 }
 
-export function renderSkillsModal(listEl, allSkills, activeIds) {
+export function renderSkillsModal(listEl, allSkills) {
     if (!listEl) return;
     listEl.innerHTML = '';
 
-    const updateCounterAndStates = () => {
-        const checkedBoxes = listEl.querySelectorAll('input[data-skill-id]:checked');
-        const count = checkedBoxes.length;
-        const total = allSkills.length;
-        const counterEl = document.getElementById('agent-skills-active-count');
-        if (counterEl) {
-            counterEl.textContent = `${count} of ${total} skills active`;
-        }
-        listEl.querySelectorAll('.skill-card').forEach(card => {
-            const box = card.querySelector('input[data-skill-id]');
-            if (box && box.checked) {
-                card.classList.add('active');
-            } else {
-                card.classList.remove('active');
-            }
-        });
-    };
+    const counterEl = document.getElementById('agent-skills-active-count');
+    if (counterEl) {
+        counterEl.textContent = `${allSkills.length} skills active`;
+    }
 
     allSkills.forEach(skill => {
-        const isActive = activeIds.includes(skill.id);
         const card = document.createElement('div');
-        card.className = `skill-card ${isActive ? 'active' : ''}`;
+        card.className = 'skill-card';
         card.dataset.skillId = skill.id;
 
-        const capabilities = Array.isArray(skill.capabilities) ? skill.capabilities : [];
-        const capsHtml = capabilities.length > 0
-            ? `<div class="skill-caps">${capabilities.map(c => `<span class="skill-cap-tag"><i class="fa-solid fa-check"></i>${escapeHtml(c)}</span>`).join('')}</div>`
-            : '';
-
-        const badgeHtml = skill.badge
-            ? `<span class="skill-usp-badge">${escapeHtml(skill.badge)}</span>`
-            : '';
-
-        const defaultBadgeHtml = skill.default_on
-            ? `<span class="skill-default-badge" title="Default Core Skill"><i class="fa-solid fa-bolt"></i> Default Core</span>`
-            : `<span class="skill-opt-badge" title="Specialized Add-on"><i class="fa-solid fa-plus"></i> Add-on</span>`;
-
         card.innerHTML = `
-            <div class="skill-card-header">
-                <div class="skill-card-icon">
-                    <i class="${escapeHtml(skill.icon || 'fa-solid fa-cube')}"></i>
-                </div>
-                <div class="skill-card-titles">
-                    <div class="skill-name-row">
-                        <span class="skill-name">${escapeHtml(skill.title || skill.id)}</span>
-                        <code class="skill-slug">${escapeHtml(skill.id)}</code>
-                    </div>
-                    <div class="skill-badge-row">
-                        ${badgeHtml}
-                        ${defaultBadgeHtml}
-                    </div>
-                </div>
-                <div class="skill-switch-container">
-                    <label class="skill-switch" title="Toggle ${escapeHtml(skill.title || skill.id)}">
-                        <input type="checkbox" data-skill-id="${escapeHtml(skill.id)}" ${isActive ? 'checked' : ''} class="skill-checkbox-input" />
-                        <span class="skill-switch-slider"></span>
-                    </label>
-                </div>
+            <div class="skill-card-icon">
+                <i class="${escapeHtml(skill.icon || 'fa-solid fa-cube')}"></i>
             </div>
-            <p class="skill-description">${escapeHtml(skill.description || '')}</p>
-            ${capsHtml}
+            <div class="skill-card-body">
+                <span class="skill-name">${escapeHtml(skill.title || skill.id)}</span>
+                <p class="skill-description">${escapeHtml(skill.description || '')}</p>
+            </div>
         `;
-
-        const box = card.querySelector('input[data-skill-id]');
-        if (box) {
-            box.addEventListener('change', () => updateCounterAndStates());
-        }
-
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.skill-switch') || e.target.tagName === 'INPUT') return;
-            if (box) {
-                box.checked = !box.checked;
-                updateCounterAndStates();
-            }
-        });
 
         listEl.appendChild(card);
     });
-
-    const resetBtn = document.getElementById('agent-skills-reset-btn');
-    if (resetBtn) {
-        resetBtn.onclick = () => {
-            allSkills.forEach(s => {
-                const box = listEl.querySelector(`input[data-skill-id="${s.id}"]`);
-                if (box) {
-                    box.checked = Boolean(s.default_on);
-                }
-            });
-            updateCounterAndStates();
-        };
-    }
-
-    updateCounterAndStates();
 }
 
 function escapeHtml(str) {
