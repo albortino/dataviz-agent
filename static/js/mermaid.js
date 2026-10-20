@@ -171,12 +171,17 @@ const aggregateCategory = (data, catCol, valCol, aggFunc, limit = 10, sortByVal 
     const entries = Object.entries(groups).map(([cat, rows]) => {
         const vals = aggFunc === 'count'
             ? rows.map(() => 1)
-            : rows.map(r => (valCol && r[valCol] !== undefined && r[valCol] !== null) ? r[valCol] : 1);
+            : rows.map(r => {
+                const raw = (valCol && r[valCol] !== undefined && r[valCol] !== null) ? r[valCol] : null;
+                if (raw === null || raw === '') return 1;
+                const parsed = parseFloat(raw);
+                return isNaN(parsed) ? 1 : parsed;
+            });
         const res = Math.round(aggregateValues(vals, aggFunc) * 100) / 100;
         return [cat, res];
     });
 
-    const valid = entries.filter(([, v]) => v > 0);
+    const valid = entries.filter(([, v]) => typeof v === 'number' && !isNaN(v));
     if (sortByVal) valid.sort((a, b) => b[1] - a[1]);
     return valid.slice(0, limit);
 };
@@ -586,7 +591,7 @@ export class MermaidManager {
 
         populateColumnSelects([
             { select: this.sourceCol, defaultIndex: 0 },
-            { select: this.targetCol, defaultIndex: 1 },
+            { select: this.targetCol, defaultIndex: 1, defaultVal: numCol || '' },
             { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
         ], columns);
 
