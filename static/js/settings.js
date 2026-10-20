@@ -101,8 +101,8 @@ export class SettingsManager {
 
         if (this.routeHint) {
             this.routeHint.textContent = mode === 'browser'
-                ? 'No external server; limited functionality'
-                : 'More functionality; server processes data';
+                ? 'Client-side LLM call (best for corporate VPN; code execution disabled)'
+                : 'Full agent mode (executes python and visual transformations on backend)';
         }
 
         if (updateStorage) {

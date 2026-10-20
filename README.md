@@ -88,15 +88,21 @@ flowchart LR
 - **Live Tabular-to-Sankey Generator**: Pick Source, Target, and Value columns from your dataset to instantly render flows.
 - **Interactive Customization**: Drag-and-drop nodes, customize node alignment (justify, left, right, center), modify link curvature, and export high-resolution SVGs.
 
-### 5. Interactive Diagram Studio
-*Powered by [Mermaid.js](https://mermaid.js.org/)*
+### 5. Interactive Diagram & Vega Studios
+*Powered by [Mermaid.js](https://mermaid.js.org/) & [Vega-Lite](https://vega.github.io/vega-lite/)*
 - **Dynamic Diagram Types**: Generate Flowcharts, Sequence Diagrams, State Diagrams, Entity-Relationship (ER) Models, Mindmaps, Class Diagrams, and Gantt charts.
+- **Dedicated Vega-Lite Studio**: Full live specification editor, instant preview, preset statistical templates, and custom theme rendering.
 - **Pan, Zoom & Live Edit**: Full SVG pan/zoom canvas with syntax highlight editor, error recovery, and auto-beautification.
 - **Tabular Auto-Extraction**: Automatically derive entity relationships, process workflows, and hierarchical trees directly from CSV columns.
 
-### 6. AI-Assisted Analysis
+### 6. AI-Assisted Analysis & Specialized Skills
 - **Conversational Analytics**: Ask questions in plain language (e.g., *"What is the correlation between revenue and ad spend by region?"*, *"Find outliers and plot a distribution"*).
 - **Sandboxed Python Code Execution**: The agent writes and executes Python code in real-time, computing metrics with Pandas / Numpy and rendering custom Matplotlib / Seaborn charts inline.
+- **Bi-Directional Chart Synchronization**: Open any AI-generated Vega-Lite or Mermaid chart directly into its visual studio editor with one click; refine the visual specification interactively and sync it back to the agent conversation.
+- **Specialized Analytical Skills**:
+  - **Executive Narrative**: Formats findings into structured Minto Pyramid decision memos (Bottom-Line Up Front, MECE driver decomposition, and prioritized action matrix).
+  - **Predictive Forecast & Anomalies**: Projects future metric trends with 95% statistical confidence corridors and flags anomaly thresholds.
+  - **Data Health Audit**: Performs pre-flight integrity screens for missingness, skew, high cardinality, and identifier columns.
 - **Transparent ReAct Loop**: View the agent's full reasoning chain (**Thought ➔ Action ➔ Observation ➔ Final Answer**).
 - **Hybrid Speed Optimization**: Employs client-side data tools for instantaneous answers to standard statistical queries, falling back to server-side Python execution for complex analytical requests.
 

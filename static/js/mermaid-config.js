@@ -29,7 +29,7 @@ export const MERMAID_CONFIG_OPTIONS = {
         { key: 'showAxisLine', label: 'Axis lines', path: ['xyChart', 'yAxis', 'showAxisLine'], type: 'toggle', default: true, category: 'layout' },
         { key: 'showTicks', label: 'Axis ticks', path: ['xyChart', 'yAxis', 'showTick'], type: 'toggle', default: true, category: 'layout' },
         { key: 'showTitle', label: 'Show chart title', path: ['xyChart', 'showChartTitle'], type: 'toggle', default: true, category: 'labels' },
-        { key: 'palette', label: 'Plot color palette', path: ['themeVariables', 'xyChart', 'plotColorPalette'], type: 'text', default: '#4f46e5, #06b6d4, #f59e0b', category: 'styling' }
+        { key: 'palette', label: 'Plot color palette', path: ['themeVariables', 'xyChart', 'plotColorPalette'], type: 'text', default: '#0072B2, #D55E00, #009E73, #CC79A7', category: 'styling' }
     ],
     radar: [
         { key: 'graticule', label: 'Graticule shape', path: ['radar', 'graticule'], type: 'select', options: ['circle', 'polygon'], default: 'polygon', category: 'layout' },

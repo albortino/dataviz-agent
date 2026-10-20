@@ -1,7 +1,11 @@
 ---
 name: dataviz
 runtime: dataviz-agent-only
-description: Select, generate, format, and verify statistical charts for exploration and summary reports.
+title: Data Visualization
+icon: fa-solid fa-chart-pie
+badge: Publication-Grade Visuals
+description: High-density statistical charting with 3 style modes, takeaway headlines, Seaborn aesthetics, and zero chartjunk.
+capabilities: ["Seaborn Engine", "3 Style Modes", "Takeaway Titles", "Direct Bar/Line Labels"]
 modes: [exploration, editorial, narrative]
 ---
 

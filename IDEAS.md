@@ -1,0 +1,5 @@
+- [] use https://gramener.github.io/visual-vocabulary-vega/# as a skill description for vega charts. Each subpage is a resource. -> added in agent-skill branch. However, we should add the description of each chart based on: https://ft-interactive.github.io/visual-vocabulary/. 
+- [] Implement https://www.data-to-viz.com as chart descripting. Store as json. Test reults with an without the skills.
+- [] Focus naming: making charting experience applicaple for everyone (be your own Data Scientist)
+- [] Allow to edit the data in the background. E.g. Filter or Add New columns or Extract Values out of Columns
+- [] "Overview first, zoom and filter, then details-on-demand" Tutorial. link to paper B. Shneiderman, "The eyes have it: a task by data type taxonomy for information visualizations," doi: 10.1109/VL. 1996.545307.

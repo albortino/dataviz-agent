@@ -291,3 +291,53 @@ export const ClientDataTools = {
         return `Grouped by '${groupCol}' (${aggFunc.toUpperCase()} of '${aggCol}'):\n${JSON.stringify(res, null, 2)}`;
     }
 };
+
+/**
+ * Aggregates two-column relational flow pairs (source -> target) with optional disambiguation and metric aggregation.
+ */
+export function aggregateFlows(data, { sourceCol, targetCol, valCol, aggFunc = 'sum', disambiguate = true, limit = 50 } = {}) {
+    if (!data || !sourceCol || !targetCol || sourceCol === targetCol) return [];
+
+    const srcValues = new Set();
+    const tgtValues = new Set();
+    data.forEach(row => {
+        const s = String(row[sourceCol] ?? '').trim();
+        const t = String(row[targetCol] ?? '').trim();
+        if (s) srcValues.add(s);
+        if (t) tgtValues.add(t);
+    });
+
+    const hasOverlap = Array.from(srcValues).some(v => tgtValues.has(v));
+    const shouldDisambiguate = disambiguate && hasOverlap;
+
+    const flowAgg = {};
+    data.forEach(row => {
+        let s = String(row[sourceCol] ?? '').trim();
+        let t = String(row[targetCol] ?? '').trim();
+        if (!s || !t) return;
+
+        if (shouldDisambiguate) {
+            s = `${s} (${sourceCol})`;
+            t = `${t} (${targetCol})`;
+        }
+
+        const key = `${s}___${t}`;
+        let val = 1;
+        if (valCol && row[valCol] !== undefined && row[valCol] !== null) {
+            const parsed = parseFloat(row[valCol]);
+            val = isNaN(parsed) ? 1 : Math.max(0, parsed);
+        }
+        if (!flowAgg[key]) flowAgg[key] = [];
+        flowAgg[key].push(val);
+    });
+
+    const flows = Object.entries(flowAgg).map(([key, vals]) => {
+        const [source, target] = key.split('___');
+        const computedVal = aggFunc === 'none' ? (vals[0] ?? 1) : aggregateValues(vals, aggFunc);
+        return { source, target, value: Math.round(computedVal * 100) / 100 };
+    }).filter(f => f.value > 0);
+
+    flows.sort((a, b) => b.value - a.value);
+    return typeof limit === 'number' && limit > 0 ? flows.slice(0, limit) : flows;
+}
+

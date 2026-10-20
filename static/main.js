@@ -18,7 +18,7 @@ import { SankeyManager } from './js/sankey.js';
 import { VegaManager } from './js/vega.js';
 import { SandDanceManager } from './js/sanddance.js';
 import { GraphicWalkerManager } from './js/graphic-walker.js';
-import { AgentManager } from './js/agent.js';
+import { AgentManager } from './js/agent.js?v=20261020_v6';
 import { SettingsManager } from './js/settings.js';
 import { exportSession, validateDatasetForSession, restoreSessionState } from './js/session.js';
 
@@ -41,7 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, plotsMenuToggleBtn, showAgentBtn];
+    const headerSpecToggleBtn = document.getElementById('header-spec-toggle-btn');
+    const headerControlsToggleBtn = document.getElementById('header-controls-toggle-btn');
+    const headerControlsLabel = document.getElementById('header-controls-label');
+    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
+    // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
+    // buttons never fire click events, so including the Charts engine picker
+    // would make the dropdown unopenable. The picker stays enabled so users
+    // can always switch engines; engine items no-op until data is loaded.
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -51,7 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sankeyContainer = document.getElementById('sankey-container');
     const vegaContainer = document.getElementById('vega-container');
     const agentContainer = document.getElementById('agent-container');
-    const allContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer, agentContainer];
+    const copilotDragHandle = document.getElementById('copilot-drag-handle');
+    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer];
+    const allContainers = [...visualContainers, agentContainer];
 
     const emptyStateContainer = document.getElementById('empty-state-container');
     const emptySetDataBtn = document.getElementById('empty-set-data-btn');
@@ -65,10 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('csv-file-input');
     const dataDropdownBtn = document.getElementById('data-dropdown-btn');
     const dataDropdownMenu = document.getElementById('data-dropdown-menu');
-    const dataFilenameChip = document.getElementById('data-filename-chip');
     const dataActiveDatasetText = document.getElementById('data-active-dataset-text');
-    const sessionDropdownBtn = document.getElementById('session-dropdown-btn');
-    const sessionDropdownMenu = document.getElementById('session-dropdown-menu');
+    const workspaceDropdownBtn = document.getElementById('workspace-dropdown-btn') || document.getElementById('session-dropdown-btn');
+    const workspaceDropdownMenu = document.getElementById('workspace-dropdown-menu') || document.getElementById('session-dropdown-menu');
+    const workspaceMenuModelBtn = document.getElementById('workspace-menu-model-btn');
+    const workspaceMenuSkillsBtn = document.getElementById('workspace-menu-skills-btn');
+    const workspaceMenuDocsBtn = document.getElementById('workspace-menu-docs-btn');
 
     const setDataButton = document.getElementById('set-data-btn');
     const uploadButton = document.getElementById('upload-btn');
@@ -78,28 +90,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportSessionBtn = document.getElementById('export-session-btn');
     const loadSessionBtn = document.getElementById('load-session-btn');
     const emptyLoadSessionBtn = document.getElementById('empty-load-session-btn');
+    const settingsExportSessionBtn = document.getElementById('settings-export-session-btn');
 
-    // Dataset name tracking with first-k-characters truncation
+    // Dataset name tracking (surfaced in Data dropdown "Active Dataset")
     let currentDatasetName = null;
-    const MAX_DATASET_NAME_CHARS = 12;
-
-    const formatDatasetName = (name, k = MAX_DATASET_NAME_CHARS) => {
-        if (!name) return '';
-        return name.length > k ? name.slice(0, k) + '…' : name;
-    };
 
     const updateDatasetIndicator = (name, rowCount = 0) => {
         currentDatasetName = name;
-        if (name && dataFilenameChip) {
-            dataFilenameChip.textContent = formatDatasetName(name);
-            dataFilenameChip.title = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
-            dataFilenameChip.classList.remove('hidden');
-        } else if (dataFilenameChip) {
-            dataFilenameChip.textContent = '';
-            dataFilenameChip.title = '';
-            dataFilenameChip.classList.add('hidden');
-        }
-
+        // Header chip removed by design: dataset identity lives in the
+        // Data dropdown ("Active Dataset") only, keeping the header quiet.
         if (dataActiveDatasetText) {
             if (name) {
                 dataActiveDatasetText.textContent = `${name} (${rowCount ? rowCount.toLocaleString() : '0'} rows)`;
@@ -155,7 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const mermaidMgr = new MermaidManager({
-        getData
+        getData,
+        onApplyToChat: ({ code, sourceChartId }) => {
+            toggleAgent(true);
+            if (sourceChartId) {
+                const updated = agentMgr.updateChart(sourceChartId, code);
+                if (!updated) agentMgr.appendUserChartMessage('mermaid', code);
+            } else {
+                agentMgr.appendUserChartMessage('mermaid', code);
+            }
+        }
     });
 
     const sankeyMgr = new SankeyManager({
@@ -163,7 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const vegaMgr = new VegaManager({
-        getData
+        getData,
+        onApplyToChat: ({ spec, sourceChartId }) => {
+            toggleAgent(true);
+            if (sourceChartId) {
+                const updated = agentMgr.updateChart(sourceChartId, spec);
+                if (!updated) agentMgr.appendUserChartMessage('vega', spec);
+            } else {
+                agentMgr.appendUserChartMessage('vega', spec);
+            }
+        }
     });
 
     const sanddanceMgr = new SandDanceManager({
@@ -176,12 +193,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const agentMgr = new AgentManager({
         getData,
-        onOpenMermaid: (code) => {
-            if (mermaidMgr.textEditor) mermaidMgr.textEditor.value = code;
+        onOpenMermaid: (code, chartId) => {
+            mermaidMgr.loadDiagram(code, chartId);
             showMermaid();
         },
-        onOpenVega: (spec) => {
-            vegaMgr.loadSpec(spec);
+        onOpenVega: (spec, chartId) => {
+            vegaMgr.loadSpec(spec, chartId);
             showVega();
         }
     });
@@ -212,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Plots Split Hub metadata
     const plotsConfig = {
-        vega: { label: 'Vega', icon: 'fa-chart-simple', elem: plotsItemVega },
+        vega: { label: 'Charts', icon: 'fa-chart-simple', elem: plotsItemVega },
         sankey: { label: 'Sankey', icon: 'fa-diagram-project', elem: plotsItemSankey },
         mermaid: { label: 'Mermaid', icon: 'fa-code-fork', elem: plotsItemMermaid }
     };
@@ -247,20 +264,85 @@ document.addEventListener('DOMContentLoaded', () => {
         if (plotsSplitHub) {
             plotsSplitHub.classList.remove('open', 'active-group');
         }
+        if (plotsPopoverMenu) {
+            plotsPopoverMenu.classList.remove('show');
+        }
         if (plotsMenuToggleBtn) {
+            plotsMenuToggleBtn.classList.remove('active');
             plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
         }
 
         if (resetButton) resetButton.disabled = true;
         if (exportSessionBtn) exportSessionBtn.disabled = true;
+        if (settingsExportSessionBtn) settingsExportSessionBtn.disabled = true;
         updateDatasetIndicator(null);
 
         if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
+        updateHeaderSidebarToggles();
+    }
+
+    function getActiveChartInfo() {
+        if (vegaContainer && !vegaContainer.classList.contains('hidden')) {
+            return { mgr: vegaMgr, left: vegaContainer.querySelector('.syntax-sidebar'), right: vegaContainer.querySelector('.controls-sidebar') };
+        }
+        if (sankeyContainer && !sankeyContainer.classList.contains('hidden')) {
+            return { mgr: sankeyMgr, left: sankeyContainer.querySelector('.syntax-sidebar'), right: sankeyContainer.querySelector('.controls-sidebar') };
+        }
+        if (mermaidContainer && !mermaidContainer.classList.contains('hidden')) {
+            return { mgr: mermaidMgr, left: mermaidContainer.querySelector('.syntax-sidebar'), right: mermaidContainer.querySelector('.controls-sidebar') };
+        }
+        return null;
+    }
+
+    function syncHeaderSidebarToggles() {
+        if (!currentData || currentData.length === 0) {
+            headerSpecToggleBtn?.classList.add('hidden');
+            headerControlsToggleBtn?.classList.add('hidden');
+            return;
+        }
+
+
+        if (currentActiveView === 'sanddance') {
+            headerSpecToggleBtn?.classList.add('hidden');
+            headerControlsToggleBtn?.classList.remove('hidden');
+            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
+            headerControlsToggleBtn?.setAttribute('title', 'Toggle Controls (⌘I)');
+            const isOpen = sanddanceMgr.toolbar && !sanddanceMgr.toolbar.classList.contains('collapsed');
+            headerControlsToggleBtn?.classList.toggle('active', !!isOpen);
+            headerControlsToggleBtn?.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+            return;
+        }
+
+        if (currentActiveView === 'vega' || currentActiveView === 'sankey' || currentActiveView === 'mermaid') {
+            headerSpecToggleBtn?.classList.remove('hidden');
+            headerControlsToggleBtn?.classList.remove('hidden');
+            if (headerControlsLabel) headerControlsLabel.textContent = 'Controls';
+            headerSpecToggleBtn?.setAttribute('title', 'Toggle Syntax / Code (⌘B)');
+            headerControlsToggleBtn?.setAttribute('title', 'Toggle Controls (⌘I)');
+
+            const info = getActiveChartInfo();
+            const isLeftOpen = info?.left && !info.left.classList.contains('collapsed');
+            const isRightOpen = info?.right && !info.right.classList.contains('collapsed');
+
+            headerSpecToggleBtn?.classList.toggle('active', !!isLeftOpen);
+            headerSpecToggleBtn?.setAttribute('aria-pressed', isLeftOpen ? 'true' : 'false');
+            headerControlsToggleBtn?.classList.toggle('active', !!isRightOpen);
+            headerControlsToggleBtn?.setAttribute('aria-pressed', isRightOpen ? 'true' : 'false');
+            return;
+        }
+
+        // For graphic-walker or others
+        headerSpecToggleBtn?.classList.add('hidden');
+        headerControlsToggleBtn?.classList.add('hidden');
+    }
+
+    function updateHeaderSidebarToggles() {
+        setTimeout(syncHeaderSidebarToggles, 20);
     }
 
     function setActiveView(targetContainer, targetButton) {
         if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
-        allContainers.forEach(c => {
+        visualContainers.forEach(c => {
             if (c === targetContainer) {
                 c.classList.remove('hidden');
             } else if (c) {
@@ -269,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const isPlotsTarget = (targetButton === plotsPrimaryBtn);
-        allViewButtons.forEach(btn => {
+        visualViewButtons.forEach(btn => {
             if (btn === targetButton) {
                 btn.classList.add('active');
             } else if (btn) {
@@ -278,11 +360,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updatePlotsHubState(null, isPlotsTarget);
+        updateHeaderSidebarToggles();
 
         // Free SVG DOM memory when leaving Sankey view
         if (targetContainer !== sankeyContainer && sankeyMgr) {
             sankeyMgr.teardown();
         }
+        window.dispatchEvent(new Event('resize'));
     }
 
     let currentActiveView = 'lineup';
@@ -361,12 +445,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     }
 
+    function toggleAgent(forceState) {
+        if (!agentContainer) return;
+        const willOpen = (typeof forceState === 'boolean') ? forceState : agentContainer.classList.contains('hidden');
+        if (willOpen) {
+            agentContainer.classList.remove('hidden');
+            if (copilotDragHandle) copilotDragHandle.classList.remove('hidden');
+            if (showAgentBtn) showAgentBtn.classList.add('active');
+            setTimeout(() => { if (agentMgr && agentMgr.chatInput) agentMgr.chatInput.focus(); }, 60);
+        } else {
+            agentContainer.classList.add('hidden');
+            if (copilotDragHandle) copilotDragHandle.classList.add('hidden');
+            if (showAgentBtn) showAgentBtn.classList.remove('active');
+        }
+        window.dispatchEvent(new Event('resize'));
+    }
+
     function showAgent() {
         if (!currentData || currentData.length === 0) return;
-        currentActiveView = 'agent';
-        setActiveView(agentContainer, showAgentBtn);
-        if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
-        setTimeout(() => { if (agentMgr.chatInput) agentMgr.chatInput.focus(); }, 50);
+        toggleAgent(true);
     }
 
     function activateViewByName(viewName) {
@@ -422,24 +519,134 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if (plotsItemVega) {
-        plotsItemVega.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemVega.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showVega();
+            closeAllDropdowns();
         });
     }
     if (plotsItemSankey) {
-        plotsItemSankey.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemSankey.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showSankey();
+            closeAllDropdowns();
         });
     }
     if (plotsItemMermaid) {
-        plotsItemMermaid.addEventListener('click', () => {
-            closePlotsMenu();
+        plotsItemMermaid.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (currentData && currentData.length > 0) showMermaid();
+            closeAllDropdowns();
         });
     }
-    if (showAgentBtn) showAgentBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showAgent(); });
+    if (showAgentBtn) {
+        showAgentBtn.addEventListener('click', () => {
+            if (currentData && currentData.length > 0) {
+                toggleAgent();
+            }
+        });
+    }
+
+    // Header Sidebar Toggles
+    if (headerSpecToggleBtn) {
+        headerSpecToggleBtn.addEventListener('click', () => {
+            const info = getActiveChartInfo();
+            if (!info || !info.left) return;
+            const isCollapsed = info.left.classList.contains('collapsed');
+            info.mgr?.setSidebarCollapsed(!isCollapsed);
+            syncHeaderSidebarToggles();
+        });
+    }
+
+    if (headerControlsToggleBtn) {
+        headerControlsToggleBtn.addEventListener('click', () => {
+            if (currentActiveView === 'sanddance') {
+                const isCollapsed = sanddanceMgr.toolbar?.classList.contains('collapsed');
+                sanddanceMgr.setToolbarCollapsed(!isCollapsed);
+            } else {
+                const info = getActiveChartInfo();
+                if (!info || !info.right) return;
+                const isCollapsed = info.right.classList.contains('collapsed');
+                info.mgr?.setControlsCollapsed(!isCollapsed);
+            }
+            syncHeaderSidebarToggles();
+        });
+    }
+
+    window.addEventListener('sidebar-collapsed-change', () => {
+        syncHeaderSidebarToggles();
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+            if (headerSpecToggleBtn && !headerSpecToggleBtn.classList.contains('hidden')) {
+                e.preventDefault();
+                headerSpecToggleBtn.click();
+            }
+        } else if ((e.metaKey || e.ctrlKey) && (e.altKey || e.key.toLowerCase() === 'i')) {
+            if (headerControlsToggleBtn && !headerControlsToggleBtn.classList.contains('hidden')) {
+                e.preventDefault();
+                headerControlsToggleBtn.click();
+            }
+        }
+    });
+
+    const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
+    if (copilotCollapseBtn) {
+        copilotCollapseBtn.addEventListener('click', () => toggleAgent(false));
+    }
+
+    // Draggable Split-Pane Resizer for Agent
+    if (copilotDragHandle && agentContainer) {
+        const savedWidth = localStorage.getItem('copilot_width');
+        if (savedWidth) {
+            const w = parseInt(savedWidth, 10);
+            if (w >= 300 && w <= Math.floor(window.innerWidth * 0.75)) {
+                agentContainer.style.width = `${w}px`;
+                agentContainer.style.flex = `0 0 ${w}px`;
+            }
+        }
+
+        let isDragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            const deltaX = startX - e.clientX;
+            const targetWidth = startWidth + deltaX;
+            const minWidth = 300;
+            const maxWidth = Math.floor(window.innerWidth * 0.75);
+            const clamped = Math.max(minWidth, Math.min(targetWidth, maxWidth));
+            agentContainer.style.width = `${clamped}px`;
+            agentContainer.style.flex = `0 0 ${clamped}px`;
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        const onMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            copilotDragHandle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            localStorage.setItem('copilot_width', parseInt(agentContainer.style.width, 10));
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        copilotDragHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startWidth = agentContainer.getBoundingClientRect().width;
+            copilotDragHandle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        });
+    }
 
     // --- CSV Import Modal & Parsing ---
     const openImportModal = (file) => {
@@ -569,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (resetButton) resetButton.disabled = false;
         if (exportSessionBtn) exportSessionBtn.disabled = false;
+        if (settingsExportSessionBtn) settingsExportSessionBtn.disabled = false;
         updateDatasetIndicator(currentDatasetName, data ? data.length : 0);
 
         sanddanceMgr.updateOptions();
@@ -588,6 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data && data.length > 0) {
             agentMgr.renderPreviewTable(data.slice(0, 5));
+            agentMgr.refreshCharts?.();
             if (duckdbEngine) {
                 if (window._duckdbLoadedFromCSV) {
                     window._duckdbLoadedFromCSV = false;
@@ -811,13 +1020,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Header Dropdown Menus (Variant 1)
-    const allDropdownMenus = [dataDropdownMenu, sessionDropdownMenu];
-    const allDropdownButtons = [dataDropdownBtn, sessionDropdownBtn];
+    // Header Dropdown Menus — one shared pattern for Data, Charts, Workspace.
+    // Each trigger toggles its sibling .dropdown-menu via .show; the Charts
+    // hub additionally marks its .dropdown-wrapper .open for split-btn styling.
+    const allDropdownMenus = [dataDropdownMenu, plotsPopoverMenu, workspaceDropdownMenu];
+    const allDropdownButtons = [dataDropdownBtn, plotsMenuToggleBtn, workspaceDropdownBtn];
 
     function closePlotsMenu() {
         if (plotsSplitHub) plotsSplitHub.classList.remove('open');
-        if (plotsMenuToggleBtn) plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+        if (plotsPopoverMenu) plotsPopoverMenu.classList.remove('show');
+        if (plotsMenuToggleBtn) {
+            plotsMenuToggleBtn.classList.remove('active');
+            plotsMenuToggleBtn.setAttribute('aria-expanded', 'false');
+        }
     }
 
     function closeAllDropdowns() {
@@ -846,22 +1061,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupDropdown(dataDropdownBtn, dataDropdownMenu);
-    setupDropdown(sessionDropdownBtn, sessionDropdownMenu);
+    setupDropdown(plotsMenuToggleBtn, plotsPopoverMenu);
 
-    if (plotsMenuToggleBtn && plotsSplitHub) {
-        plotsMenuToggleBtn.addEventListener('click', (e) => {
+    if (workspaceDropdownBtn) {
+        workspaceDropdownBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = plotsSplitHub.classList.contains('open');
             closeAllDropdowns();
-            if (!isOpen) {
-                plotsSplitHub.classList.add('open');
-                plotsMenuToggleBtn.setAttribute('aria-expanded', 'true');
-            }
+            settingsMgr.loadSavedSettings();
+            if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+        });
+    }
+
+    if (workspaceMenuModelBtn) {
+        workspaceMenuModelBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            settingsMgr.loadSavedSettings();
+            if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+        });
+    }
+    if (workspaceMenuSkillsBtn) {
+        workspaceMenuSkillsBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            agentMgr.openSkillsModal();
+        });
+    }
+    if (workspaceMenuDocsBtn) {
+        workspaceMenuDocsBtn.addEventListener('click', () => {
+            closeAllDropdowns();
+            openDocsModal();
         });
     }
 
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown-wrapper') && !e.target.closest('.split-hub-wrapper')) {
+        if (!e.target.closest('.dropdown-wrapper')) {
             closeAllDropdowns();
         }
     });
@@ -872,7 +1104,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Close dropdowns when clicking any item
+    // Close all popups when clicking any item (Charts engine items included:
+    // they keep .active for selection but must not stay open)
     document.querySelectorAll('.dropdown-item').forEach(item => {
         item.addEventListener('click', () => {
             closeAllDropdowns();
@@ -969,32 +1202,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Guidelines Banner Toggle Accordions
+    // Insights Banner Floating Popover Toggle
     document.querySelectorAll('.tab-intro-toggle-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const banner = e.currentTarget.closest('.tab-intro-banner');
             if (banner) {
-                const isOpen = banner.classList.toggle('open');
-                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-                    setTimeout(() => sanddanceMgr.resize(), 160);
+                const wasOpen = banner.classList.contains('open');
+                // Close any other open tab-intro popovers
+                document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                    b.classList.remove('open');
+                    b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+                });
+                if (!wasOpen) {
+                    banner.classList.add('open');
+                    btn.setAttribute('aria-expanded', 'true');
                 }
             }
         });
     });
 
-    // Overview & Description Toggle for Mobile Banners
-    document.querySelectorAll('.tab-intro-info-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const banner = e.currentTarget.closest('.tab-intro-banner');
-            if (banner) {
-                const isOpen = banner.classList.toggle('info-open');
-                btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
-                    setTimeout(() => sanddanceMgr.resize(), 160);
-                }
-            }
-        });
+    // Dismiss floating popover on outside click or Escape
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tab-intro-banner')) {
+            document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                b.classList.remove('open');
+                b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+            });
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.tab-intro-banner.open').forEach(b => {
+                b.classList.remove('open');
+                b.querySelector('.tab-intro-toggle-btn')?.setAttribute('aria-expanded', 'false');
+            });
+        }
     });
 
     // Global paste handler to import tabular data directly with Ctrl+V / Cmd+V
@@ -1080,6 +1324,68 @@ document.addEventListener('DOMContentLoaded', () => {
             openImprintModal();
         });
     }
+
+    // Drawer backdrop click & Escape key handling for slide-out inspector drawers
+    document.querySelectorAll('.modal').forEach(m => {
+        m.addEventListener('click', (e) => {
+            if (e.target === m) {
+                m.classList.add('hidden');
+            }
+        });
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal:not(.hidden)').forEach(m => m.classList.add('hidden'));
+        }
+    });
+
+    // Close button wiring for all inspector drawers and modals
+    document.querySelectorAll('.modal-close-btn, [data-close-drawer]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal');
+            if (modal) modal.classList.add('hidden');
+        });
+    });
+
+    // Unified Inspector Drawer Tab Bar Navigation
+    const inspectorDrawerIds = ['set-data-modal', 'session-modal', 'settings-modal', 'agent-skills-modal', 'docs-modal'];
+    document.querySelectorAll('.inspector-nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetId = tab.getAttribute('data-inspector');
+            if (!targetId) return;
+
+            // Close all other inspector drawers
+            inspectorDrawerIds.forEach(id => {
+                if (id !== targetId) {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                }
+            });
+
+            // Open target drawer via its specific handler
+            if (targetId === 'set-data-modal') {
+                openSetDataModal();
+            } else if (targetId === 'session-modal') {
+                openSessionModal();
+            } else if (targetId === 'settings-modal') {
+                settingsMgr.loadSavedSettings();
+                if (settingsMgr.settingsModal) settingsMgr.settingsModal.classList.remove('hidden');
+            } else if (targetId === 'agent-skills-modal') {
+                agentMgr.openSkillsModal();
+            } else if (targetId === 'docs-modal') {
+                openDocsModal();
+            }
+
+            const targetModal = document.getElementById(targetId);
+            if (targetModal) {
+                const mc = targetModal.querySelector('.modal-content');
+                if (mc) mc.scrollTop = 0;
+                const mb = targetModal.querySelector('.modal-body');
+                if (mb) mb.scrollTop = 0;
+            }
+        });
+    });
 
     // Dynamic Footer Visibility for Privacy & Imprint
     const initFooterComplianceLinks = async () => {
@@ -1182,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionFileInfo.innerHTML = `
                         <div>
                             <strong>Session Loaded</strong>
-                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                            <div style="font-size: 0.75rem; color: var(--c-muted); margin-top: 2px;">
                                 Target View: <strong>${view}</strong> | Required Columns: <strong>${expCols}</strong> | Saved Rows: <strong>${expRows.toLocaleString()}</strong>
                             </div>
                         </div>
@@ -1204,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionDatasetStatus.className = 'session-status-card';
                         sessionDatasetStatus.innerHTML = `
                             <div class="session-status-header">
-                                <i class="fa-solid fa-circle-info" style="color: var(--color-primary);"></i>
+                                <i class="fa-solid fa-circle-info" style="color: var(--c-primary);"></i>
                                 <span>Dataset Required</span>
                             </div>
                             <div>Please upload the CSV dataset with columns: <code>${cleanCols.slice(0, 6).join(', ')}${cleanCols.length > 6 ? '...' : ''}</code></div>
@@ -1241,31 +1547,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const triggerExportSession = () => {
+        try {
+            exportSession({
+                currentData,
+                datasetName: currentDatasetName,
+                activeView: currentActiveView,
+                managers: {
+                    graphicWalker: graphicWalkerMgr,
+                    sanddance: sanddanceMgr,
+                    sankey: sankeyMgr,
+                    mermaid: mermaidMgr,
+                    vega: vegaMgr,
+                    agent: agentMgr
+                },
+                lineupInstance
+            });
+        } catch (err) {
+            alert(err.message || 'Failed to export session.');
+        }
+    };
+
     if (exportSessionBtn) {
-        exportSessionBtn.addEventListener('click', () => {
-            try {
-                exportSession({
-                    currentData,
-                    datasetName: currentDatasetName,
-                    activeView: currentActiveView,
-                    managers: {
-                        graphicWalker: graphicWalkerMgr,
-                        sanddance: sanddanceMgr,
-                        sankey: sankeyMgr,
-                        mermaid: mermaidMgr,
-                        vega: vegaMgr,
-                        agent: agentMgr
-                    },
-                    lineupInstance
-                });
-            } catch (err) {
-                alert(err.message || 'Failed to export session.');
-            }
-        });
+        exportSessionBtn.addEventListener('click', triggerExportSession);
     }
+    if (settingsExportSessionBtn) {
+        settingsExportSessionBtn.addEventListener('click', triggerExportSession);
+    }
+    document.querySelectorAll('.export-session-action-btn').forEach(btn => {
+        btn.addEventListener('click', triggerExportSession);
+    });
 
     if (loadSessionBtn) loadSessionBtn.addEventListener('click', openSessionModal);
     if (emptyLoadSessionBtn) emptyLoadSessionBtn.addEventListener('click', openSessionModal);
+    document.querySelectorAll('.load-session-action-btn').forEach(btn => {
+        btn.addEventListener('click', openSessionModal);
+    });
     if (cancelSessionBtn) cancelSessionBtn.addEventListener('click', closeSessionModal);
 
     if (sessionFileDropzone && sessionFileInput) {

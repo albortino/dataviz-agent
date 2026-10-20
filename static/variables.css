@@ -1,98 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-    /* Colors - Modern and harmonious palette */
-    --color-primary: #2563eb;
-    --color-primary-hover: #1d4ed8;
-    --color-primary-light: #eff6ff;
-    --color-primary-glow: rgba(37, 99, 235, 0.25);
-
-    --color-secondary: #64748b;
-    --color-secondary-hover: #475569;
-    --color-secondary-light: #f8fafc;
-
-    --color-success: #10b981;
-    --color-danger: #ef4444;
-    --color-danger-hover: #dc2626;
-
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #64748b;
-    --color-text-dark: #334155;
-    --color-text-muted: #94a3b8;
-
-    --color-background-body: #f8fafc;
-    --color-background-light: #ffffff;
-    --color-background-medium: #f1f5f9;
-
-    --color-border: #e2e8f0;
-    --color-border-input: #cbd5e1;
-
-    --color-disabled: #cbd5e1;
-    --color-light-gray: #f8fafc;
-
-    /* Gradients */
-    --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    --primary-gradient-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    --ai-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-    --ai-gradient-hover: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-    --ai-glow: rgba(99, 102, 241, 0.28);
-    --ai-color: #6366f1;
-
-    /* Glassmorphism Tokens */
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-bg-subtle: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(226, 232, 240, 0.85);
-    --glass-blur: blur(14px);
-
-    /* Spacing & Gaps */
-    --padding-xs: 0.25rem;
-    --padding-s: 0.5rem;
-    --padding-m: 0.75rem 1.25rem;
-    --padding-l: 1.5rem;
-
-    --padding-header: 0.75rem 1.75rem;
-    --padding-button: 0.45rem 1.1rem;
-    --padding-button-compact: 0.4rem 0.75rem;
-
-    --gap-xs: 0.25rem;
-    --gap-s: 0.5rem;
-    --gap-m: 0.75rem;
-    --gap-l: 1.25rem;
-
-    --margin-header-p: 0.15rem 0 0;
-
-    /* Borders & Radius */
-    --border-radius-sm: 6px;
-    --border-radius-main: 0.75rem;
-    --border-radius-card: 1rem;
-    --border-radius-input: 8px;
-    --border-radius-pill: 9999px;
-
-    /* Shadows - Floating Elevations */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-    --shadow-md: 0 4px 10px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
-    --shadow-lg: 0 12px 24px -4px rgb(0 0 0 / 0.08), 0 4px 8px -4px rgb(0 0 0 / 0.04);
-    --shadow-float: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-
-    /* Font Sizes & Weights */
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.8125rem;
-    --font-size-base: 0.95rem;
-    --font-size-button-link: 0.875rem;
-    --font-weight-bold: 600;
-    --font-weight-medium: 500;
-
-    /* Width and height */
-    --height-small: 2.35rem;
-    --height-large: 100vh;
-    --sidebar-width-sm: 270px;
-    --sidebar-width-md: 320px;
-    --sidebar-width-lg: 340px;
-
-    /* Transitions */
-    --transition-fast: 0.15s ease;
-    --transition-base: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-out-cubic: cubic-bezier(0.4, 0, 0.2, 1);
-
-    /* Typography */
-    --font-mono: 'SFMono-Regular', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   --c-primary: #2563eb;
+   --c-primary-hover: #1d4ed8;
+   --c-primary-soft: #eff6ff;
+   --c-ink: #0f172a;
+   --c-muted: #475569;
+   --c-faint: #94a3b8;
+   --c-canvas: #f1f5f9;
+   --c-surface: #ffffff;
+   --c-raised: #f8fafc;
+   --c-border: #e2e8f0;
+   --c-border-strong: #cbd5e1;
+   --c-success: #15803d;
+   --c-success-bg: #f0fdf4;
+   --c-warn: #92400e;
+   --c-warn-bg: #fffbeb;
+   --c-danger: #b91c1c;
+   --c-danger-bg: #fef2f2;
+   --fs-12: 0.75rem;
+   --fs-13: 0.8125rem;
+   --fs-14: 0.875rem;
+   --fs-16: 1rem;
+   --fs-20: 1.25rem;
+   --fw-reg: 400;
+   --fw-med: 500;
+   --fw-semi: 600;
+   --s1: 4px;
+   --s2: 8px;
+   --s3: 12px;
+   --s4: 16px;
+   --s6: 24px;
+   --r-sm: 6px;
+   --r-md: 8px;
+   --r-full: 9999px;
+   --h-sm: 30px;
+   --h-md: 34px;
+   --header-h: 52px;
+   --shadow-sm: 0 1px 2px rgb(15 23 42 / .06);
+   --shadow-pop: 0 10px 25px -5px rgb(15 23 42 / .12);
+   --chart-1: #0072B2;
+   --chart-2: #D55E00;
+   --chart-3: #009E73;
+   --chart-4: #CC79A7;
+   --chart-5: #56B4E9;
+   --chart-6: #E69F00;
+   --chart-7: #999999;
+   --chart-single: #0072B2;
+   --chart-highlight: #D55E00;
+   --chart-base-gray: #999999;
+   --chart-grid: #E5E5E5;
+   --chart-axis-text: #475569;
+   --chart-link-opacity: .28;
+   --chart-link-opacity-hover: .55;
+   --color-primary-glow: rgba(37, 99, 235, .16);
+   --color-secondary-hover: #334155;
+   --color-success-border: #86efac;
+   --color-warning: #d97706;
+   --color-warning-hover: #b45309;
+   --color-warning-border: #fde68a;
+   --color-danger-hover: #991b1b;
+   --color-danger-border: #fca5a5;
+   --color-info: #0284c7;
+   --color-info-bg: #f0f9ff;
+   --color-info-border: #bae6fd;
+   --color-info-text: #0369a1;
+   --badge-vega: #2563eb;
+   --badge-vega-bg: #eff6ff;
+   --badge-vega-border: #bfdbfe;
+   --badge-sankey: #0891b2;
+   --badge-sankey-bg: #ecfeff;
+   --badge-sankey-border: #a5f3fc;
+   --badge-mermaid: #7c3aed;
+   --badge-mermaid-bg: #f5f3ff;
+   --badge-mermaid-border: #ddd6fe;
+   --ai-glow: none;
+   --glass-blur: none;
+   --margin-header-p: 0;
+   --height-large: 100vh;
+   --sidebar-width-sm: 270px;
+   --sidebar-width-md: 320px;
+   --sidebar-width-lg: 340px;
+   --drawer-width: 480px;
+   --transition-fast: .12s ease;
+   --transition-base: .18s cubic-bezier(.4, 0, .2, 1);
+   --ease-out-cubic: cubic-bezier(.4, 0, .2, 1);
+   --font-mono: 'SFMono-Regular', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }

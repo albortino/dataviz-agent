@@ -4,7 +4,7 @@
  * AI diagram generation via backend agent, live rendering, zoom, and exports.
  */
 
-import { aggregateValues } from './data-transform.js';
+import { aggregateValues, aggregateFlows } from './data-transform.js';
 import {
     SHARED_CONFIG_OPTIONS,
     MERMAID_CONFIG_OPTIONS,
@@ -15,6 +15,14 @@ import {
     deletePath
 } from './mermaid-config.js';
 import { formatMermaidSyntax } from './spec-formatter.js';
+import {
+    exportSvg,
+    fetchAiDiagram,
+    bindCollapsibleSidebar,
+    populateColumnSelects,
+    bindAiModal,
+    withButtonSpinner
+} from './studio-utils.js';
 
 export const MERMAID_DEMOS = {
     sankey: `sankey-beta
@@ -126,10 +134,58 @@ Gas,Power generation,28.297`,
 
 export const MERMAID_PRESETS = MERMAID_DEMOS;
 
+const PRESET_CONFIGS = {
+    sankey: { col1: 'Source Column', col2: 'Target Column', val: 'Value Column', agg: true },
+    radar: { col1: 'Axis / Dimension Column', curves: true, agg: true },
+    treemap: { col1: 'Category (Level 1)', col2: 'Subcategory (Level 2)', val: 'Value Column', agg: true },
+    xychart: { col1: 'Category (X-Axis)', col2: 'Value (Y-Axis Metric)', agg: true },
+    pie: { col1: 'Category Slices', col2: 'Value (Metric)', agg: true },
+    flowchart: { col1: 'Source Node', col2: 'Target Node', agg: true }
+};
+
+const toAsciiSafe = (str) => String(str ?? '')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
+
+const safeQuote = (str) => String(str ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '').trim();
+
+const groupByKey = (items, keyFn) => {
+    if (typeof Object.groupBy === 'function') return Object.groupBy(items, keyFn);
+    return items.reduce((acc, item) => {
+        const k = keyFn(item);
+        (acc[k] = acc[k] || []).push(item);
+        return acc;
+    }, {});
+};
+
+const aggregateCategory = (data, catCol, valCol, aggFunc, limit = 10, sortByVal = false) => {
+    const groups = groupByKey(data, r => {
+        const val = r[catCol];
+        return (val !== undefined && val !== null && String(val).trim() !== '') ? String(val).trim() : 'Empty';
+    });
+
+    const entries = Object.entries(groups).map(([cat, rows]) => {
+        const vals = aggFunc === 'count'
+            ? rows.map(() => 1)
+            : rows.map(r => (valCol && r[valCol] !== undefined && r[valCol] !== null) ? r[valCol] : 1);
+        const res = Math.round(aggregateValues(vals, aggFunc) * 100) / 100;
+        return [cat, res];
+    });
+
+    const valid = entries.filter(([, v]) => v > 0);
+    if (sortByVal) valid.sort((a, b) => b[1] - a[1]);
+    return valid.slice(0, limit);
+};
+
+
 export class MermaidManager {
     constructor(options = {}) {
         this.getData = options.getData || (() => []);
-        this.zoomLevel = 1.75;
+        this.zoomLevel = 1.0;
         this.renderTimeout = null;
 
         // DOM elements
@@ -160,6 +216,7 @@ export class MermaidManager {
         this.targetLabel = document.getElementById('mermaid-target-label');
         this.valLabel = document.getElementById('mermaid-val-label');
         this.renderOutput = document.getElementById('mermaid-render-output');
+        this.canvasWrapper = document.getElementById('mermaid-canvas-wrapper');
         this.errorNotice = document.getElementById('mermaid-error-notice');
         this.zoomInBtn = document.getElementById('mermaid-zoom-in');
         this.zoomOutBtn = document.getElementById('mermaid-zoom-out');
@@ -174,6 +231,28 @@ export class MermaidManager {
         this.aiModalCloseBtn = document.getElementById('close-mermaid-ai-modal-btn');
         this.aiModalCancelBtn = document.getElementById('cancel-mermaid-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-mermaid-ai-modal-btn');
+        this.applyChatBtn = document.getElementById('mermaid-apply-chat-btn');
+        this.sourceChartId = null;
+        this.onApplyToChat = options.onApplyToChat || null;
+    }
+
+    setSourceChartId(chartId) {
+        this.sourceChartId = chartId;
+        if (this.applyChatBtn) {
+            this.applyChatBtn.innerHTML = chartId
+                ? '<i class="fa-solid fa-arrows-rotate"></i><span>Update in Chat</span>'
+                : '<i class="fa-solid fa-paper-plane"></i><span>Send to Chat</span>';
+            this.applyChatBtn.title = chartId ? 'Update this diagram in the originating chat card' : 'Send this diagram to chat as a new card';
+        }
+    }
+
+    loadDiagram(code, sourceChartId = null) {
+        if (!code) return;
+        this.setSourceChartId(sourceChartId);
+        if (this.textEditor) this.textEditor.value = code;
+        this.renderConfigPanel();
+        this.updateUIControls();
+        this.renderChart();
     }
 
     init() {
@@ -190,7 +269,22 @@ export class MermaidManager {
             }
         }
 
-        this.initCollapseState();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'mermaid_sidebar_collapsed'
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'mermaid_controls_collapsed'
+        });
+        if (window.innerWidth < 900) {
+            this.setControlsCollapsed(true);
+        }
+
         this.bindEvents();
         this.updateColumnOptions();
         this.updateUIControls();
@@ -243,89 +337,29 @@ export class MermaidManager {
     }
 
     setControlsCollapsed(collapsed) {
-        if (!this.controlsSidebar) return;
-        this.controlsSidebar.classList.toggle('collapsed', collapsed);
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.controlsSidebarToggle?.setCollapsed(collapsed);
     }
 
     setSidebarCollapsed(collapsed) {
-        if (!this.sidebar) return;
-        this.sidebar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.leftSidebarToggle?.setCollapsed(collapsed);
     }
 
     updateUIControls() {
         if (!this.presetSelect) return;
         const preset = this.presetSelect.value;
-        const currentData = this.getData();
-        const hasData = currentData && currentData.length > 0;
-
-        const isAggregatable = ['sankey', 'radar', 'treemap', 'xychart', 'pie', 'flowchart'].includes(preset);
+        const hasData = Boolean(this.getData()?.length);
+        const cfg = PRESET_CONFIGS[preset];
 
         if (this.titleGroup) this.titleGroup.style.display = 'flex';
+        if (this.col1Group) this.col1Group.style.display = cfg?.col1 ? 'flex' : 'none';
+        if (this.col2Group) this.col2Group.style.display = cfg?.col2 ? 'flex' : 'none';
+        if (this.curvesGroup) this.curvesGroup.style.display = cfg?.curves ? 'flex' : 'none';
+        if (this.valGroup) this.valGroup.style.display = cfg?.val ? 'flex' : 'none';
+        if (this.aggGroup) this.aggGroup.style.display = cfg?.agg ? 'flex' : 'none';
 
-        if (preset === 'sankey') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'flex';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Source Column';
-            if (this.targetLabel) this.targetLabel.textContent = 'Target Column';
-            if (this.valLabel) this.valLabel.textContent = 'Value Column';
-        } else if (preset === 'radar') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'none';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'flex';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Axis / Dimension Column';
-        } else if (preset === 'treemap') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'flex';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category (Level 1)';
-            if (this.targetLabel) this.targetLabel.textContent = 'Subcategory (Level 2)';
-            if (this.valLabel) this.valLabel.textContent = 'Value Column';
-        } else if (preset === 'xychart') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category (X-Axis)';
-            if (this.targetLabel) this.targetLabel.textContent = 'Value (Y-Axis Metric)';
-        } else if (preset === 'pie') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Category Slices';
-            if (this.targetLabel) this.targetLabel.textContent = 'Value (Metric)';
-        } else if (preset === 'flowchart') {
-            if (this.col1Group) this.col1Group.style.display = 'flex';
-            if (this.col2Group) this.col2Group.style.display = 'flex';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'flex';
-            if (this.sourceLabel) this.sourceLabel.textContent = 'Source Node';
-            if (this.targetLabel) this.targetLabel.textContent = 'Target Node';
-        } else {
-            if (this.col1Group) this.col1Group.style.display = 'none';
-            if (this.col2Group) this.col2Group.style.display = 'none';
-            if (this.curvesGroup) this.curvesGroup.style.display = 'none';
-            if (this.valGroup) this.valGroup.style.display = 'none';
-            if (this.aggGroup) this.aggGroup.style.display = 'none';
-        }
-
-
+        if (this.sourceLabel && cfg?.col1) this.sourceLabel.textContent = cfg.col1;
+        if (this.targetLabel && cfg?.col2) this.targetLabel.textContent = cfg.col2;
+        if (this.valLabel && cfg?.val) this.valLabel.textContent = cfg.val;
 
         if (this.demoBtn) {
             this.demoBtn.disabled = false;
@@ -333,13 +367,10 @@ export class MermaidManager {
         }
 
         if (this.aiBtn) {
-            if (hasData) {
-                this.aiBtn.disabled = false;
-                this.aiBtn.title = `Generate ${preset} with AI agent using dataset`;
-            } else {
-                this.aiBtn.disabled = true;
-                this.aiBtn.title = 'Please load a CSV dataset or dummy data first';
-            }
+            this.aiBtn.disabled = !hasData;
+            this.aiBtn.title = hasData
+                ? `Generate ${preset} with AI agent using dataset`
+                : 'Please load a CSV dataset or dummy data first';
         }
     }
 
@@ -380,7 +411,7 @@ export class MermaidManager {
 
             const summary = document.createElement('summary');
             summary.className = 'mermaid-config-summary';
-            summary.innerHTML = `<label class="cursor-pointer-no-margin">${cat.label}</label><i class="fa-solid fa-chevron-down details-chevron"></i>`;
+            summary.innerHTML = `<span class="cursor-pointer-no-margin">${cat.label}</span><i class="fa-solid fa-chevron-down details-chevron"></i>`;
 
             const content = document.createElement('div');
             content.className = 'vega-section-content';
@@ -548,39 +579,16 @@ export class MermaidManager {
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
 
-        [this.sourceCol, this.targetCol, this.valCol].forEach((sel, idx) => {
-            if (!sel) return;
-            const currentVal = sel.value;
-            sel.innerHTML = '';
-
-            if (idx === 2) {
-                const countOpt = document.createElement('option');
-                countOpt.value = '';
-                countOpt.textContent = 'Row Count (1 per row)';
-                sel.appendChild(countOpt);
-            }
-
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                sel.appendChild(opt);
-            });
-
-            if (currentVal && (columns.includes(currentVal) || (idx === 2 && currentVal === ''))) {
-                sel.value = currentVal;
-            } else if (idx === 0 && columns.length > 0) {
-                sel.value = columns[0];
-            } else if (idx === 1 && columns.length > 1) {
-                sel.value = columns[1];
-            } else if (idx === 2) {
-                const numCol = columns.find(c => {
-                    const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
-                    return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
-                });
-                sel.value = numCol || '';
-            }
+        const numCol = columns.find(c => {
+            const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
+            return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
         });
+
+        populateColumnSelects([
+            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.targetCol, defaultIndex: 1 },
+            { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
+        ], columns);
 
         if (this.curvesList) {
             const numericCols = columns.filter(c => currentData.some(r => r[c] !== null && r[c] !== undefined && !isNaN(parseFloat(r[c]))));
@@ -622,48 +630,13 @@ export class MermaidManager {
         const aggFunc = this.aggFunc ? this.aggFunc.value : 'sum';
 
         if (preset === 'sankey') {
-            if (!col1 || !col2 || col1 === col2) {
-                this.textEditor.value = '';
-                this.renderConfigPanel();
-                this.renderChart();
-                return;
-            }
-
-            const srcValues = new Set();
-            const tgtValues = new Set();
-            currentData.forEach(r => {
-                const s = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                const t = String(r[col2] !== undefined && r[col2] !== null ? r[col2] : '').trim();
-                if (s) srcValues.add(s);
-                if (t) tgtValues.add(t);
+            const topFlows = aggregateFlows(currentData, {
+                sourceCol: col1,
+                targetCol: col2,
+                valCol,
+                aggFunc,
+                limit: 35
             });
-            const hasOverlap = Array.from(srcValues).some(v => tgtValues.has(v));
-
-            const flowAgg = {};
-            currentData.forEach(r => {
-                let s = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                let t = String(r[col2] !== undefined && r[col2] !== null ? r[col2] : '').trim();
-                if (!s || !t) return;
-
-                if (hasOverlap) {
-                    s = `${s} (${col1})`;
-                    t = `${t} (${col2})`;
-                }
-
-                const key = `${s}___${t}`;
-                let v = 1;
-                if (valCol && r[valCol] !== undefined && r[valCol] !== null) {
-                    const parsed = parseFloat(r[valCol]);
-                    v = isNaN(parsed) ? 1 : Math.max(0, parsed);
-                }
-                if (!flowAgg[key]) flowAgg[key] = [];
-                flowAgg[key].push(v);
-            });
-
-            const topFlows = Object.entries(flowAgg).map(([k, vals]) => {
-                let computed = aggFunc === 'none' ? (vals.length > 0 ? vals[0] : 1) : aggregateValues(vals, aggFunc);
-                return [k, Math.round(computed * 100) / 100];
-            }).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 35);
 
             if (topFlows.length === 0) {
                 this.textEditor.value = '';
@@ -672,25 +645,11 @@ export class MermaidManager {
                 return;
             }
 
-            const toAsciiSafe = (str) => {
-                return String(str ?? '')
-                    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-                    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
-                    .replace(/ß/g, 'ss')
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                    .replace(/[^\x20-\x7E]/g, '')
-                    .trim();
-            };
-
-            const formatNode = (name) => {
-                const safe = toAsciiSafe(name).replace(/"/g, "'");
-                return `"${safe || 'Unknown'}"`;
-            };
+            const formatNode = (name) => `"${toAsciiSafe(name).replace(/"/g, "'") || 'Unknown'}"`;
 
             let code = `sankey-beta\n`;
-            topFlows.forEach(([key, value]) => {
-                const [s, t] = key.split('___');
-                code += `${formatNode(s)},${formatNode(t)},${value}\n`;
+            topFlows.forEach(({ source, target, value }) => {
+                code += `${formatNode(source)},${formatNode(target)},${value}\n`;
             });
             this.textEditor.value = code;
 
@@ -706,13 +665,10 @@ export class MermaidManager {
                 return;
             }
 
-            const axisGroups = {};
-            currentData.forEach(r => {
-                const ax = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : '').trim();
-                if (!ax) return;
-                if (!axisGroups[ax]) axisGroups[ax] = [];
-                axisGroups[ax].push(r);
-            });
+            const axisGroups = groupByKey(
+                currentData.filter(r => r[col1] !== undefined && r[col1] !== null && String(r[col1]).trim() !== ''),
+                r => String(r[col1]).trim()
+            );
 
             const topAxes = Object.keys(axisGroups).slice(0, 8);
             if (topAxes.length < 3) {
@@ -722,26 +678,18 @@ export class MermaidManager {
                 return;
             }
 
-            const cleanAxes = topAxes.map((ax, idx) => {
-                const safeLabel = String(ax ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
-                return `ax_${idx + 1}["${safeLabel}"]`;
-            });
+            const cleanAxes = topAxes.map((ax, idx) => `ax_${idx + 1}["${safeQuote(ax)}"]`);
             const titleStr = userTitle || `Comparison by ${col1}`;
-            let code = `radar-beta\n`;
-            code += `    title ${titleStr}\n`;
-            code += `    axis ${cleanAxes.join(', ')}\n`;
+            let code = `radar-beta\n    title ${titleStr}\n    axis ${cleanAxes.join(', ')}\n`;
 
             selectedCurves.forEach((curveCol, cIdx) => {
-                const curveId = `curve_${cIdx + 1}`;
-                const curveLabel = String(curveCol ?? '').replace(/"/g, "'").replace(/[\[\]]/g, '');
-                const valList = [];
-                topAxes.forEach(ax => {
-                    const rows = axisGroups[ax];
-                    const vals = rows.map(r => r[curveCol]).filter(v => v !== undefined && v !== null);
-                    const computed = aggregateValues(vals, aggFunc);
-                    valList.push(Math.round(computed * 100) / 100);
+                const valList = topAxes.map(ax => {
+                    const vals = axisGroups[ax]
+                        .map(r => r[curveCol])
+                        .filter(v => v !== undefined && v !== null);
+                    return Math.round(aggregateValues(vals, aggFunc) * 100) / 100;
                 });
-                code += `    curve ${curveId}["${curveLabel}"]{${valList.join(', ')}}\n`;
+                code += `    curve curve_${cIdx + 1}["${safeQuote(curveCol)}"]{${valList.join(', ')}}\n`;
             });
             code += `    showLegend true\n`;
             this.textEditor.value = code;
@@ -758,10 +706,8 @@ export class MermaidManager {
             const tree = {};
 
             currentData.forEach(r => {
-                const c1 = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Other').trim() || 'Other';
-                const c2 = col2 && col2 !== col1
-                    ? String(r[col2] !== undefined && r[col2] !== null ? r[col2] : 'Detail').trim() || 'Detail'
-                    : null;
+                const c1 = String(r[col1] ?? 'Other').trim() || 'Other';
+                const c2 = col2 && col2 !== col1 ? (String(r[col2] ?? 'Detail').trim() || 'Detail') : null;
 
                 let v = 1;
                 if (valCol && r[valCol] !== undefined && r[valCol] !== null) {
@@ -769,19 +715,12 @@ export class MermaidManager {
                     v = isNaN(p) ? 1 : Math.max(0, p);
                 }
 
-                if (!tree[c1]) tree[c1] = {};
-                if (c2) {
-                    if (!tree[c1][c2]) tree[c1][c2] = [];
-                    tree[c1][c2].push(v);
-                } else {
-                    if (!tree[c1]['__self__']) tree[c1]['__self__'] = [];
-                    tree[c1]['__self__'].push(v);
-                }
+                tree[c1] = tree[c1] || {};
+                const subKey = c2 || '__self__';
+                (tree[c1][subKey] = tree[c1][subKey] || []).push(v);
             });
 
-            let code = `treemap-beta\n`;
-            code += `    "${rootTitle.replace(/"/g, "'")}"\n`;
-
+            let code = `treemap-beta\n    "${rootTitle.replace(/"/g, "'")}"\n`;
             const topC1 = Object.entries(tree).slice(0, 10);
             topC1.forEach(([c1Name, subMap]) => {
                 const subEntries = Object.entries(subMap);
@@ -801,25 +740,8 @@ export class MermaidManager {
             this.textEditor.value = code;
 
         } else if (preset === 'pie') {
-            const groups = {};
-            currentData.forEach(r => {
-                const cat = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Unknown').trim() || 'Empty';
-                if (!groups[cat]) groups[cat] = [];
-                if (aggFunc === 'count') {
-                    groups[cat].push(1);
-                } else if (col2 && r[col2] !== undefined && r[col2] !== null) {
-                    groups[cat].push(r[col2]);
-                } else {
-                    groups[cat].push(1);
-                }
-            });
-
-            const aggregated = Object.entries(groups).map(([k, vals]) => {
-                const res = aggregateValues(vals, aggFunc);
-                return [k, Math.round(res * 100) / 100];
-            }).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
-
-            const title = userTitle ? userTitle : `Distribution of ${col1} (${aggFunc === 'none' ? (col2 || 'First') : `${aggFunc.toUpperCase()} ${col2 || 'rows'}`})`;
+            const aggregated = aggregateCategory(currentData, col1, col2, aggFunc, 10, true);
+            const title = userTitle || `Distribution of ${col1} (${aggFunc === 'none' ? (col2 || 'First') : `${aggFunc.toUpperCase()} ${col2 || 'rows'}`})`;
             let code = `pie title ${title}\n`;
             aggregated.forEach(([k, v]) => {
                 code += `    "${k.replace(/"/g, "'")}" : ${v}\n`;
@@ -832,13 +754,14 @@ export class MermaidManager {
                 const s = String(r[col1] || '').trim();
                 const t = String(r[col2] || '').trim();
                 if (s && t) {
-                    const key = `${s}__${t}`;
-                    if (!pairs[key]) pairs[key] = [];
-                    pairs[key].push(1);
+                    const key = `${s}___${t}`;
+                    pairs[key] = (pairs[key] || 0) + 1;
                 }
             });
-            const topPairs = Object.entries(pairs).map(([k, vals]) => [k, aggFunc === 'none' ? 1 : vals.length])
-                .sort((a, b) => b[1] - a[1]).slice(0, 16);
+            const topPairs = Object.entries(pairs)
+                .map(([k, count]) => [k, aggFunc === 'none' ? 1 : count])
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 16);
 
             let code = `flowchart LR\n`;
             if (userTitle) code += `    %% Title: ${userTitle}\n`;
@@ -857,28 +780,11 @@ export class MermaidManager {
             this.textEditor.value = code;
 
         } else if (preset === 'xychart') {
-            const groups = {};
-            currentData.forEach(r => {
-                const k = String(r[col1] !== undefined && r[col1] !== null ? r[col1] : 'Unknown').trim() || 'Empty';
-                if (!groups[k]) groups[k] = [];
-                if (aggFunc === 'count') {
-                    groups[k].push(1);
-                } else if (col2 && r[col2] !== undefined && r[col2] !== null) {
-                    groups[k].push(r[col2]);
-                } else {
-                    groups[k].push(1);
-                }
-            });
-
-            const topGroups = Object.entries(groups).map(([k, vals]) => {
-                const res = aggregateValues(vals, aggFunc);
-                return [k, Math.round(res * 100) / 100];
-            }).slice(0, 10);
-
+            const topGroups = aggregateCategory(currentData, col1, col2, aggFunc, 10, false);
             const xLabels = topGroups.map(([k]) => `"${k.substring(0, 14).replace(/"/g, "'")}"`);
             const yVals = topGroups.map(([, val]) => val);
             const yLabel = aggFunc === 'none' ? (col2 || 'Value') : `${aggFunc.toUpperCase()} ${col2 || 'Count'}`;
-            const title = userTitle ? userTitle : `${col1} (${yLabel})`;
+            const title = userTitle || `${col1} (${yLabel})`;
             const maxVal = yVals.length > 0 ? Math.max(...yVals) : 10;
             const minVal = yVals.length > 0 ? Math.min(...yVals) : 0;
             const yMin = minVal < 0 ? Math.floor(minVal * 1.1) : 0;
@@ -954,92 +860,25 @@ export class MermaidManager {
 
         prompt += ` Output ONLY the valid Mermaid diagram code enclosed in \`\`\`mermaid ... \`\`\` code fence. Do not include conversational markdown outside the code fence.`;
 
-        const originalText = this.aiBtn.innerHTML;
-        this.aiBtn.disabled = true;
-        this.aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
-
         try {
-            const sampleData = currentData.slice(0, 20);
+            await withButtonSpinner(this.aiBtn, async () => {
+                const rawCode = await fetchAiDiagram({
+                    systemPrompt: prompt,
+                    sampleData: currentData,
+                    codeRegex: /```mermaid\s*([\s\S]*?)\s*```/i
+                });
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    message: prompt,
-                    data: sampleData,
-                    api_key: apiKey || undefined,
-                    base_url: baseUrl || undefined,
-                    model: model || undefined,
-                    api_version: apiVersion || undefined
-                })
+                if (rawCode) {
+                    this.textEditor.value = rawCode;
+                    this.renderConfigPanel();
+                    this.renderChart();
+                } else {
+                    alert("AI response did not contain a valid Mermaid diagram code fence. Please check AI settings or try again.");
+                }
             });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                const errDetail = errData.detail || `Server returned ${response.status}`;
-                if (response.status === 400 && errDetail.includes("No API Key")) {
-                    alert("No AI API Key configured. Please enter your API key in Settings first.");
-                    const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal) settingsModal.classList.remove('hidden');
-                    return;
-                }
-                if (response.status === 504) {
-                    throw new Error("Server gateway timed out (504). The AI model took too long to reply. Please check your API key, model selection, or network connection.");
-                }
-                throw new Error(errDetail);
-            }
-
-            const res = await response.json();
-            let rawCode = '';
-
-            const match = (res.answer || '').match(/```mermaid\s*([\s\S]*?)\s*```/i);
-            if (match) {
-                rawCode = match[1].trim();
-            } else {
-                for (const log of (res.logs || [])) {
-                    const logMatch = log.match(/```mermaid\s*([\s\S]*?)\s*```/i);
-                    if (logMatch) {
-                        rawCode = logMatch[1].trim();
-                        break;
-                    }
-                }
-            }
-
-            if (!rawCode && res.answer && (
-                res.answer.startsWith('flowchart') ||
-                res.answer.startsWith('pie') ||
-                res.answer.startsWith('erDiagram') ||
-                res.answer.startsWith('sequenceDiagram') ||
-                res.answer.startsWith('xychart') ||
-                res.answer.startsWith('radar') ||
-                res.answer.startsWith('treemap') ||
-                res.answer.startsWith('sankey')
-            )) {
-                rawCode = res.answer.trim();
-            }
-
-            if (rawCode) {
-                this.textEditor.value = rawCode;
-                this.renderConfigPanel();
-                this.renderChart();
-            } else {
-                alert("AI response did not contain a valid Mermaid diagram code fence. Please check AI settings or try again.");
-            }
         } catch (err) {
             console.error("Mermaid AI generation error:", err);
-            if (err.name === 'AbortError') {
-                alert("AI generation request timed out after 45s. Please check your AI provider connection.");
-            } else {
-                alert(`AI generation failed: ${err.message}`);
-            }
-        } finally {
-            this.aiBtn.innerHTML = originalText;
-            this.aiBtn.disabled = false;
+            alert(`AI generation failed: ${err.message}`);
         }
     }
 
@@ -1064,7 +903,7 @@ export class MermaidManager {
             const uniqueId = `mermaid-svg-${Date.now()}`;
             const { svg } = await mermaid.render(uniqueId, code);
             this.renderOutput.innerHTML = svg;
-            this.applyZoom();
+            this.setZoom(this.zoomLevel);
         } catch (err) {
             console.warn("Mermaid render error:", err);
             const stray = document.querySelectorAll(`[id^="dmermaid-svg-"], [id^="mermaid-svg-"]`);
@@ -1078,15 +917,18 @@ export class MermaidManager {
         }
     }
 
-    applyZoom() {
+    setZoom(level) {
+        this.zoomLevel = Math.max(0.2, Math.min(10.0, Math.round(level * 100) / 100));
         if (this.renderOutput) {
             this.renderOutput.style.transform = `scale(${this.zoomLevel})`;
         }
     }
 
+    applyZoom() {
+        this.setZoom(this.zoomLevel);
+    }
+
     bindEvents() {
-        if (this.collapseBtn) this.collapseBtn.addEventListener('click', () => this.setSidebarCollapsed(true));
-        if (this.expandBtn) this.expandBtn.addEventListener('click', () => this.setSidebarCollapsed(false));
         if (this.formatBtn) {
             this.formatBtn.addEventListener('click', () => {
                 if (this.textEditor) {
@@ -1095,8 +937,6 @@ export class MermaidManager {
                 }
             });
         }
-        if (this.controlsCollapseBtn) this.controlsCollapseBtn.addEventListener('click', () => this.setControlsCollapsed(true));
-        if (this.controlsExpandBtn) this.controlsExpandBtn.addEventListener('click', () => this.setControlsCollapsed(false));
 
         if (this.presetSelect) {
             this.presetSelect.addEventListener('change', () => {
@@ -1114,38 +954,26 @@ export class MermaidManager {
         }
 
         if (this.demoBtn) this.demoBtn.addEventListener('click', () => this.showDemo());
-        
-        if (this.aiBtn) {
-            this.aiBtn.addEventListener('click', () => {
-                if (this.aiModal) {
-                    if (this.aiModalPrompt) this.aiModalPrompt.value = '';
-                    this.aiModal.classList.remove('hidden');
-                    if (this.aiModalPrompt) this.aiModalPrompt.focus();
-                } else {
-                    this.generateWithAI('');
+
+        if (this.applyChatBtn) {
+            this.applyChatBtn.addEventListener('click', () => {
+                const code = this.textEditor?.value?.trim();
+                if (!code) return;
+                if (typeof this.onApplyToChat === 'function') {
+                    this.onApplyToChat({ code, sourceChartId: this.sourceChartId });
                 }
             });
         }
-
-        if (this.aiModalCloseBtn) {
-            this.aiModalCloseBtn.addEventListener('click', () => {
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-            });
-        }
-
-        if (this.aiModalCancelBtn) {
-            this.aiModalCancelBtn.addEventListener('click', () => {
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-            });
-        }
-
-        if (this.aiModalSubmitBtn) {
-            this.aiModalSubmitBtn.addEventListener('click', () => {
-                const customPrompt = this.aiModalPrompt ? this.aiModalPrompt.value.trim() : '';
-                if (this.aiModal) this.aiModal.classList.add('hidden');
-                this.generateWithAI(customPrompt);
-            });
-        }
+        
+        bindAiModal({
+            aiBtn: this.aiBtn,
+            modal: this.aiModal,
+            input: this.aiModalPrompt,
+            closeBtn: this.aiModalCloseBtn,
+            cancelBtn: this.aiModalCancelBtn,
+            submitBtn: this.aiModalSubmitBtn,
+            onSubmit: (prompt) => this.generateWithAI(prompt)
+        });
 
         if (this.curvesSelectAllBtn) {
             this.curvesSelectAllBtn.addEventListener('click', () => {
@@ -1200,70 +1028,64 @@ export class MermaidManager {
 
         if (this.zoomInBtn) {
             this.zoomInBtn.addEventListener('click', () => {
-                this.zoomLevel = Math.min(3.0, this.zoomLevel + 0.15);
-                this.applyZoom();
+                const step = this.zoomLevel < 1.5 ? 0.15 : (this.zoomLevel < 3.0 ? 0.3 : 0.6);
+                this.setZoom(this.zoomLevel + step);
             });
         }
 
         if (this.zoomOutBtn) {
             this.zoomOutBtn.addEventListener('click', () => {
-                this.zoomLevel = Math.max(0.4, this.zoomLevel - 0.15);
-                this.applyZoom();
+                const step = this.zoomLevel <= 1.5 ? 0.15 : (this.zoomLevel <= 3.0 ? 0.3 : 0.6);
+                this.setZoom(this.zoomLevel - step);
             });
         }
 
         if (this.zoomResetBtn) {
-            this.zoomResetBtn.addEventListener('click', () => {
-                this.zoomLevel = 1.75;
-                this.applyZoom();
+            this.zoomResetBtn.addEventListener('click', () => this.setZoom(1.0));
+        }
+
+        if (this.canvasWrapper) {
+            let isDragging = false;
+            let startX = 0, startY = 0;
+            let scrollLeft = 0, scrollTop = 0;
+
+            this.canvasWrapper.addEventListener('mousedown', (e) => {
+                if (e.button !== 0 || e.target.closest('button, input, select, textarea')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                scrollLeft = this.canvasWrapper.scrollLeft;
+                scrollTop = this.canvasWrapper.scrollTop;
             });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                this.canvasWrapper.scrollLeft = scrollLeft - (e.clientX - startX);
+                this.canvasWrapper.scrollTop = scrollTop - (e.clientY - startY);
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            this.canvasWrapper.addEventListener('wheel', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                    this.setZoom(this.zoomLevel + delta);
+                }
+            }, { passive: false });
         }
 
         if (this.exportPngBtn) {
             this.exportPngBtn.addEventListener('click', () => {
-                const svgEl = this.renderOutput?.querySelector('svg');
-                if (!svgEl) return alert('No chart to export.');
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const URL = window.URL || window.webkitURL || window;
-                const blobURL = URL.createObjectURL(svgBlob);
-
-                const image = new Image();
-                image.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const rect = svgEl.getBoundingClientRect();
-                    canvas.width = Math.max(800, rect.width * 2);
-                    canvas.height = Math.max(600, rect.height * 2);
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                    const pngLink = document.createElement('a');
-                    pngLink.download = 'mermaid-chart.png';
-                    pngLink.href = canvas.toDataURL('image/png');
-                    document.body.appendChild(pngLink);
-                    pngLink.click();
-                    document.body.removeChild(pngLink);
-                };
-                image.src = blobURL;
+                exportSvg(this.renderOutput?.querySelector('svg'), 'png', 'mermaid-chart');
             });
         }
 
         if (this.exportSvgBtn) {
             this.exportSvgBtn.addEventListener('click', () => {
-                const svgEl = this.renderOutput?.querySelector('svg');
-                if (!svgEl) return alert('No chart to export.');
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const link = document.createElement('a');
-                link.download = 'mermaid-chart.svg';
-                link.href = URL.createObjectURL(blob);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                exportSvg(this.renderOutput?.querySelector('svg'), 'svg', 'mermaid-chart');
             });
         }
     }
@@ -1277,7 +1099,7 @@ export class MermaidManager {
             targetCol: (this.targetCol && this.targetCol.value) || '',
             valCol: (this.valCol && this.valCol.value) || '',
             aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
-            zoomLevel: this.zoomLevel || 1.75
+            zoomLevel: this.zoomLevel || 1.0
         };
     }
 
@@ -1294,8 +1116,7 @@ export class MermaidManager {
         if (state.valCol && this.valCol) this.valCol.value = state.valCol;
         if (state.aggFunc && this.aggFunc) this.aggFunc.value = state.aggFunc;
         if (typeof state.zoomLevel === 'number') {
-            this.zoomLevel = state.zoomLevel;
-            this.applyZoom();
+            this.setZoom(state.zoomLevel);
         }
         if (state.text !== undefined && this.textEditor) {
             this.textEditor.value = state.text;

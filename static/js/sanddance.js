@@ -5,6 +5,7 @@
  */
 
 import { detectType } from './data-transform.js';
+import { bindCollapsibleSidebar } from './studio-utils.js';
 
 export class SandDanceManager {
     constructor(options = {}) {
@@ -40,10 +41,14 @@ export class SandDanceManager {
         this.panelGroup = document.getElementById('sanddance-panel-group');
         this.tooltipCheck = document.getElementById('sanddance-tooltip-check');
         this.tooltipsEnabled = true;
+        this.currentMouseX = 0;
+        this.currentMouseY = 0;
+        this.activeTooltipEl = null;
         this.mutationObserver = null;
         this.resizeObserver = null;
         this.resizeTimeout = null;
         this.hasRenderedData = false;
+        this.lastDataLength = 0;
     }
 
     init() {
@@ -52,25 +57,21 @@ export class SandDanceManager {
         this.setupResizeObserver();
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
-        this.initCollapseState();
-        this.bindEvents();
-    }
-
-    initCollapseState() {
+        this.toolbarToggle = bindCollapsibleSidebar({
+            sidebar: this.toolbar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'sanddance_toolbar_collapsed',
+            onToggle: () => setTimeout(() => this.scheduleResize(), 300)
+        });
         if (window.innerWidth < 900) {
             this.setToolbarCollapsed(true);
         }
+        this.bindEvents();
     }
 
     setToolbarCollapsed(collapsed) {
-        if (!this.toolbar) return;
-        this.toolbar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
-        setTimeout(() => {
-            this.scheduleResize();
-        }, 300);
+        this.toolbarToggle?.setCollapsed(collapsed);
     }
 
     relocatePanel() {
@@ -104,7 +105,50 @@ export class SandDanceManager {
             if (this.panelGroup) {
                 this.panelGroup.classList.remove('hidden');
             }
+            this.bindSelectionButtons();
         }
+    }
+
+    bindSelectionButtons() {
+        if (!this.panelContainer || !this.viewer) return;
+        const buttons = this.panelContainer.querySelectorAll('button');
+        buttons.forEach(btn => {
+            if (btn._sdBound) return;
+            btn._sdBound = true;
+            btn.addEventListener('click', () => {
+                setTimeout(() => this.updateSelectionButtons(), 120);
+            });
+        });
+        this.updateSelectionButtons();
+    }
+
+    updateSelectionButtons(search) {
+        if (!this.panelContainer || !this.viewer) return;
+        let hasSelection = false;
+        try {
+            const sel = search || (typeof this.viewer.getSelection === 'function' ? this.viewer.getSelection() : null);
+            if (sel) {
+                if (Array.isArray(sel.search)) {
+                    hasSelection = sel.search.length > 0;
+                } else if (sel.search) {
+                    hasSelection = true;
+                } else if (Array.isArray(sel)) {
+                    hasSelection = sel.length > 0;
+                } else if (sel.selectedData && Array.isArray(sel.selectedData)) {
+                    hasSelection = sel.selectedData.length > 0;
+                } else if (sel.active) {
+                    hasSelection = true;
+                }
+            }
+        } catch (e) { }
+
+        const buttons = this.panelContainer.querySelectorAll('button');
+        buttons.forEach(btn => {
+            const txt = (btn.textContent || '').trim().toLowerCase();
+            if (txt === 'deselect' || txt === 'isolate' || txt === 'exclude') {
+                btn.disabled = !hasSelection;
+            }
+        });
     }
 
     setupPanelObserver() {
@@ -193,7 +237,17 @@ export class SandDanceManager {
                     onError: (errs) => {
                         console.error("SandDance Viewer internal errors:", Array.isArray(errs) ? errs.join("; ") : errs);
                     },
+                    onSelect: (search) => {
+                        this.updateSelectionButtons(search);
+                    },
+                    onSelectionChanged: (search) => {
+                        this.updateSelectionButtons(search);
+                    },
+                    onDataFilter: () => {
+                        this.updateSelectionButtons();
+                    },
                     tooltipOptions: {
+                        prepareDataItem: (item) => item,
                         create: (props) => {
                             if (!this.tooltipsEnabled) {
                                 return { destroy: () => { } };
@@ -211,21 +265,14 @@ export class SandDanceManager {
     }
 
     createTooltip(props) {
-        if (!props) return { destroy: () => { } };
-        const data = props.dataItem || props.datum;
-        if (!data || typeof data !== 'object') return { destroy: () => { } };
+        if (!props || !this.tooltipsEnabled) return { update: () => { }, destroy: () => { } };
+        const data = props.dataItem || props.datum || props.item || props.data || (typeof props === 'object' && !props.event && !props.position ? props : null);
+        if (!data || typeof data !== 'object') return { update: () => { }, destroy: () => { } };
 
         if (this.activeTooltipEl && this.activeTooltipEl.parentElement) {
             this.activeTooltipEl.parentElement.removeChild(this.activeTooltipEl);
             this.activeTooltipEl = null;
         }
-
-        const entries = Object.entries(data).filter(([key]) => {
-            const lk = key.toLowerCase();
-            return !key.startsWith('__') && !key.startsWith('GL_') && lk !== 'id' && !lk.includes('sanddance');
-        });
-
-        if (entries.length === 0) return { destroy: () => { } };
 
         const tooltipEl = document.createElement('div');
         tooltipEl.className = 'sanddance-custom-tooltip';
@@ -236,44 +283,82 @@ export class SandDanceManager {
             return div.innerHTML;
         };
 
-        let html = '<div class="sanddance-tooltip-header"><i class="fa-solid fa-circle-info" style="font-size: 0.7rem;"></i><span>Data Point</span></div><div class="sanddance-tooltip-grid">';
-        for (const [key, val] of entries) {
-            let displayVal = '-';
-            if (val !== null && val !== undefined && val !== '') {
-                if (typeof val === 'number') {
-                    displayVal = Number.isInteger(val) ? val.toLocaleString() : val.toLocaleString(undefined, { maximumFractionDigits: 3 });
-                } else {
-                    displayVal = String(val);
-                }
-            }
-            html += `<span class="sanddance-tooltip-key">${escapeHtml(key)}:</span><span class="sanddance-tooltip-val">${escapeHtml(displayVal)}</span>`;
-        }
-        html += '</div>';
-        tooltipEl.innerHTML = html;
+        const updateContent = (p) => {
+            const currentItem = p?.dataItem || p?.datum || p?.item || p?.data || (typeof p === 'object' && !p?.event && !p?.position ? p : null) || data;
+            if (!currentItem || typeof currentItem !== 'object') return;
 
+            const entries = Object.entries(currentItem).filter(([key]) => {
+                const lk = key.toLowerCase();
+                return !key.startsWith('__') && !key.startsWith('GL_') && lk !== 'id' && !lk.includes('sanddance');
+            });
+
+            if (entries.length === 0) return;
+
+            let html = '<div class="sanddance-tooltip-header"><i class="fa-solid fa-circle-info" style="font-size: 0.7rem;"></i><span>Data Point</span></div><div class="sanddance-tooltip-grid">';
+            for (const [key, val] of entries) {
+                let displayVal = '-';
+                if (val !== null && val !== undefined && val !== '') {
+                    if (typeof val === 'number') {
+                        displayVal = Number.isInteger(val) ? val.toLocaleString() : val.toLocaleString(undefined, { maximumFractionDigits: 3 });
+                    } else {
+                        displayVal = String(val);
+                    }
+                }
+                html += `<span class="sanddance-tooltip-key">${escapeHtml(key)}:</span><span class="sanddance-tooltip-val">${escapeHtml(displayVal)}</span>`;
+            }
+            html += '</div>';
+            tooltipEl.innerHTML = html;
+        };
+
+        const updatePosition = (p) => {
+            const e = p?.event;
+            const src = (e && e.srcEvent) || e || {};
+            let clientX = src.clientX ?? (e && e.clientX);
+            let clientY = src.clientY ?? (e && e.clientY);
+
+            if (clientX === undefined && p?.position && Array.isArray(p.position)) {
+                const rootRect = this.root ? this.root.getBoundingClientRect() : { left: 0, top: 0 };
+                clientX = rootRect.left + p.position[0];
+                clientY = rootRect.top + p.position[1];
+            }
+
+            if (clientX === undefined || clientX === 0) {
+                clientX = this.currentMouseX || 20;
+                clientY = this.currentMouseY || 20;
+            }
+
+            const offset = 14;
+            const rect = tooltipEl.getBoundingClientRect();
+            let left = clientX + offset;
+            let top = clientY + offset;
+
+            if (left + rect.width > window.innerWidth - 12) {
+                left = Math.max(10, clientX - rect.width - offset);
+            }
+            if (top + rect.height > window.innerHeight - 12) {
+                top = Math.max(10, clientY - rect.height - offset);
+            }
+
+            tooltipEl.style.left = `${left}px`;
+            tooltipEl.style.top = `${top}px`;
+        };
+
+        updateContent(props);
         document.body.appendChild(tooltipEl);
         this.activeTooltipEl = tooltipEl;
-
-        const e = props.event;
-        const src = (e && e.srcEvent) || e || {};
-        const clientX = src.clientX ?? (e && e.x) ?? (e && e.center && e.center.x) ?? 0;
-        const clientY = src.clientY ?? (e && e.y) ?? (e && e.center && e.center.y) ?? 0;
-        const offset = 14;
-        const rect = tooltipEl.getBoundingClientRect();
-        let left = clientX + offset;
-        let top = clientY + offset;
-
-        if (left + rect.width > window.innerWidth - 12) {
-            left = Math.max(10, clientX - rect.width - offset);
-        }
-        if (top + rect.height > window.innerHeight - 12) {
-            top = Math.max(10, clientY - rect.height - offset);
-        }
-
-        tooltipEl.style.left = `${left}px`;
-        tooltipEl.style.top = `${top}px`;
+        updatePosition(props);
 
         return {
+            update: (updateProps) => {
+                if (!this.tooltipsEnabled) {
+                    if (tooltipEl.parentElement) tooltipEl.parentElement.removeChild(tooltipEl);
+                    return;
+                }
+                if (updateProps) {
+                    updateContent(updateProps);
+                    updatePosition(updateProps);
+                }
+            },
             destroy: () => {
                 if (tooltipEl && tooltipEl.parentElement) {
                     tooltipEl.parentElement.removeChild(tooltipEl);
@@ -301,6 +386,7 @@ export class SandDanceManager {
             } catch (e) { }
         }
         this.hasRenderedData = false;
+        this.lastDataLength = 0;
         if (this.chartSelect) this.chartSelect.value = 'density';
         if (this.totalStyleSelect) this.totalStyleSelect.value = '';
         [this.xSelect, this.ySelect, this.colorSelect, this.sortSelect, this.facetSelect, this.disaggregateCol].forEach(el => {
@@ -319,6 +405,7 @@ export class SandDanceManager {
 
     updateLabelsForChartType() {
         const chartType = (this.chartSelect && this.chartSelect.value) || 'density';
+        const totalStyle = (this.totalStyleSelect && this.totalStyleSelect.value) || '';
         if (!this.xLabel || !this.yLabel) return;
 
         if (chartType === 'treemap') {
@@ -344,10 +431,18 @@ export class SandDanceManager {
             }
         } else if (chartType === 'barchart' || chartType === 'barchartV') {
             this.xLabel.textContent = 'Category (X Axis)';
-            this.yLabel.textContent = 'Measure / Height (Y Axis)';
+            if (totalStyle.startsWith('sum')) {
+                this.yLabel.textContent = 'Measure to Sum (Y Axis)';
+            } else {
+                this.yLabel.textContent = 'Height: Particle Count';
+            }
             if (this.chartHint) this.chartHint.style.display = 'none';
         } else if (chartType === 'barchartH') {
-            this.xLabel.textContent = 'Measure / Length (X Axis)';
+            if (totalStyle.startsWith('sum')) {
+                this.xLabel.textContent = 'Measure to Sum (X Axis)';
+            } else {
+                this.xLabel.textContent = 'Length: Particle Count';
+            }
             this.yLabel.textContent = 'Category (Y Axis)';
             if (this.chartHint) this.chartHint.style.display = 'none';
         } else {
@@ -390,7 +485,6 @@ export class SandDanceManager {
             if (this.ySelect && (!this.ySelect.value || !isColNumeric(this.ySelect.value)) && numericCols.length > 0) {
                 this.ySelect.value = numericCols[0];
             }
-            // If color is not set, set default color to first categorical column for rich visual distinction
             if (this.colorSelect && !this.colorSelect.value && categoricalCols.length > 0) {
                 this.colorSelect.value = categoricalCols[0];
             }
@@ -419,7 +513,15 @@ export class SandDanceManager {
             return currentData.map(r => ({ ...r }));
         }
 
-        const disaggCol = this.disaggregateCol ? this.disaggregateCol.value : '';
+        let disaggCol = this.disaggregateCol ? this.disaggregateCol.value : '';
+        if (!disaggCol) {
+            const cols = Object.keys(currentData[0] || {});
+            disaggCol = cols.find(c => /qty|quantity|count|amount|total|volume|headcount/i.test(c)) ||
+                        cols.find(c => typeof currentData[0][c] === 'number') || '';
+            if (this.disaggregateCol && disaggCol) {
+                this.disaggregateCol.value = disaggCol;
+            }
+        }
         if (!disaggCol) return currentData.map(r => ({ ...r }));
 
         const maxTotalPoints = 60000;
@@ -445,6 +547,7 @@ export class SandDanceManager {
 
             for (let c = 0; c < count; c++) {
                 const item = { ...row, _unit_id: totalCount + c + 1 };
+                item[disaggCol] = 1;
                 unrolled.push(item);
             }
             totalCount += count;
@@ -526,14 +629,24 @@ export class SandDanceManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return;
 
+        const renderData = this.getDisaggregatedData();
+        if (!renderData || renderData.length === 0) return;
+
+        if (this.viewer && this.lastDataLength !== renderData.length) {
+            try {
+                if (typeof this.viewer.finalize === 'function') {
+                    this.viewer.finalize();
+                }
+            } catch (e) { }
+            this.viewer = null;
+        }
+        this.lastDataLength = renderData.length;
+
         const viewer = this.initViewer();
         if (!viewer) {
             console.warn("SandDance viewer could not be initialized");
             return;
         }
-
-        const renderData = this.getDisaggregatedData();
-        if (!renderData || renderData.length === 0) return;
 
         const colorColumn = this.colorSelect ? this.colorSelect.value : '';
         let scheme = undefined;
@@ -543,7 +656,6 @@ export class SandDanceManager {
             scheme = (type === 'Number' || type === 'Date' || type === 'DateTime') ? 'viridis' : 'category10';
         }
 
-        // Determine available render dimensions based on actual canvas wrapper viewport
         const wrapper = this.canvasWrapper || document.getElementById('sanddance-canvas-wrapper');
         const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : { width: 0, height: 0 };
         const containerRect = this.container ? this.container.getBoundingClientRect() : { width: 0, height: 0 };
@@ -589,17 +701,30 @@ export class SandDanceManager {
 
         let sizeCol = undefined;
         let groupCol = undefined;
+        let finalX = xVal;
+        let finalY = yVal;
 
         if (chartType === 'treemap') {
             groupCol = xVal || categoricalCols[0] || undefined;
             sizeCol = isColNumeric(yVal) ? yVal : (numericCols[0] || undefined);
+            finalX = undefined;
+            finalY = undefined;
         } else if (chartType === 'strips') {
             sizeCol = isColNumeric(yVal) ? yVal : (numericCols[0] || undefined);
+            finalX = undefined;
+            finalY = undefined;
+        } else if (chartType === 'grid') {
+            finalX = undefined;
+            finalY = undefined;
         } else if (chartType === 'barchart' || chartType === 'barchartV') {
+            finalX = xVal;
+            finalY = undefined;
             if (totalStyle && totalStyle.startsWith('sum')) {
                 sizeCol = isColNumeric(yVal) ? yVal : (numericCols[0] || undefined);
             }
         } else if (chartType === 'barchartH') {
+            finalX = undefined;
+            finalY = yVal;
             if (totalStyle && totalStyle.startsWith('sum')) {
                 sizeCol = isColNumeric(xVal) ? xVal : (numericCols[0] || undefined);
             }
@@ -608,8 +733,8 @@ export class SandDanceManager {
         const insight = {
             chart: chartType,
             columns: {
-                x: xVal,
-                y: yVal,
+                x: finalX,
+                y: finalY,
                 group: groupCol,
                 size: sizeCol,
                 color: colorColumn || undefined,
@@ -628,7 +753,13 @@ export class SandDanceManager {
         }
 
         try {
-            const p = viewer.render({ insight }, renderData);
+            let p;
+            if (typeof viewer.load === 'function') {
+                p = viewer.load({ insight }, renderData);
+            } else {
+                p = viewer.render({ insight }, renderData);
+            }
+
             if (p && typeof p.then === 'function') {
                 p.then(() => {
                     this.hasRenderedData = true;
@@ -646,6 +777,18 @@ export class SandDanceManager {
     }
 
     bindEvents() {
+        const updateMouse = (e) => {
+            if (e && e.clientX !== undefined) {
+                this.currentMouseX = e.clientX;
+                this.currentMouseY = e.clientY;
+            }
+        };
+        window.addEventListener('mousemove', updateMouse, { passive: true });
+        if (this.root) {
+            this.root.addEventListener('click', () => {
+                setTimeout(() => this.updateSelectionButtons(), 80);
+            });
+        }
         [this.chartSelect, this.totalStyleSelect, this.xSelect, this.ySelect, this.colorSelect, this.sortSelect, this.facetSelect].forEach(el => {
             if (el) {
                 el.addEventListener('change', () => {
@@ -692,12 +835,6 @@ export class SandDanceManager {
             });
         }
 
-        if (this.collapseBtn) {
-            this.collapseBtn.addEventListener('click', () => this.setToolbarCollapsed(true));
-        }
-        if (this.expandBtn) {
-            this.expandBtn.addEventListener('click', () => this.setToolbarCollapsed(false));
-        }
 
         if (this.exportBtn) {
             this.exportBtn.addEventListener('click', () => {

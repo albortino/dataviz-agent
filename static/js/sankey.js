@@ -4,10 +4,16 @@
  * D3 interactive graph layout, node dragging, dynamic colors, annotations, and exports.
  */
 
-import { aggregateValues, detectType } from './data-transform.js';
+import { aggregateValues, detectType, aggregateFlows } from './data-transform.js';
 import { formatSankeySyntax } from './spec-formatter.js';
+import { exportSvg, bindCollapsibleSidebar, populateColumnSelects, CHART_CATEGORICAL } from './studio-utils.js';
+
+export { CHART_CATEGORICAL };
+export const CHART_SINGLE = '#0072B2';
+export const CHART_HIGHLIGHT = '#D55E00';
 
 export const PALETTES = {
+    accessible: CHART_CATEGORICAL,
     category10: d3.schemeCategory10,
     tableau10: d3.schemeTableau10,
     set2: d3.schemeSet2,
@@ -53,7 +59,21 @@ export class SankeyManager {
     }
 
     init() {
-        this.initCollapseState();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'sankey_sidebar_collapsed'
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'sankey_controls_collapsed'
+        });
+        if (window.innerWidth < 900) {
+            this.setControlsCollapsed(true);
+        }
         this.bindEvents();
     }
 
@@ -64,11 +84,7 @@ export class SankeyManager {
     }
 
     setControlsCollapsed(collapsed) {
-        if (!this.controlsSidebar) return;
-        this.controlsSidebar.classList.toggle('collapsed', collapsed);
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.controlsSidebarToggle?.setCollapsed(collapsed);
         setTimeout(() => this.renderChart(), 230);
     }
 
@@ -93,11 +109,7 @@ export class SankeyManager {
     }
 
     setSidebarCollapsed(collapsed) {
-        if (!this.sidebar) return;
-        this.sidebar.classList.toggle('collapsed', collapsed);
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !collapsed);
-        }
+        this.leftSidebarToggle?.setCollapsed(collapsed);
         setTimeout(() => this.renderChart(), 230);
     }
 
@@ -207,51 +219,13 @@ export class SankeyManager {
             }
         }
 
-        const srcValues = new Set();
-        const tgtValues = new Set();
-        currentData.forEach(row => {
-            const s = String(row[srcCol] || '').trim();
-            const t = String(row[tgtCol] || '').trim();
-            if (s) srcValues.add(s);
-            if (t) tgtValues.add(t);
+        const flowList = aggregateFlows(currentData, {
+            sourceCol: srcCol,
+            targetCol: tgtCol,
+            valCol,
+            aggFunc,
+            disambiguate
         });
-
-        const hasOverlap = Array.from(srcValues).some(v => tgtValues.has(v));
-        const shouldDisambiguate = disambiguate && hasOverlap;
-
-        const flowAgg = {};
-        currentData.forEach(row => {
-            let s = String(row[srcCol] || '').trim();
-            let t = String(row[tgtCol] || '').trim();
-            if (!s || !t) return;
-
-            if (shouldDisambiguate) {
-                s = `${s} (${srcCol})`;
-                t = `${t} (${tgtCol})`;
-            }
-
-            const key = `${s}___${t}`;
-            let val = 1;
-            if (valCol && row[valCol] !== undefined && row[valCol] !== null) {
-                const parsed = parseFloat(row[valCol]);
-                val = isNaN(parsed) ? 1 : Math.max(0, parsed);
-            }
-            if (!flowAgg[key]) flowAgg[key] = [];
-            flowAgg[key].push(val);
-        });
-
-        const flowList = Object.entries(flowAgg).map(([key, vals]) => {
-            const [s, t] = key.split('___');
-            let computedVal;
-            if (aggFunc === 'none') {
-                computedVal = vals.length > 0 ? vals[0] : 1;
-            } else {
-                computedVal = aggregateValues(vals, aggFunc);
-            }
-            return { s, t, val: computedVal };
-        }).filter(item => item.val > 0);
-
-        flowList.sort((a, b) => b.val - a.val);
 
         const MAX_FLOWS = 50;
         const topFlows = flowList.slice(0, MAX_FLOWS);
@@ -263,15 +237,15 @@ export class SankeyManager {
         }
 
         topFlows.forEach(item => {
-            text += `${item.s} [${Math.round(item.val * 100) / 100}] ${item.t}\n`;
+            text += `${item.source} [${item.value}] ${item.target}\n`;
         });
 
         if (remainingFlows.length > 0) {
-            const otherVal = remainingFlows.reduce((sum, item) => sum + item.val, 0);
+            const otherVal = Math.round(remainingFlows.reduce((sum, item) => sum + item.value, 0) * 100) / 100;
             if (otherVal > 0) {
-                const otherSource = shouldDisambiguate ? `Other (${srcCol})` : 'Other';
-                const otherTarget = shouldDisambiguate ? `Other (${tgtCol})` : 'Other';
-                text += `${otherSource} [${Math.round(otherVal * 100) / 100}] ${otherTarget}\n`;
+                const otherSource = disambiguate ? `Other (${srcCol})` : 'Other';
+                const otherTarget = disambiguate ? `Other (${tgtCol})` : 'Other';
+                text += `${otherSource} [${otherVal}] ${otherTarget}\n`;
             }
         }
 
@@ -283,34 +257,12 @@ export class SankeyManager {
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
 
-        [this.sourceCol, this.targetCol, this.valCol].forEach((sel, idx) => {
-            if (!sel) return;
-            const currentVal = sel.value;
-            sel.innerHTML = '';
-            if (idx === 2) {
-                const countOpt = document.createElement('option');
-                countOpt.value = "";
-                countOpt.textContent = "Row Count (1 per row)";
-                sel.appendChild(countOpt);
-            }
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                sel.appendChild(opt);
-            });
-
-            if (currentVal && columns.includes(currentVal)) {
-                sel.value = currentVal;
-            } else if (idx === 0 && columns.length > 0) {
-                sel.value = columns[0];
-            } else if (idx === 1 && columns.length > 1) {
-                sel.value = columns[1];
-            } else if (idx === 2) {
-                const numCol = columns.find(c => detectType(currentData[0][c]) === 'Number');
-                sel.value = numCol || "";
-            }
-        });
+        const numCol = columns.find(c => detectType(currentData[0][c]) === 'Number');
+        populateColumnSelects([
+            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.targetCol, defaultIndex: 1 },
+            { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
+        ], columns);
     }
 
     async renderChart() {
@@ -400,8 +352,8 @@ export class SankeyManager {
 
         this.graphData = graph;
 
-        const paletteName = this.palette?.value || 'category10';
-        const colorScheme = PALETTES[paletteName] || d3.schemeCategory10;
+        const paletteName = this.palette?.value || 'accessible';
+        const colorScheme = PALETTES[paletteName] || CHART_CATEGORICAL;
         const colorScale = d3.scaleOrdinal(colorScheme);
 
         const getNodeColor = (d) => {
@@ -422,10 +374,10 @@ export class SankeyManager {
             .attr('d', d3.sankeyLinkHorizontal())
             .attr('stroke', d => d.color || getNodeColor(d.source))
             .attr('stroke-width', d => Math.max(1, d.width))
-            .style('stroke-opacity', 0.45);
+            .style('stroke-opacity', 0.28);
 
         link.append('title')
-            .text(d => `${d.source.name} → ${d.target.name}\nAmount: ${d.value.toLocaleString()}`);
+            .text(d => `${d.source.name} → ${d.target.name}\n${d.value.toLocaleString('en-US')}`);
 
         // Draw Nodes
         const self = this;
@@ -441,6 +393,8 @@ export class SankeyManager {
             .attr('height', d => Math.max(1, d.y1 - d.y0))
             .attr('width', d => d.x1 - d.x0)
             .attr('fill', d => getNodeColor(d))
+            .attr('stroke', 'rgba(15,23,42,0.12)')
+            .attr('stroke-width', 1)
             .attr('rx', 3)
             .attr('ry', 3)
             .call(d3.drag()
@@ -471,13 +425,17 @@ export class SankeyManager {
             });
 
         rect.append('title')
-            .text(d => `${d.name}\nTotal: ${d.value.toLocaleString()}`);
+            .text(d => `${d.name}\n${d.value.toLocaleString('en-US')}`);
 
         node.append('text')
             .attr('x', d => d.x0 < width / 2 ? (d.x1 - d.x0) + 6 : -6)
             .attr('y', d => (d.y1 - d.y0) / 2)
             .attr('dy', '0.35em')
             .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+            .attr('font-family', 'Inter, system-ui, sans-serif')
+            .attr('font-size', 11)
+            .attr('fill', '#475569')
+            .style('font-feature-settings', '"tnum" "lnum"')
             .text(d => `${d.name} (${Math.round(d.value * 100) / 100})`);
 
         // Annotations
@@ -560,8 +518,6 @@ export class SankeyManager {
     }
 
     bindEvents() {
-        if (this.collapseBtn) this.collapseBtn.addEventListener('click', () => this.setSidebarCollapsed(true));
-        if (this.expandBtn) this.expandBtn.addEventListener('click', () => this.setSidebarCollapsed(false));
         if (this.formatBtn) {
             this.formatBtn.addEventListener('click', () => {
                 if (this.textEditor) {
@@ -570,8 +526,6 @@ export class SankeyManager {
                 }
             });
         }
-        if (this.controlsCollapseBtn) this.controlsCollapseBtn.addEventListener('click', () => this.setControlsCollapsed(true));
-        if (this.controlsExpandBtn) this.controlsExpandBtn.addEventListener('click', () => this.setControlsCollapsed(false));
 
         [this.sourceCol, this.targetCol, this.valCol, this.aggFunc, this.disambiguateNodes].forEach(el => {
             if (el) {
@@ -651,51 +605,13 @@ export class SankeyManager {
 
         if (this.exportPngBtn) {
             this.exportPngBtn.addEventListener('click', () => {
-                const svgEl = document.getElementById('sankey-svg');
-                if (!svgEl) return;
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const URL = window.URL || window.webkitURL || window;
-                const blobURL = URL.createObjectURL(svgBlob);
-
-                const exportW = parseInt(svgEl.getAttribute('width'), 10) || svgEl.clientWidth || 1000;
-                const exportH = parseInt(svgEl.getAttribute('height'), 10) || svgEl.clientHeight || 600;
-
-                const image = new Image();
-                image.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = exportW * 2;
-                    canvas.height = exportH * 2;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                    const pngLink = document.createElement('a');
-                    pngLink.download = 'sankey-chart.png';
-                    pngLink.href = canvas.toDataURL('image/png');
-                    document.body.appendChild(pngLink);
-                    pngLink.click();
-                    document.body.removeChild(pngLink);
-                };
-                image.src = blobURL;
+                exportSvg(document.getElementById('sankey-svg'), 'png', 'sankey-chart');
             });
         }
 
         if (this.exportSvgBtn) {
             this.exportSvgBtn.addEventListener('click', () => {
-                const svgEl = document.getElementById('sankey-svg');
-                if (!svgEl) return;
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svgEl);
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const link = document.createElement('a');
-                link.download = 'sankey-chart.svg';
-                link.href = URL.createObjectURL(blob);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                exportSvg(document.getElementById('sankey-svg'), 'svg', 'sankey-chart');
             });
         }
     }
@@ -708,7 +624,7 @@ export class SankeyManager {
             valCol: (this.valCol && this.valCol.value) || '',
             aggFunc: (this.aggFunc && this.aggFunc.value) || 'sum',
             disambiguateNodes: !!(this.disambiguateNodes && this.disambiguateNodes.checked),
-            palette: (this.palette && this.palette.value) || 'category10',
+            palette: (this.palette && this.palette.value) || 'accessible',
             nodeAlign: (this.nodeAlign && this.nodeAlign.value) || 'justify',
             autoFit: !!(this.autoFitCheckbox && this.autoFitCheckbox.checked),
             customWidth: (this.customWidthInput && this.customWidthInput.value) || '',
@@ -729,6 +645,10 @@ export class SankeyManager {
             this.disambiguateNodes.checked = !!state.disambiguateNodes;
         }
         if (state.palette && this.palette) this.palette.value = state.palette;
+        // Migrate legacy rainbow defaults to accessible palette once
+        if (this.palette && ['category10', 'tableau10'].includes(this.palette.value)) {
+            this.palette.value = 'accessible';
+        }
         if (state.nodeAlign && this.nodeAlign) this.nodeAlign.value = state.nodeAlign;
         if (this.autoFitCheckbox && state.autoFit !== undefined) {
             this.autoFitCheckbox.checked = !!state.autoFit;

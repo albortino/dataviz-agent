@@ -9,6 +9,42 @@
  */
 
 import { formatVegaSpec } from './spec-formatter.js';
+import {
+    fetchAiDiagram,
+    bindCollapsibleSidebar,
+    populateColumnSelects,
+    bindAiModal,
+    CHART_CATEGORICAL,
+    withButtonSpinner,
+    copyToClipboard
+} from './studio-utils.js';
+
+export { CHART_CATEGORICAL };
+export const CHART_CONFIG = {
+    background: '#FFFFFF',
+    font: 'Inter, system-ui, sans-serif',
+    axis: {
+        labelFont: 'Inter, system-ui, sans-serif',
+        titleFont: 'Inter, system-ui, sans-serif',
+        labelFontSize: 11,
+        titleFontSize: 11,
+        labelColor: '#475569',
+        titleColor: '#334155',
+        gridColor: '#E5E5E5',
+        domainColor: '#CBD5E1',
+        tickColor: '#CBD5E1'
+    },
+    legend: {
+        labelFont: 'Inter, system-ui, sans-serif',
+        titleFont: 'Inter, system-ui, sans-serif',
+        labelFontSize: 11,
+        titleFontSize: 11,
+        labelColor: '#334155',
+        titleColor: '#0F172A'
+    },
+    title: { font: 'Inter, system-ui, sans-serif', fontSize: 13, color: '#0F172A' },
+    range: { category: CHART_CATEGORICAL }
+};
 
 export class VegaManager {
     constructor(options = {}) {
@@ -81,24 +117,32 @@ export class VegaManager {
         this.aiModalCloseBtn = document.getElementById('close-vega-ai-modal-btn');
         this.aiModalCancelBtn = document.getElementById('cancel-vega-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-vega-ai-modal-btn');
+        this.applyChatBtn = document.getElementById('vega-apply-chat-btn');
+        this.sourceChartId = null;
+        this.onApplyToChat = options.onApplyToChat || null;
     }
 
     init() {
         this.initCodeMirror();
-        this.initCollapseState();
+        this.leftSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.sidebar,
+            collapseBtn: this.collapseBtn,
+            expandBtn: this.expandBtn,
+            storageKey: 'vega_sidebar_collapsed',
+            onToggle: (collapsed) => {
+                if (!collapsed && this.cm) {
+                    setTimeout(() => this.cm.refresh(), 200);
+                }
+            }
+        });
+        this.controlsSidebarToggle = bindCollapsibleSidebar({
+            sidebar: this.controlsSidebar,
+            collapseBtn: this.controlsCollapseBtn,
+            expandBtn: this.controlsExpandBtn,
+            storageKey: 'vega_controls_collapsed'
+        });
         this.bindEvents();
         this.updateColumnOptions();
-    }
-
-    initCollapseState() {
-        const isCollapsed = this.sidebar ? this.sidebar.classList.contains('collapsed') : false;
-        if (this.expandBtn) {
-            this.expandBtn.classList.toggle('hidden', !isCollapsed);
-        }
-        const isCtrlCollapsed = this.controlsSidebar ? this.controlsSidebar.classList.contains('collapsed') : false;
-        if (this.controlsExpandBtn) {
-            this.controlsExpandBtn.classList.toggle('hidden', !isCtrlCollapsed);
-        }
     }
 
     initCodeMirror() {
@@ -151,20 +195,6 @@ export class VegaManager {
     }
 
     bindEvents() {
-        // Sidebar Toggles
-        if (this.collapseBtn && this.sidebar) {
-            this.collapseBtn.addEventListener('click', () => this.toggleLeftSidebar(true));
-        }
-        if (this.expandBtn && this.sidebar) {
-            this.expandBtn.addEventListener('click', () => this.toggleLeftSidebar(false));
-        }
-        if (this.controlsCollapseBtn && this.controlsSidebar) {
-            this.controlsCollapseBtn.addEventListener('click', () => this.toggleRightSidebar(true));
-        }
-        if (this.controlsExpandBtn && this.controlsSidebar) {
-            this.controlsExpandBtn.addEventListener('click', () => this.toggleRightSidebar(false));
-        }
-
         // JSON Beautifier
         if (this.formatBtn) {
             this.formatBtn.addEventListener('click', () => this.formatJson());
@@ -303,18 +333,24 @@ export class VegaManager {
         if (this.demoBtn) {
             this.demoBtn.addEventListener('click', () => this.loadSensibleDefaults());
         }
-        if (this.aiBtn) {
-            this.aiBtn.addEventListener('click', () => this.openAiModal());
-        }
 
-        // AI Modal Events
-        if (this.aiModalCloseBtn) this.aiModalCloseBtn.addEventListener('click', () => this.closeAiModal());
-        if (this.aiModalCancelBtn) this.aiModalCancelBtn.addEventListener('click', () => this.closeAiModal());
-        if (this.aiModalSubmitBtn) {
-            this.aiModalSubmitBtn.addEventListener('click', () => {
-                const prompt = this.aiModalPrompt?.value?.trim() || '';
-                this.closeAiModal();
-                this.generateWithAI(prompt);
+        bindAiModal({
+            aiBtn: this.aiBtn,
+            modal: this.aiModal,
+            input: this.aiModalPrompt,
+            closeBtn: this.aiModalCloseBtn,
+            cancelBtn: this.aiModalCancelBtn,
+            submitBtn: this.aiModalSubmitBtn,
+            onSubmit: (prompt) => this.generateWithAI(prompt)
+        });
+
+        if (this.applyChatBtn) {
+            this.applyChatBtn.addEventListener('click', () => {
+                const spec = this.getSpecText()?.trim();
+                if (!spec) return;
+                if (typeof this.onApplyToChat === 'function') {
+                    this.onApplyToChat({ spec, sourceChartId: this.sourceChartId });
+                }
             });
         }
 
@@ -347,29 +383,32 @@ export class VegaManager {
         });
     }
 
-    toggleLeftSidebar(collapse) {
-        if (!this.sidebar) return;
-        if (collapse) {
-            this.sidebar.classList.add('collapsed');
-            if (this.expandBtn) this.expandBtn.classList.remove('hidden');
-        } else {
-            this.sidebar.classList.remove('collapsed');
-            if (this.expandBtn) this.expandBtn.classList.add('hidden');
-            if (this.cm) {
-                setTimeout(() => this.cm.refresh(), 200);
-            }
+    initCollapseState() {
+        if (localStorage.getItem('vega_sidebar_collapsed') === 'true') {
+            this.toggleLeftSidebar(true);
+        }
+        if (localStorage.getItem('vega_controls_collapsed') === 'true') {
+            this.toggleRightSidebar(true);
         }
     }
 
-    toggleRightSidebar(collapse) {
-        if (!this.controlsSidebar) return;
-        if (collapse) {
-            this.controlsSidebar.classList.add('collapsed');
-            if (this.controlsExpandBtn) this.controlsExpandBtn.classList.remove('hidden');
-        } else {
-            this.controlsSidebar.classList.remove('collapsed');
-            if (this.controlsExpandBtn) this.controlsExpandBtn.classList.add('hidden');
+    setSidebarCollapsed(collapse) {
+        this.leftSidebarToggle?.setCollapsed(collapse);
+        if (!collapse && this.cm) {
+            setTimeout(() => this.cm.refresh(), 200);
         }
+    }
+
+    setControlsCollapsed(collapse) {
+        this.controlsSidebarToggle?.setCollapsed(collapse);
+    }
+
+    toggleLeftSidebar(collapse) {
+        this.setSidebarCollapsed(collapse);
+    }
+
+    toggleRightSidebar(collapse) {
+        this.setControlsCollapsed(collapse);
     }
 
     setZoom(level) {
@@ -383,33 +422,13 @@ export class VegaManager {
         const data = this.getData() || [];
         if (!data || data.length === 0) return;
 
-        const sample = data[0] || {};
-        const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
-        const columns = Object.keys(sample).filter(c => !isInternalCol(c));
-
-        const populate = (select, includeNone = false, defaultVal = '') => {
-            if (!select) return;
-            const currentVal = select.value || defaultVal;
-            select.innerHTML = '';
-            if (includeNone) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = '(None)';
-                select.appendChild(opt);
-            }
-            columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                if (col === currentVal) opt.selected = true;
-                select.appendChild(opt);
-            });
-        };
-
-        populate(this.xCol, false);
-        populate(this.yCol, false);
-        populate(this.colorCol, true);
-        populate(this.facetColSelect, true);
+        const columns = Object.keys(data[0] || {});
+        populateColumnSelects([
+            this.xCol,
+            this.yCol,
+            { select: this.colorCol, includeNone: true },
+            { select: this.facetColSelect, includeNone: true }
+        ], columns);
     }
 
     loadSensibleDefaults() {
@@ -425,7 +444,7 @@ export class VegaManager {
         let numCol = cols.find(c => typeof sample[c] === 'number') || cols[1] || cols[0];
 
         if (this.presetSelect) this.presetSelect.value = 'bar';
-        if (this.chartTitleInput) this.chartTitleInput.value = `${numCol} by ${catCol}`;
+        if (this.chartTitleInput) this.chartTitleInput.value = '';
         if (this.xCol && catCol) this.xCol.value = catCol;
         if (this.yCol && numCol) this.yCol.value = numCol;
         if (this.colorCol) this.colorCol.value = '';
@@ -801,6 +820,19 @@ export class VegaManager {
 
         runtimeSpec.autosize = { type: 'pad', contains: 'padding' };
 
+        // Impeccable chart language: applied only when spec omits it (append, don't overhaul)
+        runtimeSpec.background = runtimeSpec.background || CHART_CONFIG.background;
+        runtimeSpec.config = runtimeSpec.config || {};
+        if (!runtimeSpec.config.axis) runtimeSpec.config.axis = { ...CHART_CONFIG.axis };
+        if (!runtimeSpec.config.legend) runtimeSpec.config.legend = { ...CHART_CONFIG.legend };
+        if (!runtimeSpec.config.title) runtimeSpec.config.title = { ...CHART_CONFIG.title };
+        if (!runtimeSpec.config.range) runtimeSpec.config.range = { ...CHART_CONFIG.range };
+        if (!runtimeSpec.config.view) runtimeSpec.config.view = { stroke: '#E2E8F0' };
+        // Single-series bars default to primary blue unless author set a color
+        const _hasColor = runtimeSpec.encoding?.color || (runtimeSpec.layer || []).some(l => l.encoding?.color);
+        if (!_hasColor && !runtimeSpec.config.bar) runtimeSpec.config.bar = { fill: '#0072B2' };
+        if (!_hasColor && !runtimeSpec.config.point) runtimeSpec.config.point = { fill: '#0072B2' };
+
         try {
             this.clearError();
             const res = await window.vegaEmbed(this.renderOutput, runtimeSpec, {
@@ -818,8 +850,19 @@ export class VegaManager {
         }
     }
 
-    loadSpec(spec) {
+    setSourceChartId(chartId) {
+        this.sourceChartId = chartId;
+        if (this.applyChatBtn) {
+            this.applyChatBtn.innerHTML = chartId
+                ? '<i class="fa-solid fa-arrows-rotate"></i><span>Update in Chat</span>'
+                : '<i class="fa-solid fa-paper-plane"></i><span>Send to Chat</span>';
+            this.applyChatBtn.title = chartId ? 'Update this chart in the originating chat card' : 'Send this chart to chat as a new card';
+        }
+    }
+
+    loadSpec(spec, sourceChartId = null) {
         if (!spec) return;
+        this.setSourceChartId(sourceChartId);
         const text = formatVegaSpec(spec);
         this.setSpecText(text);
         this.syncControlsFromSpec();
@@ -886,80 +929,23 @@ export class VegaManager {
         if (customPrompt) systemPrompt += `User Instructions: ${customPrompt}\n`;
         systemPrompt += `IMPORTANT: Output ONLY the valid Vega-Lite specification JSON enclosed in \`\`\`vega-lite ... \`\`\` code fence. Do NOT embed full data rows; use "data": { "name": "source" } or omit data so the client injects the dataset. Do NOT include conversational commentary outside the fence.`;
 
-        const originalBtnHtml = this.aiBtn ? this.aiBtn.innerHTML : '';
-        if (this.aiBtn) {
-            this.aiBtn.disabled = true;
-            this.aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating...</span>`;
-        }
-
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
+            await withButtonSpinner(this.aiBtn, async () => {
+                const specJson = await fetchAiDiagram({
+                    systemPrompt,
+                    sampleData: data,
+                    codeRegex: /```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i
+                });
 
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    message: systemPrompt,
-                    data: sampleRows,
-                    api_key: apiKey || undefined,
-                    base_url: baseUrl || undefined,
-                    model: model || undefined,
-                    api_version: apiVersion || undefined
-                })
+                if (specJson && (specJson.startsWith('{') || specJson.includes('"mark"'))) {
+                    this.loadSpec(specJson);
+                } else {
+                    alert('AI did not return a valid Vega-Lite specification code block.');
+                }
             });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                const errDetail = errData.detail || `Server returned ${response.status}`;
-                if (response.status === 400 && errDetail.includes("No API Key")) {
-                    alert("No AI API Key configured. Please enter your API key in Settings first.");
-                    const settingsModal = document.getElementById('settings-modal');
-                    if (settingsModal) settingsModal.classList.remove('hidden');
-                    return;
-                }
-                if (response.status === 504) {
-                    throw new Error("Server gateway timed out (504). The AI model took too long to reply.");
-                }
-                throw new Error(errDetail);
-            }
-
-            const result = await response.json();
-            const answer = result.answer || '';
-            let specJson = '';
-
-            const match = answer.match(/```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i);
-            if (match) {
-                specJson = match[1].trim();
-            } else {
-                for (const log of (result.logs || [])) {
-                    const logMatch = log.match(/```(?:vega-lite|vega|json)?\s*([\s\S]*?)\s*```/i);
-                    if (logMatch) {
-                        specJson = logMatch[1].trim();
-                        break;
-                    }
-                }
-            }
-
-            if (!specJson && answer.trim().startsWith('{') && answer.trim().endsWith('}')) {
-                specJson = answer.trim();
-            }
-
-            if (specJson) {
-                this.loadSpec(specJson);
-            } else {
-                alert('AI did not return a valid Vega-Lite specification code block.');
-            }
         } catch (err) {
             console.error('Vega AI error:', err);
             alert(`AI generation failed: ${err.message}`);
-        } finally {
-            if (this.aiBtn) {
-                this.aiBtn.disabled = false;
-                this.aiBtn.innerHTML = originalBtnHtml;
-            }
         }
     }
 
@@ -1010,14 +996,7 @@ export class VegaManager {
     }
 
     copyJson() {
-        const text = this.getSpecText() || '';
-        navigator.clipboard.writeText(text).then(() => {
-            if (this.copyJsonBtn) {
-                const orig = this.copyJsonBtn.innerHTML;
-                this.copyJsonBtn.innerHTML = `<i class="fa-solid fa-check"></i><span>Copied</span>`;
-                setTimeout(() => { this.copyJsonBtn.innerHTML = orig; }, 2000);
-            }
-        });
+        copyToClipboard(this.getSpecText() || '', this.copyJsonBtn);
     }
 
     exportState() {
