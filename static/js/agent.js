@@ -1451,6 +1451,54 @@ plt.show()`;
                                                 }
                                             }
                                         }
+                                    } else if (callName === 'execute_python_code') {
+                                        const pythonCode = callArgs.code || callArgs.python_code || '';
+                                        const sqlQuery = callArgs.sql_query || callArgs.query || callArgs.sql || null;
+                                        let renderRows = [];
+                                        let isSampled = false;
+                                        let totalRows = 0;
+                                        if (sqlQuery) {
+                                            const rows = await window.duckdbEngine.queryRows(sqlQuery);
+                                            if (rows && rows.length > 0) {
+                                                totalRows = rows.length;
+                                                isSampled = totalRows > 5000;
+                                                renderRows = isSampled ? rows.slice(0, 5000) : rows;
+                                            }
+                                        }
+
+                                        const resp = await fetch('/execute_code', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                data: renderRows,
+                                                code: pythonCode
+                                            })
+                                        });
+
+                                        if (!resp.ok) {
+                                            const errData = await resp.json().catch(() => ({}));
+                                            outputStr = `Execution error: ${errData.detail || resp.statusText}`;
+                                        } else {
+                                            const codeResult = await resp.json();
+                                            const imgs = Array.isArray(codeResult.images) ? codeResult.images : [];
+                                            for (const img of imgs) {
+                                                collectedPlots.push({
+                                                    image: img,
+                                                    code: pythonCode,
+                                                    metadata: {
+                                                        sql: sqlQuery,
+                                                        code: pythonCode,
+                                                        isSampled: isSampled,
+                                                        totalRows: totalRows
+                                                    }
+                                                });
+                                            }
+                                            let out = codeResult.output || (imgs.length > 0 ? "Executed successfully." : "Code executed with no output.");
+                                            if (isSampled) {
+                                                out = `[Note: Projected from ${totalRows.toLocaleString()} rows sampled to 5,000 for Python memory limit]\n${out}`;
+                                            }
+                                            outputStr = out;
+                                        }
                                     } else if (callName === 'propose_column') {
                                         const colName = callArgs.column_name || callArgs.column || callArgs.name || '';
                                         const expr = callArgs.sql_expression || callArgs.expression || callArgs.expr || callArgs.sql || '';

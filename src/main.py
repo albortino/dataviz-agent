@@ -66,7 +66,7 @@ class ValidateKeyRequest(BaseModel):
 
 class ExecuteCodeRequest(BaseModel):
     code: str
-    data: List[Any]
+    data: Optional[List[Any]] = None
 
 def check_credentials_validity(api_key: str, base_url: str, model_name: str, api_version: str = None) -> dict:
     api_key = (api_key or "").strip()
@@ -278,15 +278,13 @@ def chat(request: ChatRequest):
 
 @app.post("/execute_code")
 def execute_code_endpoint(request: ExecuteCodeRequest):
-    """Direct fast-path endpoint to execute Python code against active data."""
-    if not request.data:
-        raise HTTPException(400, "No data provided")
+    """Direct fast-path endpoint to execute Python code against active data or standalone."""
     if not request.code or not request.code.strip():
         raise HTTPException(400, "No code provided")
     if execute_python_code is None:
         raise HTTPException(500, "Code execution engine is unavailable.")
     try:
-        df = pd.DataFrame(request.data)
+        df = pd.DataFrame(request.data) if request.data else pd.DataFrame()
         result = execute_python_code(df, request.code)
         return result
     except Exception as e:

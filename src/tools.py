@@ -92,14 +92,14 @@ ALLOWED_ROOT_MODULES = frozenset({
     'pandas', 'numpy', 'matplotlib', 'seaborn',
     'math', 'datetime', 'scipy', 'collections',
     'itertools', 'functools', 're', 'json',
-    'vizkit', 'helpers', 'src'
+    'vizkit', 'helpers', 'src', 'sklearn', 'statsmodels'
 })
 
 def _check_module_allowed(mod_name: str) -> bool:
     if not mod_name:
         return False
     root = mod_name.split('.')[0]
-    if root in {'pandas', 'numpy', 'matplotlib', 'seaborn', 'math', 'datetime', 'scipy', 'collections', 'itertools', 'functools', 're', 'json', 'vizkit', 'helpers'}:
+    if root in ALLOWED_ROOT_MODULES:
         return True
     if root.startswith('VK_') or root.startswith('vk_'):
         return True
@@ -251,7 +251,7 @@ def audit_dataset(df: pd.DataFrame) -> str:
         return f"Error: {str(e)}"
 
 
-def execute_python_code(df: pd.DataFrame, code: str) -> dict:
+def execute_python_code(df: pd.DataFrame, code: str, sql_query: str = None) -> dict:
     """
     Executes sandboxed Python code with access to pd, np, plt, sns, and df.
     Restricts builtins, blocks imports/introspection, enforces a 10s execution timeout,
@@ -924,7 +924,7 @@ AVAILABLE_TOOLS = {
 }
 
 CLIENT_DELEGATED_TOOLS = frozenset({
-    "execute_sql", "propose_column", "generate_python_chart", "audit_dataset", "summarize_dataset", "get_info", "list_columns",
+    "execute_sql", "propose_column", "generate_python_chart", "execute_python_code", "audit_dataset", "summarize_dataset", "get_info", "list_columns",
     "calculate_mean", "calculate_sum", "get_statistics", "get_unique_values",
     "calculate_correlation", "get_group_summary"
 })
@@ -945,7 +945,7 @@ get_statistics(column, columns): Summary stats (describe) for one, multiple, or 
 apply_filter(column, value, operator): Filter data (==, >, <, contains)
 get_group_summary(group_col, agg_col, agg_cols, agg_func): Group by and aggregate one or multiple numeric columns (mean, sum, count, median, min, max)
 calculate_correlation(col_a, col_b): Pearson correlation
-execute_python_code(code): Execute Python code with access to pd, np, plt, sns (seaborn - prioritized), and df. Create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, etc.) targeting ax. Figures are automatically captured and rendered in chat.
+execute_python_code(code, sql_query): Execute sandboxed Python code for machine learning (e.g. KNeighborsClassifier), statistical modeling (statsmodels), or general calculations. Set sql_query to project dataset rows into df, or omit for pure calculations.
 generate_mermaid_pie(column, title, top_n): Generate Mermaid pie chart for category distribution
 generate_mermaid_flowchart(source_col, target_col, agg_col, agg_func, direction): Generate Mermaid flowchart between columns
 generate_mermaid_xy_chart(x_col, y_col, chart_type, title): Generate Mermaid xychart-beta (bar or line)
@@ -1287,13 +1287,17 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python data visualization or analysis code. You have access to pd, np, plt, sns, df, and pre-loaded VK_* visual helpers (VK_apply_clean_layout, VK_apply_narrative_layout, VK_direct_label_last, VK_label_bars, VK_palette, VK_ACCENT, VK_PRIMARY, VK_GRAY). Always create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, sns.histplot, sns.boxplot, sns.heatmap) targeting ax.",
+            "description": "Executes sandboxed Python code for machine learning (e.g. scikit-learn models like KNeighborsClassifier, RandomForest, LogisticRegression), statistical modeling (statsmodels), data science calculations, or general algorithms. If modeling or analyzing dataset columns, supply `sql_query` to project data into DataFrame 'df'. If running standalone scripts or calculations without dataset data, omit `sql_query`.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "Python code to execute. For charts: PRIORITIZE Seaborn (e.g. sns.barplot(data=df_sorted, x=..., y=..., ax=ax, palette=[...])) instead of raw ax.bar/ax.barh/ax.plot. Sort categorical data by value, start bar axes at 0, label bars with VK_label_bars(ax, fmt='%.1f') or VK_label_bars(ax, fmt='%d'), apply VK_apply_clean_layout(ax, takeaway_title, subtitle) or VK_apply_narrative_layout(ax, action_title, callout). Do not call ax.set_title() or manual ax.text() for bar labels. Do not call plt.show()."
+                        "description": "Python code to execute. Can import pandas, numpy, scipy, sklearn, statsmodels, math, datetime, collections, etc. DataFrame 'df' contains the projected dataset rows (if sql_query was specified). Print results via print() to output findings."
+                    },
+                    "sql_query": {
+                        "type": "string",
+                        "description": "Optional SQL query against DuckDB table 'dataset' to project rows into DataFrame 'df'. Required when modeling or analyzing data."
                     }
                 },
                 "required": ["code"]
