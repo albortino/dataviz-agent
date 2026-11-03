@@ -281,3 +281,113 @@ export async function withButtonSpinner(btn, asyncFn) {
         btn.disabled = false;
     }
 }
+
+/**
+ * Extracts, isolates, and sanitizes an SVG element into a standalone vector XML string.
+ * Inlines critical computed styles to prevent black silhouettes and CSS bleed when pinned.
+ * @param {SVGElement|HTMLElement} svgElement - Root SVG or container element
+ * @returns {string} - Clean sanitized SVG XML string
+ */
+export function extractStandaloneSvg(svgElement) {
+    if (!svgElement) return '';
+
+    const targetSvg = svgElement.tagName?.toLowerCase() === 'svg'
+        ? svgElement
+        : (svgElement.querySelector?.('svg') || svgElement);
+
+    if (!targetSvg || targetSvg.tagName?.toLowerCase() !== 'svg') {
+        return '';
+    }
+
+    const clone = targetSvg.cloneNode(true);
+
+    // Inline critical computed CSS properties from host DOM
+    const CRITICAL_STYLES = ['fill', 'stroke', 'stroke-width', 'font-family', 'font-size'];
+    const origElements = [targetSvg, ...targetSvg.querySelectorAll('*')];
+    const cloneElements = [clone, ...clone.querySelectorAll('*')];
+    const elementCount = Math.min(origElements.length, cloneElements.length);
+
+    if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+        for (let i = 0; i < elementCount; i++) {
+            const origEl = origElements[i];
+            const cloneEl = cloneElements[i];
+            try {
+                const computed = window.getComputedStyle(origEl);
+                if (computed) {
+                    for (const prop of CRITICAL_STYLES) {
+                        const val = computed.getPropertyValue(prop);
+                        if (val) {
+                            cloneEl.style.setProperty(prop, val);
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore errors for unattached or non-stylable elements
+            }
+        }
+    }
+
+    // Read bounding box with fallback for disconnected/hidden elements
+    let bbox = null;
+    try {
+        if (typeof targetSvg.getBBox === 'function') {
+            bbox = targetSvg.getBBox();
+        }
+    } catch (err) {
+        bbox = null;
+    }
+
+    let x = 0;
+    let y = 0;
+    let width = 0;
+    let height = 0;
+
+    if (bbox && bbox.width > 0 && bbox.height > 0) {
+        x = bbox.x;
+        y = bbox.y;
+        width = bbox.width;
+        height = bbox.height;
+    }
+
+    const existingViewBox = targetSvg.getAttribute('viewBox');
+    if (existingViewBox) {
+        const parts = existingViewBox.trim().split(/[\s,]+/).map(Number);
+        if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+            if (!width || !height) {
+                [x, y, width, height] = parts;
+            }
+        }
+    }
+
+    if (!width || !height) {
+        width = parseFloat(targetSvg.getAttribute('width')) || targetSvg.clientWidth || 800;
+        height = parseFloat(targetSvg.getAttribute('height')) || targetSvg.clientHeight || 600;
+    }
+
+    const finalViewBox = existingViewBox || `${x} ${y} ${width} ${height}`;
+    clone.setAttribute('viewBox', finalViewBox);
+    clone.setAttribute('width', `${width}`);
+    clone.setAttribute('height', `${height}`);
+
+    // Ensure standard SVG namespace
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    // Serialize node to XML string
+    let serializedString = '';
+    if (typeof XMLSerializer !== 'undefined') {
+        const serializer = new XMLSerializer();
+        serializedString = serializer.serializeToString(clone);
+    } else {
+        serializedString = clone.outerHTML || '';
+    }
+
+    // Sanitize serialized SVG
+    const domPurify = (typeof window !== 'undefined' && window.DOMPurify)
+        || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
+
+    if (domPurify && typeof domPurify.sanitize === 'function') {
+        return domPurify.sanitize(serializedString, { USE_PROFILES: { svg: true } });
+    }
+
+    return serializedString;
+}
