@@ -144,6 +144,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmImportBtn = document.getElementById('confirm-import-btn');
     const cancelImportBtn = document.getElementById('cancel-import-btn');
 
+    // Reset Dataset Confirmation Modal
+    const resetConfirmModal = document.getElementById('reset-confirm-modal');
+    const confirmResetBtn = document.getElementById('confirm-reset-btn');
+    const cancelResetConfirmBtn = document.getElementById('cancel-reset-confirm-btn');
+    const closeResetConfirmModalBtn = document.getElementById('close-reset-confirm-modal-btn');
+
     // Global Data State
     let currentData = [];
     window.currentData = currentData;
@@ -908,6 +914,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sanddanceMgr.reset();
         sankeyMgr.reset();
         mermaidMgr.reset();
+        if (canvasMgr && typeof canvasMgr.reset === 'function') {
+            canvasMgr.reset();
+        }
 
         currentData = [];
         window.currentData = [];
@@ -1218,7 +1227,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (dummyDataButton) dummyDataButton.addEventListener('click', renderDummyData);
-    if (resetButton) resetButton.addEventListener('click', resetView);
+
+    const openResetConfirmModal = () => {
+        if (dataDropdownMenu) {
+            dataDropdownMenu.classList.remove('show');
+            if (dataDropdownBtn) dataDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
+        if (resetConfirmModal) {
+            resetConfirmModal.classList.remove('hidden');
+        } else if (window.confirm('Reset dataset? This will discard your current working state, reset all charts, and permanently remove all items from your Insight Canvas.')) {
+            resetView();
+        }
+    };
+
+    const closeResetConfirmModal = () => {
+        if (resetConfirmModal) resetConfirmModal.classList.add('hidden');
+    };
+
+    if (resetButton) resetButton.addEventListener('click', openResetConfirmModal);
+    if (cancelResetConfirmBtn) cancelResetConfirmBtn.addEventListener('click', closeResetConfirmModal);
+    if (closeResetConfirmModalBtn) closeResetConfirmModalBtn.addEventListener('click', closeResetConfirmModal);
+    if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', () => {
+            closeResetConfirmModal();
+            resetView();
+        });
+    }
 
     window.addEventListener('resize', () => {
         if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {

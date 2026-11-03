@@ -3999,6 +3999,7 @@ hr.control-divider,
 /* Centered Dialog Modals (AI Prompt & Import Config) */
 #mermaid-ai-modal,
 #vega-ai-modal,
+#reset-confirm-modal,
 #import-modal {
     justify-content: center;
     align-items: center;
@@ -4006,6 +4007,7 @@ hr.control-divider,
 
 #mermaid-ai-modal .modal-content,
 #vega-ai-modal .modal-content,
+#reset-confirm-modal .modal-content,
 #import-modal .modal-content {
     height: auto;
     max-height: 85vh;
@@ -4909,6 +4911,25 @@ hr.control-divider,
 .text-primary-icon-md {
     color: var(--c-primary);
     font-size: var(--fs-16);
+}
+
+.text-danger-icon-md {
+    color: var(--c-danger);
+    font-size: var(--fs-16);
+}
+
+.button.danger,
+button.danger {
+    background: var(--c-danger) !important;
+    color: #ffffff !important;
+    border-color: var(--c-danger) !important;
+}
+
+.button.danger:hover:not(:disabled),
+button.danger:hover:not(:disabled) {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
 }
 
 /* Sidebar title glyph — spacing comes from the title's flex gap */

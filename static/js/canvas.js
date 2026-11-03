@@ -822,14 +822,25 @@ export class CanvasManager {
         };
     }
 
-    importState(state) {
-        if (!state) return;
-
-        // Clear existing cards
+    clear() {
         for (const card of this.cards.values()) {
             if (card.el) card.el.remove();
         }
         this.cards.clear();
+        if (this.content) {
+            this.content.innerHTML = '';
+        }
+        this.resetViewport();
+        this.updateCardCountBadge();
+    }
+
+    reset() {
+        this.clear();
+    }
+
+    importState(state) {
+        this.clear();
+        if (!state) return;
 
         // Restore viewport
         const vp = state.viewport || { panX: 0, panY: 0, zoom: 1.0 };

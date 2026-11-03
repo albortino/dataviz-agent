@@ -1538,6 +1538,39 @@
         </div>
     </div>
 
+    <!-- Reset Dataset Confirmation Modal -->
+    <div id="reset-confirm-modal" class="modal hidden">
+        <div class="modal-content modal-dialog-centered">
+            <div class="modal-header">
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-triangle-exclamation text-danger-icon-md"></i>
+                        <div>
+                            <h2>Reset Dataset</h2>
+                            <p class="modal-header-subtitle">Clear workspace and active visualizations</p>
+                        </div>
+                    </div>
+                    <button id="close-reset-confirm-modal-btn" class="modal-close-btn" title="Close"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 0.75rem; color: var(--c-text);">Are you sure you want to reset the dataset? This will discard your current working state:</p>
+                <ul class="reset-effects-list" style="margin: 0; padding-left: 1.25rem; font-size: 0.85rem; color: var(--c-text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+                    <li>Unload the active dataset from memory and DuckDB.</li>
+                    <li>Reset all charts in Vega, Mermaid, Sankey, Graphic Walker, and SandDance.</li>
+                    <li><strong style="color: var(--c-text);">Permanently remove all pinned cards, visualizations, and notes from the Insight Canvas.</strong></li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-reset-confirm-btn" class="button" type="button">Cancel</button>
+                <button id="confirm-reset-btn" class="button danger" type="button">
+                    <i class="fa-solid fa-trash-can"></i><span>Reset Everything</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Import Configuration Modal -->
     <div id="import-modal" class="modal hidden">
         <div class="modal-content">
