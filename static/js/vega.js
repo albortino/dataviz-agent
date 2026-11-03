@@ -13,6 +13,7 @@ import {
     fetchAiDiagram,
     bindCollapsibleSidebar,
     populateColumnSelects,
+    getInitialViewColumns,
     bindAiModal,
     CHART_CATEGORICAL,
     withButtonSpinner,
@@ -458,9 +459,10 @@ export class VegaManager {
         if (!data || data.length === 0) return;
 
         const columns = Object.keys(data[0] || {});
+        const initialCols = getInitialViewColumns(data);
         populateColumnSelects([
-            this.xCol,
-            this.yCol,
+            { select: this.xCol, defaultVal: initialCols.categoricalCol },
+            { select: this.yCol, defaultVal: initialCols.numericCol },
             { select: this.colorCol, includeNone: true },
             { select: this.facetColSelect, includeNone: true }
         ], columns);
@@ -471,19 +473,16 @@ export class VegaManager {
         if (!data || data.length === 0) return;
 
         this.updateColumnOptions();
-        const sample = data[0] || {};
-        const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
-        const cols = Object.keys(sample).filter(c => !isInternalCol(c));
-
-        let catCol = cols.find(c => typeof sample[c] === 'string') || cols[0];
-        let numCol = cols.find(c => typeof sample[c] === 'number') || cols[1] || cols[0];
+        const initialCols = getInitialViewColumns(data);
+        const catCol = initialCols.categoricalCol;
+        const numCol = initialCols.numericCol;
 
         if (this.presetSelect) this.presetSelect.value = 'bar';
         if (this.chartTitleInput) this.chartTitleInput.value = '';
         if (this.xCol && catCol) this.xCol.value = catCol;
         if (this.yCol && numCol) this.yCol.value = numCol;
         if (this.colorCol) this.colorCol.value = '';
-        if (this.aggFunc) this.aggFunc.value = typeof sample[numCol] === 'number' ? 'sum' : 'none';
+        if (this.aggFunc) this.aggFunc.value = initialCols.numericCols.includes(numCol) ? 'sum' : 'none';
 
         this.generateFromControls();
     }

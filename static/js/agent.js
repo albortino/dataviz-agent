@@ -1236,7 +1236,7 @@ plt.show()`;
             try {
                 const rows = await window.duckdbEngine.queryRows(text.trim(), 25);
                 if (rows && rows.length > 0) {
-                    clientAnswer = `### SQL Query Result (${rows.length} rows via DuckDB-Wasm)\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\``;
+                    clientAnswer = `### SQL Query Result (${rows.length} rows)\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\``;
                     clientLog = `DuckDB-Wasm Engine: ${text.trim()}`;
                 } else {
                     clientAnswer = `### SQL Query Executed (DuckDB-Wasm)\n0 rows returned.`;
@@ -1341,7 +1341,7 @@ plt.show()`;
                     activeSkills: this.allSkills.length ? getActiveSkills(this.allSkills) : undefined,
                     duckdbEngine: window.duckdbEngine,
                     onProgress: ({ step, toolNames }) => {
-                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>[Step ${step}] Executing in-browser query (${toolNames}) via DuckDB-Wasm...</span></div>`;
+                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>[Step ${step}] Executing in-browser query (${toolNames})...</span></div>`;
                         this.scrollChatToBottom();
                     }
                 });
@@ -1381,7 +1381,7 @@ plt.show()`;
 
                     if (result.status === 'requires_action' && result.tool_calls && result.tool_calls.length > 0) {
                         const toolNames = result.tool_calls.map(t => t.name).join(', ');
-                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>Executing in-browser analytical query (${toolNames}) via DuckDB-Wasm...</span></div>`;
+                        agentMsg.innerHTML = `<div class="chat-analyzing-indicator"><i class="fa-solid fa-bolt text-primary-icon"></i><span>Executing in-browser analytical query (${toolNames})...</span></div>`;
                         this.scrollChatToBottom();
 
                         const toolResults = [];

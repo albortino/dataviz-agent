@@ -21,6 +21,7 @@ import {
     fetchAiDiagram,
     bindCollapsibleSidebar,
     populateColumnSelects,
+    getInitialViewColumns,
     bindAiModal,
     withButtonSpinner
 } from './studio-utils.js';
@@ -586,14 +587,15 @@ export class MermaidManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
+        const initialCols = getInitialViewColumns(currentData);
 
-        const numCol = columns.find(c => {
+        const numCol = initialCols.numericCol || columns.find(c => {
             const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
             return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
         });
 
         populateColumnSelects([
-            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.sourceCol, defaultVal: initialCols.categoricalCol, defaultIndex: 0 },
             { select: this.targetCol, defaultIndex: 1, defaultVal: numCol || '' },
             { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
         ], columns);

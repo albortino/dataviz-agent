@@ -442,12 +442,12 @@
                             <div class="control-group">
                                 <label for="sanddance-chart-type">Chart Type</label>
                                 <select id="sanddance-chart-type" class="control-select">
-                                    <option value="density" selected>Density</option>
+                                    <option value="stacks" selected>Stacks</option>
+                                    <option value="density">Density</option>
                                     <option value="scatterplot">Scatterplot</option>
                                     <option value="barchart">Bar Chart (Vertical)</option>
                                     <option value="barchartH">Bar Chart (Horizontal)</option>
                                     <option value="treemap">Treemap</option>
-                                    <option value="stacks">Stacks</option>
                                     <option value="strips">Strips</option>
                                     <option value="grid">Grid</option>
                                 </select>
@@ -486,6 +486,13 @@
                             </div>
                             <hr class="control-divider">
                             <div class="control-group sanddance-disaggregate-group">
+                                <div id="sanddance-no-id-info" class="sanddance-no-id-info hidden">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div class="sanddance-no-id-content">
+                                        <span class="sanddance-no-id-title">No ID Column Found</span>
+                                        <p class="sanddance-no-id-text">Number of distinct values &ne; number of rows in all columns. The <strong>Disaggregate</strong> by column value option should be taken.</p>
+                                    </div>
+                                </div>
                                 <label class="checkbox-label checkbox-label-compact" for="sanddance-disaggregate-check"
                                     title="Unroll aggregated rows into individual data points using a numeric count column">
                                     <input type="checkbox" id="sanddance-disaggregate-check"

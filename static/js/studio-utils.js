@@ -4,6 +4,8 @@
  * AI diagram generation, and column dropdown populations.
  */
 
+import { detectType } from './data-transform.js';
+
 /** Shared categorical color palette across studio charts. */
 export const CHART_CATEGORICAL = [
     '#0072B2', '#D55E00', '#009E73', '#CC79A7',
@@ -191,6 +193,132 @@ export function populateColumnSelects(selectConfigs, columns, defaultIncludeNone
             select.value = validCols[item.defaultIndex];
         }
     });
+}
+
+/**
+ * Analyzes dataset columns to determine initial categorical and numeric axis selections,
+ * and detects whether any unique ID column exists (distinct values = total rows).
+ */
+export function getInitialViewColumns(data) {
+    if (!data || data.length === 0) {
+        return {
+            hasIdColumn: false,
+            idColumns: [],
+            categoricalCol: '',
+            numericCol: '',
+            categoricalCols: [],
+            numericCols: []
+        };
+    }
+
+    const totalRows = data.length;
+    const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
+    const cols = Object.keys(data[0] || {}).filter(c => !isInternalCol(c));
+
+    if (cols.length === 0) {
+        return {
+            hasIdColumn: false,
+            idColumns: [],
+            categoricalCol: '',
+            numericCol: '',
+            categoricalCols: [],
+            numericCols: []
+        };
+    }
+
+    const idCols = [];
+    const colDistinctCounts = {};
+    const colTypes = {};
+
+    const isIdName = c => /^(id|_id|uuid|guid|pk|index|row_id|key|code)$/i.test(c) || /(_id|Id|ID)$/.test(c);
+    const isMeasureName = c => /qty|quantity|count|amount|total|volume|sales|revenue|profit|salary|price|cost|weight|height|duration|rate|percent|score|value|val|sum/i.test(c);
+
+    cols.forEach(col => {
+        let isUnique = totalRows > 1;
+        const seen = new Set();
+        for (let i = 0; i < totalRows; i++) {
+            const v = data[i][col];
+            if (v === null || v === undefined || v === '') {
+                isUnique = false;
+            } else if (seen.has(v)) {
+                isUnique = false;
+            } else {
+                seen.add(v);
+            }
+        }
+        colDistinctCounts[col] = seen.size;
+
+        for (let r = 0; r < Math.min(totalRows, 50); r++) {
+            const val = data[r][col];
+            if (val !== null && val !== undefined && val !== '') {
+                colTypes[col] = detectType(val);
+                break;
+            }
+        }
+        if (!colTypes[col]) colTypes[col] = 'String';
+
+        const isNumeric = colTypes[col] === 'Number';
+        const isStrictId = isUnique && seen.size === totalRows && (
+            isIdName(col) ||
+            (!isNumeric && !isMeasureName(col)) ||
+            (isNumeric && isIdName(col))
+        );
+
+        if (isStrictId) {
+            idCols.push(col);
+        }
+    });
+
+    const hasIdColumn = idCols.length > 0;
+    const numericCols = cols.filter(c => colTypes[c] === 'Number');
+
+    const nonIdCols = cols.filter(c => !idCols.includes(c));
+
+    const scoredCategoricals = (nonIdCols.length > 0 ? nonIdCols : cols).map(c => {
+        const type = colTypes[c];
+        const distinct = colDistinctCounts[c] || 0;
+        let score = 0;
+
+        if (type === 'String' || type === 'Boolean') {
+            score += 100;
+            if (distinct >= 2 && distinct <= 30) score += 50;
+            else if (distinct <= 100) score += 25;
+            else if (distinct > 500) score -= 30;
+        } else if (type === 'Date' || type === 'DateTime' || type === 'Time') {
+            score += 60;
+            if (distinct <= 50) score += 20;
+        } else if (type === 'Number') {
+            if (distinct >= 2 && distinct <= 20 && distinct < totalRows) {
+                score += 40;
+            } else {
+                score -= 50;
+            }
+        }
+
+        if (isIdName(c)) score -= 60;
+        if (idCols.includes(c)) score -= 200;
+
+        return { col: c, score, distinct, type };
+    });
+
+    scoredCategoricals.sort((a, b) => b.score - a.score);
+
+    const categoricalCol = scoredCategoricals[0]?.col || cols[0];
+
+    const validNumeric = numericCols.filter(c => !idCols.includes(c) || numericCols.length === 1);
+    let numericCol = validNumeric.find(c => c !== categoricalCol) || validNumeric[0];
+    if (!numericCol) {
+        numericCol = cols.find(c => c !== categoricalCol && !idCols.includes(c)) || cols.find(c => c !== categoricalCol) || cols[0];
+    }
+
+    return {
+        hasIdColumn,
+        idColumns: idCols,
+        categoricalCol,
+        numericCol,
+        categoricalCols: scoredCategoricals.map(s => s.col),
+        numericCols
+    };
 }
 
 /**
