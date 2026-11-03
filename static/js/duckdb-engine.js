@@ -453,16 +453,14 @@ export class DuckDBEngine {
      */
     async executeSQL(sql, limit = 100) {
         if (!this.isReady()) throw new Error("DuckDB dataset table not ready.");
-        let query = sql.trim();
-        if (/^select\s+/i.test(query) && !/\blimit\s+\d+/i.test(query)) {
-            query += ` LIMIT ${limit}`;
-        }
-        const table = await this.conn.query(query);
-        const rows = tableToObjects(table);
-        if (!rows || rows.length === 0) {
+        const table = await this.conn.query(sql.trim());
+        const allRows = tableToObjects(table);
+        if (!allRows || allRows.length === 0) {
             return "Query executed successfully. 0 rows returned.";
         }
-        return JSON.stringify(rows, null, 2);
+        const rows = allRows.slice(0, limit);
+        const note = allRows.length > limit ? `\n[Showing first ${limit} of ${allRows.length} rows]` : '';
+        return JSON.stringify(rows, null, 2) + note;
     }
 
     /**
