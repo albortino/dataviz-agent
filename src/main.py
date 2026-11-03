@@ -89,7 +89,7 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
             test_url = f"{clean_endpoint}/openai/deployments/{model_name}/chat/completions?api-version={ver}"
             headers = {"api-key": api_key, "Content-Type": "application/json"}
             payload = {"messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
-            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=6.0)
         elif "anthropic.com" in base_url:
             test_url = f"{base_url}/messages" if base_url.endswith("/v1") else f"{base_url}/v1/messages"
             headers = {
@@ -98,7 +98,7 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
                 "Content-Type": "application/json"
             }
             payload = {"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
-            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=6.0)
         else:
             endpoint = base_url.rstrip("/")
             test_url = f"{endpoint}/chat/completions" if not endpoint.endswith("/chat/completions") else endpoint
@@ -106,7 +106,7 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
             payload = {"model": model_name, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
-            resp = requests.post(test_url, headers=headers, json=payload, timeout=2.0)
+            resp = requests.post(test_url, headers=headers, json=payload, timeout=6.0)
 
         if 200 <= resp.status_code < 300 or resp.status_code == 400:
             return {"valid": True, "model": model_name, "provider_url": base_url}

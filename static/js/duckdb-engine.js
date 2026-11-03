@@ -30,6 +30,65 @@ export function tableToObjects(table, limit = null) {
     return objects;
 }
 
+/**
+ * Defensive division sanitization: wraps / <term> with / NULLIF(<term>, 0)
+ */
+export function sanitizeSqlDivision(expr) {
+    if (!expr || typeof expr !== 'string') return expr;
+    let result = '';
+    let i = 0;
+    while (i < expr.length) {
+        if (expr[i] === "'") {
+            const nextQuote = expr.indexOf("'", i + 1);
+            if (nextQuote === -1) {
+                result += expr.slice(i);
+                break;
+            } else {
+                result += expr.slice(i, nextQuote + 1);
+                i = nextQuote + 1;
+                continue;
+            }
+        }
+        if (expr[i] === '/') {
+            let j = i + 1;
+            while (j < expr.length && /\s/.test(expr[j])) j++;
+            if (expr.slice(j, j + 6).toUpperCase() === 'NULLIF') {
+                result += '/';
+                i++;
+                continue;
+            }
+            if (expr[j] === '(') {
+                let depth = 0;
+                let k = j;
+                for (; k < expr.length; k++) {
+                    if (expr[k] === '(') depth++;
+                    else if (expr[k] === ')') {
+                        depth--;
+                        if (depth === 0) break;
+                    }
+                }
+                if (depth === 0 && k < expr.length) {
+                    const term = expr.slice(j, k + 1);
+                    result += `/ NULLIF(${term}, 0)`;
+                    i = k + 1;
+                    continue;
+                }
+            }
+            const rest = expr.slice(j);
+            const m = rest.match(/^[a-zA-Z_0-9."]+/);
+            if (m) {
+                const term = m[0];
+                result += `/ NULLIF(${term}, 0)`;
+                i = j + term.length;
+                continue;
+            }
+        }
+        result += expr[i];
+        i++;
+    }
+    return result;
+}
+
 export class DuckDBEngine {
     constructor() {
         this.duckdb = null;
@@ -187,6 +246,82 @@ export class DuckDBEngine {
         if (!this.isReady()) return 0;
         const res = await this.conn.query(`SELECT COUNT(*) as cnt FROM ${this.tableName};`);
         return Number(res.getChild('cnt')?.get(0) || 0);
+    }
+
+    /**
+     * Resolves collision-free column name by appending _1, _2 suffix if collision exists
+     */
+    async resolveColumnName(baseName) {
+        if (!this.isReady()) return baseName;
+        const schema = await this.getSchema();
+        const existingNames = new Set(schema.map(c => c.name.toLowerCase()));
+        if (!existingNames.has(baseName.toLowerCase())) {
+            return baseName;
+        }
+        let i = 1;
+        while (existingNames.has(`${baseName}_${i}`.toLowerCase())) {
+            i++;
+        }
+        return `${baseName}_${i}`;
+    }
+
+    /**
+     * Dry run SQL expression for column addition with division sanitization and TRY() projection
+     */
+    async dryRunExpression(columnName, sqlExpr) {
+        if (!this.isReady()) {
+            return {
+                valid: false,
+                previewRows: [],
+                resolvedName: columnName,
+                sanitizedExpr: sqlExpr,
+                wasRenamed: false,
+                inferredType: 'UNKNOWN',
+                error: 'DuckDB engine is not initialized or ready.'
+            };
+        }
+        const sanitizedExpr = sanitizeSqlDivision(sqlExpr);
+        const resolvedName = await this.resolveColumnName(columnName);
+        const wasRenamed = resolvedName.toLowerCase() !== columnName.toLowerCase();
+
+        try {
+            const testQuery = `SELECT *, TRY(${sanitizedExpr}) AS "${resolvedName}" FROM ${this.tableName} LIMIT 5;`;
+            const table = await this.query(testQuery);
+            const previewRows = tableToObjects(table);
+            const field = table?.schema?.fields?.find(f => f.name === resolvedName);
+            const inferredType = field ? String(field.type) : 'UNKNOWN';
+
+            return {
+                valid: true,
+                previewRows,
+                resolvedName,
+                sanitizedExpr,
+                wasRenamed,
+                inferredType,
+                error: null
+            };
+        } catch (err) {
+            return {
+                valid: false,
+                previewRows: [],
+                resolvedName,
+                sanitizedExpr,
+                wasRenamed,
+                inferredType: 'UNKNOWN',
+                error: err.message
+            };
+        }
+    }
+
+    /**
+     * Adds persistent calculated column by rebuilding table
+     */
+    async addColumnExpression(columnName, sqlExpr) {
+        if (!this.isReady()) throw new Error('DuckDB engine not initialized');
+        const sanitizedExpr = sanitizeSqlDivision(sqlExpr);
+        const sql = `CREATE OR REPLACE TABLE ${this.tableName} AS SELECT *, ${sanitizedExpr} AS "${columnName}" FROM ${this.tableName};`;
+        await this.query(sql);
+        this.hasTable = true;
     }
 
     /**

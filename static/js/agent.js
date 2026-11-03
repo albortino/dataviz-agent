@@ -185,6 +185,26 @@ export class AgentManager {
         this.skillsModal.classList.add('hidden');
     }
 
+    updateOnlineChip() {
+        const chip = document.getElementById('agent-online-chip');
+        if (!chip) return;
+        if (this._isCheckingAvailability) {
+            chip.textContent = 'Connecting...';
+            chip.className = 'copilot-status-chip connecting';
+            chip.title = 'Validating model connection...';
+            return;
+        }
+        if (this.agentAvailable) {
+            chip.textContent = 'Ready';
+            chip.className = 'copilot-status-chip';
+            chip.title = `Ready (${this.activeModel || 'LLM Agent'})`;
+        } else {
+            chip.textContent = 'Offline';
+            chip.className = 'copilot-status-chip offline';
+            chip.title = this.errorMessage || 'Agent offline';
+        }
+    }
+
     async checkAvailability(timeout = 7000) {
         const statusMsg = document.getElementById('agent-status-msg');
         const userModel = (localStorage.getItem('ai_model') || '').trim();
@@ -194,67 +214,84 @@ export class AgentManager {
         const isDirectBrowser = localStorage.getItem('ai_direct_browser') === 'true';
         this.isDirectBrowser = isDirectBrowser;
 
+        this._isCheckingAvailability = true;
+        this.updateOnlineChip();
+
         if (statusMsg) {
             statusMsg.classList.remove('agent-error-state');
             statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-primary-icon"></i> Checking API key and agent connection...`;
         }
 
-        if (isDirectBrowser) {
-            try {
-                const res = await validateBrowserDirectConnection({
-                    apiKey,
-                    baseUrl,
-                    model: userModel,
-                    apiVersion,
-                    timeout
-                });
-                this.agentAvailable = Boolean(res.valid);
-                this.activeModel = res.model || userModel || 'LLM Agent';
-                this.errorMessage = res.error || '';
-                this.usesServerKey = false;
-            } catch (e) {
-                this.agentAvailable = false;
-                this.errorMessage = e.message || 'Direct connection validation error';
-            }
-            this.updateUIState();
-            return this.agentAvailable;
-        }
-
         try {
+            if (isDirectBrowser) {
+                try {
+                    const res = await validateBrowserDirectConnection({
+                        apiKey,
+                        baseUrl,
+                        model: userModel,
+                        apiVersion,
+                        timeout
+                    });
+                    this.agentAvailable = Boolean(res.valid);
+                    this.activeModel = res.model || userModel || 'LLM Agent';
+                    this.errorMessage = res.error || '';
+                    this.usesServerKey = false;
+                } catch (e) {
+                    this.agentAvailable = false;
+                    this.errorMessage = e.message || 'Direct connection validation error';
+                }
+                return this.agentAvailable;
+            }
+
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
-            const resp = await fetch('/validate_key', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    api_key: apiKey || undefined,
-                    base_url: baseUrl || undefined,
-                    model: userModel || undefined,
-                    api_version: apiVersion || undefined
-                }),
-                signal: controller.signal
-            });
-            clearTimeout(id);
+            try {
+                const resp = await fetch('/validate_key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: apiKey || undefined,
+                        base_url: baseUrl || undefined,
+                        model: userModel || undefined,
+                        api_version: apiVersion || undefined
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(id);
 
-            if (!resp.ok) {
+                if (!resp.ok) {
+                    this.agentAvailable = false;
+                    this.errorMessage = `Server returned error (${resp.status})`;
+                } else {
+                    const data = await resp.json();
+                    this.agentAvailable = Boolean(data.valid);
+                    this.activeModel = data.model || userModel || 'LLM Agent';
+                    this.errorMessage = data.error || '';
+                    this.usesServerKey = Boolean(data.uses_server_key);
+                }
+            } catch (e) {
+                clearTimeout(id);
                 this.agentAvailable = false;
-                this.errorMessage = `Server returned error (${resp.status})`;
-            } else {
-                const data = await resp.json();
-                this.agentAvailable = Boolean(data.valid);
-                this.activeModel = data.model || userModel || 'LLM Agent';
-                this.errorMessage = data.error || '';
-                this.usesServerKey = Boolean(data.uses_server_key);
+                this.errorMessage = e.name === 'AbortError'
+                    ? 'API key validation timed out'
+                    : (e.message || 'Cannot reach backend server');
             }
-        } catch (e) {
-            this.agentAvailable = false;
-            this.errorMessage = e.name === 'AbortError'
-                ? 'API key validation timed out'
-                : (e.message || 'Cannot reach backend server');
+            return this.agentAvailable;
+        } finally {
+            this._isCheckingAvailability = false;
+            this.updateOnlineChip();
+            this.updateUIState();
         }
+    }
 
-        this.updateUIState();
-        return this.agentAvailable;
+    async checkStatusLazy(force = false) {
+        const now = Date.now();
+        if (!force && this._lastHealthCheckTime && (now - this._lastHealthCheckTime < 60000)) {
+            this.updateOnlineChip();
+            return this.agentAvailable;
+        }
+        this._lastHealthCheckTime = now;
+        return await this.checkAvailability();
     }
 
     openSettingsModal() {
@@ -272,16 +309,12 @@ export class AgentManager {
     }
 
     getWelcomeMessageHtml() {
-        const keySource = this.usesServerKey ? ' (Server)' : (this.isDirectBrowser ? ' (Direct)' : '');
-        const modelBadge = this.activeModel ? `Ready · ${this.activeModel}${keySource}` : 'Ready';
+        const modelBadge = this.activeModel || 'LLM Agent';
         return `
         <div class="agent-welcome">
             <div class="agent-welcome-header">
-                <div class="agent-welcome-icon-box">
-                    <i class="fa-solid fa-robot"></i>
-                </div>
                 <div>
-                    <h3 class="agent-welcome-title">AI Data Copilot</h3>
+                    <h3 class="agent-welcome-title">AI Copilot</h3>
                     <p class="agent-welcome-badge">${escapeHtml(modelBadge)}</p>
                 </div>
             </div>
@@ -307,6 +340,7 @@ export class AgentManager {
     }
 
     updateUIState() {
+        this.updateOnlineChip();
         const statusMsg = document.getElementById('agent-status-msg');
         if (!statusMsg) return;
         this.setChatBusy(false);
@@ -450,9 +484,13 @@ export class AgentManager {
         }, 30);
     }
 
-    renderPlotCard(imgDataUrl, index = 1, code = '', cardId = null) {
+    renderPlotCard(imgDataUrl, index = 1, code = '', cardId = null, metadata = null) {
         const id = cardId || `plot-card-${Date.now()}-${index}`;
         const hasCode = Boolean(code && code.trim());
+        const isSampled = Boolean(metadata && metadata.isSampled);
+        const totalRows = metadata && metadata.totalRows ? metadata.totalRows : 0;
+        const warningHtml = isSampled ? `
+          <div class="chat-sampling-warning"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Sampled Data:</strong> Displaying 5,000 of ${totalRows.toLocaleString()} rows. Summary totals should be queried via aggregate SQL.</div>` : '';
         return `
         <div class="chat-plot-card" id="${id}">
           <div class="chat-plot-header">
@@ -470,6 +508,7 @@ export class AgentManager {
               </a>
             </div>
           </div>
+          ${warningHtml}
           <div class="chat-plot-body">
             <img src="${imgDataUrl}" id="img-${id}" class="chat-plot-img" alt="Matplotlib generated chart" onclick="window.open(this.src, '_blank')" title="Click to view full image in new tab">
           </div>
@@ -497,12 +536,12 @@ export class AgentManager {
         if (!Array.isArray(logs)) return [];
         const blocks = [];
         for (const log of logs) {
-            if (typeof log === 'string' && log.includes("execute_python_code")) {
-                const match = log.match(/execute_python_code\(([\s\S]*?)\)/);
+            if (typeof log === 'string' && (log.includes("execute_python_code") || log.includes("generate_python_chart"))) {
+                const match = log.match(/(?:execute_python_code|generate_python_chart)\(([\s\S]*?)\)/);
                 if (match) {
                     try {
                         const parsed = JSON.parse(match[1]);
-                        const code = parsed.code || parsed.script || parsed.python_code;
+                        const code = parsed.python_code || parsed.code || parsed.script;
                         if (code) blocks.push(code);
                     } catch (e) { }
                 }
@@ -511,7 +550,11 @@ export class AgentManager {
         return blocks;
     }
 
-    setupPlotCard(cardId, messageTimestamp, plotIndex) {
+    setupPlotCard(cardId, messageTimestamp, plotIndex, metadata = null) {
+        const cardEl = document.getElementById(cardId);
+        if (cardEl && metadata) {
+            cardEl._plotMetadata = metadata;
+        }
         const toggleBtn = document.getElementById(`toggle-code-${cardId}`);
         const tray = document.getElementById(`tray-${cardId}`);
         const editor = document.getElementById(`editor-${cardId}`);
@@ -557,7 +600,29 @@ export class AgentManager {
 
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
-                copyToClipboard(editor.value, copyBtn);
+                const sqlQuery = cardEl?._plotMetadata?.sql;
+                const currentCode = editor.value;
+                if (sqlQuery) {
+                    const selfContainedScript = `import duckdb
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Query active dataset from DuckDB
+con = duckdb.connect()
+# Register local data table or replace with your CSV path:
+# con.register('dataset', pd.read_csv('your_dataset.csv'))
+df = con.execute("""${sqlQuery}""").df()
+
+# Plotting script
+${currentCode}
+
+plt.tight_layout()
+plt.show()`;
+                    copyToClipboard(selfContainedScript, copyBtn);
+                } else {
+                    copyToClipboard(currentCode, copyBtn);
+                }
             });
         }
 
@@ -588,13 +653,34 @@ export class AgentManager {
             }
 
             try {
-                const data = (this.getData && this.getData()) || [];
+                let renderData = [];
+                const boundSql = cardEl?._plotMetadata?.sql;
+                if (boundSql && window.duckdbEngine && window.duckdbEngine.isReady()) {
+                    const rows = await window.duckdbEngine.queryRows(boundSql);
+                    if (rows && rows.length > 5000) {
+                        renderData = rows.slice(0, 5000);
+                        if (cardEl._plotMetadata) {
+                            cardEl._plotMetadata.isSampled = true;
+                            cardEl._plotMetadata.totalRows = rows.length;
+                        }
+                    } else {
+                        renderData = rows || [];
+                        if (cardEl._plotMetadata) {
+                            cardEl._plotMetadata.isSampled = false;
+                            cardEl._plotMetadata.totalRows = renderData.length;
+                        }
+                    }
+                } else {
+                    const data = (this.getData && this.getData()) || [];
+                    renderData = data.slice(0, 1000);
+                }
+
                 const resp = await fetch('/execute_code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         code: currentCode,
-                        data: data.slice(0, 1000)
+                        data: renderData
                     })
                 });
 
@@ -633,6 +719,10 @@ export class AgentManager {
                     const downloadBtn = document.querySelector(`#${cardId} .chat-save-btn`);
                     if (downloadBtn) {
                         downloadBtn.href = newImgUrl;
+                    }
+
+                    if (cardEl && cardEl._plotMetadata) {
+                        cardEl._plotMetadata.code = currentCode;
                     }
 
                     const lintNotes = (result.output && result.output.includes("LINT [")) ? result.output : null;
@@ -917,7 +1007,76 @@ export class AgentManager {
     setupVegaButtons(chartId, specString, data = null) { this.mountChartCard(chartId, 'vega', specString, data); }
     setupMermaidButtons(chartId, code) { this.mountChartCard(chartId, 'mermaid', code); }
 
-    renderAgentMessageContent({ content, images = [], codeBlocks = [], plots = [], mermaidCode = null, chartId = null, vegaSpec = null, vegaId = null, logs = [] }) {
+    renderColumnProposalCard(proposal) {
+        if (!proposal || !proposal.valid) return '';
+        const resolvedName = escapeHtml(proposal.resolvedName || 'new_column');
+        const sanitizedExpr = escapeHtml(proposal.sanitizedExpr || '');
+        const inferredType = escapeHtml(proposal.inferredType || 'CALCULATED');
+        const renameNote = proposal.wasRenamed ? `
+            <div class="proposal-rename-note">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Collision detected: auto-incremented to <b>${resolvedName}</b></span>
+            </div>` : '';
+
+        // 3-row diff mini-table showing context columns alongside newly calculated values
+        let diffTableHtml = '';
+        if (Array.isArray(proposal.previewRows) && proposal.previewRows.length > 0) {
+            const sampleRows = proposal.previewRows.slice(0, 3);
+            const allKeys = Object.keys(sampleRows[0] || {});
+            const otherCols = allKeys.filter(k => k !== proposal.resolvedName).slice(0, 2);
+            const displayCols = [...otherCols, proposal.resolvedName];
+
+            const headerThs = displayCols.map(col => {
+                const isNew = col === proposal.resolvedName;
+                return `<th class="${isNew ? 'new-col-header' : ''}">${escapeHtml(col)}${isNew ? ' (new)' : ''}</th>`;
+            }).join('');
+
+            const bodyTrs = sampleRows.map(row => {
+                const tds = displayCols.map(col => {
+                    const isNew = col === proposal.resolvedName;
+                    const val = row[col] !== undefined && row[col] !== null ? String(row[col]) : 'NULL';
+                    return `<td class="${isNew ? 'new-col-cell' : ''}">${escapeHtml(val)}</td>`;
+                }).join('');
+                return `<tr>${tds}</tr>`;
+            }).join('');
+
+            diffTableHtml = `
+                <div class="proposal-diff-table-container">
+                    <table class="proposal-diff-table">
+                        <thead><tr>${headerThs}</tr></thead>
+                        <tbody>${bodyTrs}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const isApplied = Boolean(proposal.applied);
+        const buttonHtml = isApplied
+            ? `<button class="button applied" disabled><i class="fa-solid fa-check"></i> Applied to dataset</button>`
+            : `<button class="button primary apply-column-btn" data-col="${resolvedName}" data-expr="${sanitizedExpr}"><i class="fa-solid fa-table-columns"></i> Apply to active dataset</button>`;
+
+        return `
+            <div class="column-proposal-card">
+                <div class="proposal-card-header">
+                    <div class="proposal-col-title">
+                        <i class="fa-solid fa-table-columns text-primary-icon"></i>
+                        <span>${resolvedName}</span>
+                        <span class="proposal-type-badge">${inferredType}</span>
+                    </div>
+                    ${renameNote}
+                </div>
+                <div class="proposal-formula-pill">
+                    <span class="proposal-formula-label">SQL:</span><code>${sanitizedExpr}</code>
+                </div>
+                ${diffTableHtml}
+                <div class="proposal-card-actions">
+                    ${buttonHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    renderAgentMessageContent({ content, images = [], codeBlocks = [], plots = [], mermaidCode = null, chartId = null, vegaSpec = null, vegaId = null, logs = [], proposals = [] }) {
         let finalPlots = plots;
         if ((!finalPlots || finalPlots.length === 0) && Array.isArray(images) && images.length > 0) {
             finalPlots = images.map((img, idx) => ({
@@ -926,10 +1085,11 @@ export class AgentManager {
                 code: (codeBlocks && codeBlocks[idx]) || ''
             }));
         }
-        const plotsHtml = (finalPlots || []).map((p, idx) => this.renderPlotCard(p.image, idx + 1, p.code, p.id)).join('');
+        const plotsHtml = (finalPlots || []).map((p, idx) => this.renderPlotCard(p.image, idx + 1, p.code, p.id, p.metadata)).join('');
         const mermaidHtml = (mermaidCode && chartId) ? this.renderMermaidCard(chartId) : '';
         const vegaHtml = (vegaSpec && vegaId) ? this.renderVegaCard(vegaId) : '';
         const logsHtml = this.renderToolLogs(logs);
+        const proposalsHtml = (proposals || []).map(p => this.renderColumnProposalCard(p)).join('');
 
         const pinBtnHtml = content ? `
             <button class="chat-msg-pin-btn button icon-button" title="Pin finding to Insight Canvas">
@@ -939,6 +1099,7 @@ export class AgentManager {
         return `
             ${pinBtnHtml}
             <div class="markdown-content">${this.renderMarkdownSafe(content)}</div>
+            ${proposalsHtml}
             ${plotsHtml}
             ${mermaidHtml}
             ${vegaHtml}
@@ -982,16 +1143,20 @@ export class AgentManager {
                 const vegaId = item.vegaId || (item.vegaSpec ? `hist-vega-${Date.now()}-${Math.floor(Math.random() * 1000)}` : null);
                 aMsg.className = (chartId || vegaId) ? 'message agent has-chart' : 'message agent';
 
-                let codeBlocks = item.codeBlocks;
-                if ((!codeBlocks || codeBlocks.length === 0) && item.logs) {
-                    codeBlocks = this.extractCodeBlocksFromLogs(item.logs);
-                }
+                let itemPlots = item.plots;
+                if (!itemPlots || itemPlots.length === 0) {
+                    let codeBlocks = item.codeBlocks;
+                    if ((!codeBlocks || codeBlocks.length === 0) && item.logs) {
+                        codeBlocks = this.extractCodeBlocksFromLogs(item.logs);
+                    }
 
-                const itemPlots = (item.images || []).map((img, idx) => ({
-                    id: `hist-plot-${item.timestamp || Date.now()}-${idx}`,
-                    image: img,
-                    code: (codeBlocks && codeBlocks[idx]) || ''
-                }));
+                    itemPlots = (item.images || []).map((img, idx) => ({
+                        id: `hist-plot-${item.timestamp || Date.now()}-${idx}`,
+                        image: img,
+                        code: (codeBlocks && codeBlocks[idx]) || '',
+                        metadata: null
+                    }));
+                }
 
                 aMsg._rawContent = item.content;
                 const aTimestamp = item.timestamp || Date.now();
@@ -1004,7 +1169,8 @@ export class AgentManager {
                     chartId: chartId,
                     vegaSpec: item.vegaSpec,
                     vegaId: vegaId,
-                    logs: item.logs
+                    logs: item.logs,
+                    proposals: item.proposals || []
                 });
                 this.messagesContainer.appendChild(aMsg);
 
@@ -1016,7 +1182,7 @@ export class AgentManager {
                 }
 
                 itemPlots.forEach((p, idx) => {
-                    this.setupPlotCard(p.id, item.timestamp, idx);
+                    this.setupPlotCard(p.id, item.timestamp, idx, p.metadata);
                 });
             }
         });
@@ -1102,6 +1268,8 @@ export class AgentManager {
                 timestamp: Date.now()
             });
             this.saveChatHistory(updatedHistory);
+            this.agentAvailable = true;
+            this.updateOnlineChip();
             this.setChatBusy(false);
             return;
         }
@@ -1142,6 +1310,8 @@ export class AgentManager {
 
             let result = null;
             let currentLogs = [];
+            let collectedProposals = [];
+            let collectedPlots = [];
 
             const isDirectBrowser = localStorage.getItem('ai_direct_browser') === 'true';
             if (isDirectBrowser) {
@@ -1175,6 +1345,9 @@ export class AgentManager {
                         this.scrollChatToBottom();
                     }
                 });
+                if (result.proposals && result.proposals.length > 0) {
+                    collectedProposals = collectedProposals.concat(result.proposals);
+                }
             } else {
                 while (true) {
                     const response = await fetch('/chat', {
@@ -1221,6 +1394,75 @@ export class AgentManager {
                                     if (callName === 'execute_sql') {
                                         const query = callArgs.query || callArgs.sql || '';
                                         outputStr = await window.duckdbEngine.executeSQL(query);
+                                    } else if (callName === 'generate_python_chart') {
+                                        const sqlQuery = callArgs.sql_query || callArgs.query || callArgs.sql || '';
+                                        const pythonCode = callArgs.python_code || callArgs.code || '';
+                                        if (!sqlQuery || !pythonCode) {
+                                            outputStr = 'Observation: Both sql_query and python_code are required.';
+                                        } else {
+                                            const rows = await window.duckdbEngine.queryRows(sqlQuery);
+                                            if (!rows || rows.length === 0) {
+                                                outputStr = 'Observation: SQL query returned 0 rows. Verify filter criteria and column names.';
+                                            } else {
+                                                const totalRows = rows.length;
+                                                const isSampled = totalRows > 5000;
+                                                const renderRows = isSampled ? rows.slice(0, 5000) : rows;
+
+                                                const resp = await fetch('/execute_code', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        data: renderRows,
+                                                        code: pythonCode
+                                                    })
+                                                });
+
+                                                if (!resp.ok) {
+                                                    const errData = await resp.json().catch(() => ({}));
+                                                    outputStr = `Execution error: ${errData.detail || resp.statusText}`;
+                                                } else {
+                                                    const codeResult = await resp.json();
+                                                    const isError = Boolean(codeResult.error || (codeResult.output && (codeResult.output.includes("Execution error:") || codeResult.output.startsWith("Error:"))));
+                                                    const imgs = Array.isArray(codeResult.images) ? codeResult.images : [];
+
+                                                    if (isError || imgs.length === 0) {
+                                                        const errText = codeResult.error || codeResult.output || 'No chart was produced by the code.';
+                                                        outputStr = `Execution error: ${errText}`;
+                                                    } else {
+                                                        for (const img of imgs) {
+                                                            collectedPlots.push({
+                                                                image: img,
+                                                                code: pythonCode,
+                                                                metadata: {
+                                                                    sql: sqlQuery,
+                                                                    code: pythonCode,
+                                                                    isSampled: isSampled,
+                                                                    totalRows: totalRows
+                                                                }
+                                                            });
+                                                        }
+                                                        outputStr = isSampled
+                                                            ? `Chart rendered with 5,000 rows (sampled from ${totalRows.toLocaleString()} rows). Warning displayed to user.`
+                                                            : `Chart rendered successfully from ${rows.length} projected rows.`;
+                                                        if (codeResult.output && codeResult.output.includes("LINT [")) {
+                                                            outputStr += `\n${codeResult.output}`;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else if (callName === 'propose_column') {
+                                        const colName = callArgs.column_name || callArgs.column || callArgs.name || '';
+                                        const expr = callArgs.sql_expression || callArgs.expression || callArgs.expr || callArgs.sql || '';
+                                        if (window.duckdbEngine && typeof window.duckdbEngine.dryRunExpression === 'function') {
+                                            const dryRun = await window.duckdbEngine.dryRunExpression(colName, expr);
+                                            if (dryRun && dryRun.valid) {
+                                                collectedProposals.push(dryRun);
+                                            }
+                                            outputStr = JSON.stringify(dryRun);
+                                        } else {
+                                            outputStr = JSON.stringify({ valid: false, error: 'DuckDB engine not ready on client.' });
+                                        }
                                     } else if (callName === 'audit_dataset') {
                                         outputStr = await window.duckdbEngine.auditDataset();
                                     } else if (callName === 'summarize_dataset') {
@@ -1310,15 +1552,31 @@ export class AgentManager {
                 codeBlocks = this.extractCodeBlocksFromLogs(result.logs);
             }
             const msgTimestamp = Date.now();
-            const plots = images.map((img, idx) => ({
-                id: `chat-plot-${msgTimestamp}-${idx}`,
-                image: img,
-                code: codeBlocks[idx] || ''
-            }));
+            let plots = [];
+            if (collectedPlots && collectedPlots.length > 0) {
+                plots = collectedPlots.map((p, idx) => ({
+                    id: `chat-plot-${msgTimestamp}-${idx}`,
+                    image: p.image,
+                    code: p.code,
+                    metadata: p.metadata
+                }));
+            }
+            if (images.length > 0) {
+                images.forEach((img, idx) => {
+                    if (!plots.some(p => p.image === img)) {
+                        plots.push({
+                            id: `chat-plot-${msgTimestamp}-${plots.length}`,
+                            image: img,
+                            code: codeBlocks[idx] || '',
+                            metadata: null
+                        });
+                    }
+                });
+            }
 
             const chartId = mermaidCode ? `chat-mermaid-${msgTimestamp}-${Math.floor(Math.random() * 1000)}` : null;
             const vegaId = vegaSpec ? `chat-vega-${msgTimestamp}-${Math.floor(Math.random() * 1000)}` : null;
-            const displayMarkdown = rawAnswer || (images.length > 0 ? 'Here is the chart based on your data analysis:' : (mermaidCode ? 'Here is the diagram based on your data:' : (vegaSpec ? 'Here is the Vega chart based on your data:' : 'Analysis complete.')));
+            const displayMarkdown = rawAnswer || (plots.length > 0 ? 'Here is the chart based on your data analysis:' : (mermaidCode ? 'Here is the diagram based on your data:' : (vegaSpec ? 'Here is the Vega chart based on your data:' : 'Analysis complete.')));
 
             agentMsg._rawContent = displayMarkdown;
             agentMsg.dataset.timestamp = msgTimestamp;
@@ -1326,13 +1584,14 @@ export class AgentManager {
             agentMsg.innerHTML = this.renderAgentMessageContent({
                 content: displayMarkdown,
                 plots: plots,
-                images: images,
-                codeBlocks: codeBlocks,
+                images: plots.map(p => p.image),
+                codeBlocks: plots.map(p => p.code),
                 mermaidCode: mermaidCode,
                 chartId: chartId,
                 vegaSpec: vegaSpec,
                 vegaId: vegaId,
-                logs: result.logs || []
+                logs: result.logs || [],
+                proposals: collectedProposals
             });
 
             if (mermaidCode && chartId) {
@@ -1344,7 +1603,7 @@ export class AgentManager {
             }
 
             plots.forEach((p, idx) => {
-                this.setupPlotCard(p.id, msgTimestamp, idx);
+                this.setupPlotCard(p.id, msgTimestamp, idx, p.metadata);
             });
 
             if (result.df_head) this.renderPreviewTable(result.df_head);
@@ -1353,17 +1612,21 @@ export class AgentManager {
             updatedHistory.push({
                 role: 'agent',
                 content: displayMarkdown,
-                images: images,
-                codeBlocks: codeBlocks,
+                plots: plots,
+                images: plots.map(p => p.image),
+                codeBlocks: plots.map(p => p.code),
                 mermaidCode: mermaidCode,
                 mermaidId: chartId,
                 vegaSpec: vegaSpec,
                 vegaId: vegaId,
                 vegaData: agentVegaData,
                 logs: result.logs || [],
-                timestamp: msgTimestamp
+                timestamp: msgTimestamp,
+                proposals: collectedProposals
             });
             this.saveChatHistory(updatedHistory);
+            this.agentAvailable = true;
+            this.updateOnlineChip();
 
         } catch (error) {
             agentMsg.innerHTML = `<div class="chat-message-error"><i class="fa-solid fa-triangle-exclamation"></i><span>Error: ${error.message || String(error)}</span></div>`;
@@ -1424,6 +1687,35 @@ export class AgentManager {
                         this.chatInput.focus();
                         this.handleSend();
                     }
+                    return;
+                }
+
+                const applyBtn = e.target.closest('.apply-column-btn');
+                if (applyBtn && !applyBtn.disabled) {
+                    const colName = applyBtn.dataset.col;
+                    const expr = applyBtn.dataset.expr;
+                    if (!colName || !expr) return;
+
+                    applyBtn.disabled = true;
+                    applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Applying...';
+
+                    (async () => {
+                        try {
+                            if (window.datasetStore && typeof window.datasetStore.applyColumnMutation === 'function') {
+                                await window.datasetStore.applyColumnMutation(colName, expr);
+                            } else if (window.duckdbEngine && typeof window.duckdbEngine.addColumnExpression === 'function') {
+                                await window.duckdbEngine.addColumnExpression(colName, expr);
+                            }
+                            applyBtn.className = 'button applied';
+                            applyBtn.disabled = true;
+                            applyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Applied to dataset';
+                        } catch (applyErr) {
+                            console.error('Error applying column proposal:', applyErr);
+                            applyBtn.disabled = false;
+                            applyBtn.className = 'button primary apply-column-btn';
+                            applyBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error applying';
+                        }
+                    })();
                     return;
                 }
 

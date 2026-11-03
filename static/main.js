@@ -11,7 +11,7 @@
  */
 
 import { detectType, parseValue, processFullCSV } from './js/data-transform.js';
-import { duckdbEngine } from './js/duckdb-engine.js';
+import { duckdbEngine, tableToObjects } from './js/duckdb-engine.js';
 import { LineUpManager } from './js/lineup.js';
 import { MermaidManager } from './js/mermaid.js';
 import { SankeyManager } from './js/sankey.js';
@@ -255,6 +255,63 @@ document.addEventListener('DOMContentLoaded', () => {
     agentMgr.init();
     settingsMgr.init();
 
+    // Central Dataset Single Source of Truth Store
+    window.datasetStore = {
+        async applyColumnMutation(columnName, sqlExpr) {
+            if (!duckdbEngine || !duckdbEngine.isReady()) {
+                throw new Error('DuckDB engine is not initialized or ready.');
+            }
+            await duckdbEngine.addColumnExpression(columnName, sqlExpr);
+            const table = await duckdbEngine.query(`SELECT * FROM ${duckdbEngine.tableName};`);
+            const updatedRecords = tableToObjects(table);
+            currentData = updatedRecords;
+            window.currentData = updatedRecords;
+            window.globalData = updatedRecords;
+
+            const schema = await duckdbEngine.getSchema();
+            const newColumns = schema.map(c => c.name);
+            const totalRows = updatedRecords.length;
+
+            const eventDetail = { columnName, newColumns, totalRows };
+            window.dispatchEvent(new CustomEvent('dataset:schema-updated', { detail: eventDetail }));
+            return eventDetail;
+        },
+        getSnapshot() {
+            return window.globalData || window.currentData || currentData || [];
+        },
+        subscribe(eventName, callback) {
+            window.addEventListener(eventName, callback);
+            return () => window.removeEventListener(eventName, callback);
+        }
+    };
+
+    window.addEventListener('dataset:schema-updated', () => {
+        const data = window.datasetStore.getSnapshot();
+        if (lineupMgr) {
+            lineupMgr.render(data);
+            lineupInstance = lineupMgr.getInstance();
+        }
+        if (graphicWalkerMgr && graphicWalkerMgr.hasRenderedData) {
+            graphicWalkerMgr.render(data);
+        }
+        if (sanddanceMgr && typeof sanddanceMgr.updateOptions === 'function') {
+            sanddanceMgr.updateOptions();
+        }
+        if (sankeyMgr && typeof sankeyMgr.updateColumnOptions === 'function') {
+            sankeyMgr.updateColumnOptions();
+        }
+        if (mermaidMgr && typeof mermaidMgr.updateColumnOptions === 'function') {
+            mermaidMgr.updateColumnOptions();
+        }
+        if (vegaMgr && typeof vegaMgr.updateColumnOptions === 'function') {
+            vegaMgr.updateColumnOptions();
+        }
+        if (agentMgr && typeof agentMgr.renderPreviewTable === 'function') {
+            agentMgr.renderPreviewTable(data.slice(0, 5));
+        }
+        updateDatasetIndicator(currentDatasetName, data.length);
+    });
+
     // Loading State Toggle
     const toggleLoading = (show) => {
         const buttons = [uploadButton, dummyDataButton, resetButton];
@@ -488,6 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
             agentContainer.classList.remove('hidden');
             if (copilotDragHandle) copilotDragHandle.classList.remove('hidden');
             if (showAgentBtn) showAgentBtn.classList.add('active');
+            if (agentMgr && typeof agentMgr.checkStatusLazy === 'function') {
+                agentMgr.checkStatusLazy();
+            }
             setTimeout(() => { if (agentMgr && agentMgr.chatInput) agentMgr.chatInput.focus(); }, 60);
         } else {
             agentContainer.classList.add('hidden');
@@ -638,10 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
-    if (copilotCollapseBtn) {
-        copilotCollapseBtn.addEventListener('click', () => toggleAgent(false));
-    }
 
     // Draggable Split-Pane Resizer for Agent
     if (copilotDragHandle && agentContainer) {
@@ -810,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const processAndRenderData = (data, datasetName = null) => {
         currentData = data;
         window.currentData = data;
+        window.globalData = data;
         if (datasetName) {
             currentDatasetName = datasetName;
         } else if (!currentDatasetName) {
@@ -920,6 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentData = [];
         window.currentData = [];
+        window.globalData = [];
         if (window.duckdbEngine) {
             window.duckdbEngine.clear().catch(() => { });
         }

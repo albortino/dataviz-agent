@@ -3230,27 +3230,6 @@ hr.control-divider,
     gap: 0.75rem;
 }
 
-.agent-welcome-icon-box {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--r-md);
-    background: var(--c-primary-soft);
-    color: var(--c-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
-}
-
-.agent-welcome-title {
-    margin: 0;
-    font-size: var(--fs-14);
-    font-weight: var(--fw-semi);
-    color: var(--c-ink);
-    letter-spacing: -0.015em;
-}
-
 .agent-welcome-badge {
     margin: 2px 0 0;
     font-size: var(--fs-12);
@@ -3448,6 +3427,29 @@ hr.control-divider,
     font-size: var(--fs-13);
     color: var(--c-muted);
     font-weight: var(--fw-semi);
+}
+
+.chat-sampling-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    background: rgba(245, 158, 11, 0.1);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--c-warning, #d97706);
+    font-size: var(--fs-12, 12px);
+    line-height: 1.4;
+}
+
+.chat-sampling-warning i {
+    color: #f59e0b;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.chat-sampling-warning strong {
+    color: var(--c-ink, #1e293b);
+    font-weight: var(--fw-semi, 600);
 }
 
 .chat-plot-body {

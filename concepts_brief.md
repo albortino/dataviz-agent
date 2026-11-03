@@ -1,240 +1,166 @@
-# Insight Canvas & Workspace Persistence MVP
+# RFC: SQL-First Minimal-Egress Visualization Architecture (`generate_python_chart`)
 
 * **Author:** Mats Schneider
 * **Date:** 2026-11-03
-
-## Overview
-
-Dataviz-Agent excels at interactive exploratory data analysis through specialized visualizers (LineUp, Graphic-Walker, SandDance, Vega-Lite, Sankey, Mermaid) and an integrated Python ReAct AI agent. However, users currently lack a dedicated workspace to accumulate, annotate, and organize analytical findings. Discovered insights remain scattered across tool tabs and ephemeral across page reloads.
-
-The **Insight Canvas** elevates Dataviz-Agent into an analytical storytelling engine. It introduces a dedicated spatial canvas view where users can pin analytical artifacts—AI answers, statistical charts, and structural diagrams—with one click, annotate them with markdown note cards, and arrange them freely across a 2D plane. Session state (canvas cards, spatial layout, full chat history, and tool configurations) is persisted locally via browser IndexedDB and exported as a portable JSON session file.
+* **Status:** Brainstorming Consolidated RFC (Ready for Design Draft / Implementation)
 
 ---
 
-## Analysis
+## 1. Problem Statement & Objectives
 
-The feature concept was audited across six Goldfish review lenses (`egm-design`, `egm-codebase-details`, `egm-zoom-out`, `egm-comprehension`, `egm-implementation-readiness`, `egm-structural`) and shaped with `/impeccable` design patterns.
+### The Core Problem
+Dataviz-Agent maintains two execution engines: client-side DuckDB-Wasm (the authoritative Single Source of Truth for 100% of data) and a stateless backend Python sandbox (Matplotlib/Seaborn for narrative publication charts). 
 
-### 1. Storage Quota & LocalStorage Eviction Trap
-* **Root Issue:** Chat history and visualizer states currently attempt to serialize into `localStorage`. In `static/js/agent.js`, `saveChatHistory()` already suffers from an aggressive quota mitigation loop: when data exceeds ~5MB (common with embedded base64 Matplotlib/Seaborn plots), it silently truncates history down to the last 5 messages, discarding critical user context.
-* **Resolution:** Ban `localStorage` for canvas cards, chat transcripts, and session payloads. Implement an asynchronous IndexedDB adapter (`static/js/storage-db.js`) with an explicit object store (`sessions` and `chat_history`).
+Previously, the frontend truncated chat requests to 50 rows (`data.slice(0, 50)`). This caused a severe data split:
+- Text summaries and takeaway titles generated from DuckDB-Wasm reported exact metrics calculated over the complete dataset (e.g., Sales: 516 headcount across 250 rows).
+- Python charts plotted only the 50-row preview sample, displaying conflicting values (e.g., Sales: ~100 headcount).
 
-### 2. Spec-First Storage vs. SVG Payload Bloat
-* **Root Issue:** Serializing multi-megabyte raw SVG snapshots for complex Vega-Lite charts balloons session JSON files from kilobytes to 30+ MB, causing main-thread execution freezes during `JSON.stringify` on pan/zoom debouncing.
-* **Resolution:** Enforce a **Spec-First** representation for Vega-Lite cards: store the compact JSON specification (~2 KB) and dataset column bindings. For non-declarative outputs (Mermaid diagrams, Sankey flows, Matplotlib plots), store sanitized, minified SVG strings or image blobs with a hard cap (250 KB per card).
+Attempting to fix this by streaming full raw datasets over HTTP to Python introduces critical architectural failure modes:
+1. **Payload Bloat & Latency:** Uploading 10 MB–50 MB CSVs on every chat turn adds 1.5s–6.0s network latency.
+2. **Gateway Caps:** Exceeds standard reverse proxy and ingress limits (e.g., Nginx default `client_max_body_size 1M`, AWS API Gateway `10M`), triggering `413 Payload Too Large`.
+3. **Data Privacy Egress:** Transmitting complete raw tables exposes unneeded columns and PII across the network.
+4. **Static Disconnect:** Unlike interactive Vega-Lite, Seaborn produces flat PNGs that break when user code edits assume raw rather than projected data.
 
-### 3. Detached SVG Silhouette & Style Bleed Trap
-* **Root Issue:** Mermaid and D3 (Sankey) SVGs rely on global CSS rules and CSS variables from `variables.css`. Directly extracting them via `XMLSerializer().serializeToString()` strips stylesheets, rendering elements as black silhouettes or unstyled text. Additionally, shared SVG `<clipPath id="...">` and gradient IDs collide when multiple SVGs exist in a single DOM container.
-* **Resolution:** Standardize SVG extraction via a helper (`static/js/studio-utils.js`) that clones the element and inlines computed CSS styles (`fill`, `stroke`, `font-family`). Render SVG cards inside isolated shadow roots (`ShadowRoot`) or as `<img>` tags referencing SVG Blob Object URLs (`URL.createObjectURL(blob)`).
-
-### 4. Codebase Reuse: D3 Pan/Zoom vs. Custom Coordinate Math
-* **Root Issue:** Building a custom freeform pan/zoom/drag coordinate projection engine from scratch in vanilla JS introduces cross-browser pointer capture bugs, DPR scaling issues, and pinch-to-zoom race conditions.
-* **Resolution:** Dataviz-Agent already includes D3.js globally (`d3.v7.min.js` in `static/index.html`). Leverage `d3.zoom()` and `d3.drag()` for coordinate handling, reducing hundreds of lines of fragile pointer math to ~25 lines of battle-tested code.
-
-### 5. Chat History Persistence Already Exists
-* **Root Issue:** The brainstorming proposal treated agent chat history serialization as a net-new requirement. Codebase audit revealed that `AgentManager.exportState()` and `AgentManager.importState()` are already implemented in `static/js/agent.js` and wired into `static/js/session.js`.
-* **Resolution:** Reuse existing agent serialization logic. The only required work is diverting storage from `localStorage` to IndexedDB to eliminate the silent 5-message truncation bug.
+### Objectives
+1. **100% Value Parity:** Ensure chart bar lengths, labels, and titles perfectly match DuckDB-Wasm metrics.
+2. **Minimal-Egress Transfer:** Transmit only aggregated/projected query rows (< 10 KB) over HTTP, never raw multi-megabyte datasets.
+3. **Single-Turn Latency:** Execute SQL projection and Python plotting in one atomic LLM action, avoiding multi-turn ReAct roundtrips.
+4. **Reproducible & Editable Code:** Support in-chat code editing ("Run Code") and self-contained Jupyter notebook export.
 
 ---
 
-## Goals vs. Non-Goals
+## 2. Target Architecture & Execution Flow
 
-### In-Scope Goals (MVP Scope)
-* **Insight Canvas View:** Add a new tab (`#canvas-container`) in `static/index.html` and register it in `main.js` view lifecycle (`activateViewByName('canvas')`).
-* **Spatial Canvas Runtime:** Pan, zoom, and card repositioning powered by global `d3.zoom()` and `d3.drag()`.
-* **One-Click Pin Actions:**
-  * **Agent Chat:** Pin button on agent response cards capturing final answer markdown + embedded plots/charts.
-  * **Vega Studio:** Pin button capturing declarative Vega spec + preview snapshot.
-  * **Mermaid Studio:** Pin button capturing diagram syntax + styled SVG snapshot.
-  * **Sankey Studio:** Pin button capturing node-link flow SVG snapshot.
-* **User Text Cards:** Add and edit freeform markdown notes directly on the canvas.
-* **IndexedDB Session Adapter:** Auto-save active session state (dataset metadata, canvas cards, tool states, full chat history) in browser IndexedDB.
-* **Session Schema v2:** Update `static/js/session.js` to serialize `tools.canvas` alongside existing tools with backward compatibility for v1 session files.
-* **Decoupled Pinning Event Protocol:** Global CustomEvent (`dataviz:pin-card`) allowing any visualizer to push cards into the canvas without tight coupling.
+### Atomic Tool Contract: `generate_python_chart`
 
-### Out-of-Scope Non-Goals (Explicit Exclusions)
-* **Graphic-Walker & SandDance Pinning:** Deferred to v2 due to proprietary state models and 3D WebGL rendering constraints.
-* **Live In-Card Interactivity:** Canvas cards display static snapshots or re-rendered specs with preview capabilities; interactive editing happens via "Open in Studio" navigation.
-* **Multi-User Collaboration & Real-Time Sync:** No WebSockets, CRDTs (Yjs), or multi-cursor synchronization in MVP.
-* **Cloud Storage Backends:** Google Drive and OneDrive connectors deferred to post-MVP; focus strictly on local IndexedDB and file download/upload.
-* **Vector Connectors / Mindmap Edges:** Freeform node positioning only; edge routing and connecting lines deferred to v2.
+We introduce an atomic, client-delegated tool that couples SQL projection with Python plotting:
 
----
-
-## UI/UX Placement & Design System Reuse
-
-### 1. Navigation Placement (`static/index.html`)
-The header follows an end-to-end analytical journey:
-$$\text{Data Ingest} \longrightarrow \text{Exploration (Table/Explorer/Particles)} \longrightarrow \text{Charting (Vega/Sankey/Mermaid)} \longrightarrow \mathbf{Storytelling\ (Canvas)}$$
-
-In `#view-controls`, place the Canvas button after `#plots-split-hub` separated by `.nav-separator-dot`:
-```html
-<div class="nav-separator-dot"></div>
-<button id="show-canvas-btn" class="button icon-button" disabled
-    title="Storytelling board with pinned findings, charts, and notes (Canvas)">
-    <i class="fa-solid fa-shapes"></i><span>Canvas</span>
-    <span id="canvas-card-count" class="badge-counter hidden">0</span>
-</button>
-```
-
-### 2. "Pin to Canvas" Button Placements
-* **Agent Chat Bubbles (`static/js/agent.js`):**
-  * Hover button on the top-right corner of `.message.agent`:
-    ```html
-    <button class="chat-msg-pin-btn" title="Pin finding to Canvas">
-        <i class="fa-solid fa-thumbtack"></i>
-    </button>
-    ```
-  * Inline chart action bar (alongside Copy and Open):
-    ```html
-    <button class="button icon-button chat-pin-chart-btn" id="pin-${chartId}" title="Pin chart to Canvas">
-        <i class="fa-solid fa-thumbtack"></i><span>Pin</span>
-    </button>
-    ```
-* **Vega Studio (`static/index.html:1177`):** Placed in `.actions-stack` directly under `#vega-ai-btn`.
-* **Mermaid Studio (`static/index.html:854`):** Placed in `.actions-stack` directly under `#mermaid-ai-btn`.
-* **Sankey Studio (`static/index.html:682`):** Placed inside `.controls-sidebar-actions` below `#sankey-add-text-btn`.
-
-### 3. Canvas Workspace Layout (`#canvas-container`)
-* **Background:** Radial dot-matrix grid using `--c-canvas` (#f1f5f9) and `--c-border-strong` (#cbd5e1).
-* **Floating Control Dock (Top-Center):**
-  Matches the `.sidebars-controls-pill` design pattern:
-  * `[ ➕ Note ]` (`#canvas-add-note-btn`)
-  * `[ 📐 Tidy ]` (`#canvas-arrange-btn` - snaps cards to a clean masonry/grid)
-  * `[ 🔍 Fit ]` (`#canvas-fit-btn` - resets zoom to fit all cards)
-  * `[ - 100% + ]` (zoom indicator and controls)
-* **Pinned Cards (`.canvas-card`):**
-  * Container: `var(--c-surface)`, `1px solid var(--c-border)`, radius `var(--r-md)`, shadow `var(--shadow-sm)` (idle) and `var(--shadow-pop)` (dragging).
-  * Header: Drag handle (`fa-grip-vertical`), category badge (`.badge-vega`, `.badge-mermaid`, `.badge-sankey`, `.badge-agent`), editable title, and action icons (`Open in Studio`, `Delete`).
-  * Body: Rendered chart / markdown content.
-  * Footer: Provenance badge (`sales_q3.csv • 10:42 AM`).
-
-### 4. Existing CSS Classes & Tokens Reused
-
-| UI Element | Existing Class / Token Reused |
-| :--- | :--- |
-| **Header Tab** | `.button.icon-button`, `.nav-separator-dot` |
-| **Control Dock** | `.sidebars-controls-pill`, `.copilot-header-btn` |
-| **Card Badges** | `.badge-vega`, `.badge-mermaid`, `.badge-sankey`, `.dataset-status-badge` |
-| **Card Elevation & Radius** | `--shadow-sm`, `--shadow-pop`, `--r-md`, `--r-sm` |
-| **Note Typography** | `.message.agent .markdown-content` |
-| **Pin Actions** | `.button.icon-button`, `.ai-action-btn` |
-
----
-
-## Data Contracts & Schemas
-
-### 1. Global Pinning Event Protocol
-Tools emit a single decoupled event to push artifacts onto the canvas:
-```javascript
-window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
-    detail: {
-        type: 'vega' | 'mermaid' | 'sankey' | 'plot' | 'markdown',
-        title: string,
-        payload: {
-            spec?: object,         // Vega-Lite JSON
-            code?: string,         // Mermaid syntax
-            svgString?: string,    // Minified SVG for Sankey / Matplotlib
-            content?: string       // Markdown text
-        },
-        source: {
-            origin: 'agent' | 'vega' | 'mermaid' | 'sankey' | 'user',
-            datasetName: string,
-            timestamp: number
-        }
-    }
-}));
-```
-
-### 2. Session Schema Integration (`SESSION_VERSION = 2`)
-Extend `static/js/session.js`:
 ```json
 {
-  "format": "dataviz-agent-session",
-  "version": 2,
-  "exportedAt": "2026-11-03T12:00:00.000Z",
-  "activeView": "canvas",
-  "datasetSchema": {
-    "name": "dataset.csv",
-    "rowCount": 1000,
-    "columnCount": 10,
-    "columns": ["col_a", "col_b"]
-  },
-  "tools": {
-    "lineup": null,
-    "graphicWalker": null,
-    "sanddance": null,
-    "sankey": null,
-    "mermaid": null,
-    "vega": null,
-    "agent": {
-      "history": [],
-      "activeSkills": []
+  "name": "generate_python_chart",
+  "description": "Generates a publication-quality Seaborn/Matplotlib chart by first querying the full dataset in DuckDB-Wasm, then plotting the projected rows in Python.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "sql_query": {
+        "type": "string",
+        "description": "DuckDB SQL query targeting table 'dataset' to extract and aggregate the exact rows/columns needed for the chart."
+      },
+      "python_code": {
+        "type": "string",
+        "description": "Python plotting code using seaborn (sns) and matplotlib.pyplot (plt) with VK_* layout helpers. Plotted data is available in DataFrame 'df'."
+      }
     },
-    "canvas": {
-      "version": 1,
-      "viewport": { "panX": 0, "panY": 0, "zoom": 1.0 },
-      "cards": [
-        {
-          "id": "card-1730635200-1",
-          "type": "vega",
-          "title": "Revenue Trend by Region",
-          "x": 100,
-          "y": 120,
-          "width": 480,
-          "height": 340,
-          "zIndex": 1,
-          "source": { "origin": "vega", "datasetName": "sales.csv", "timestamp": 1730635200000 },
-          "payload": { "spec": { "$schema": "https://vega.github.io/schema/vega-lite/v5.json", "mark": "bar" } }
-        }
-      ]
-    }
+    "required": ["sql_query", "python_code"]
   }
 }
 ```
 
+### End-to-End Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Agent as ReAct Copilot (FastAPI / LLM)
+    participant Client as Browser Client (agent.js)
+    participant DuckDB as DuckDB-Wasm (Local SSOT)
+    participant Backend as Python Sandbox (POST /execute_code)
+
+    User->>Agent: "Rank departments by total headcount"
+    Agent->>Client: Tool Call: generate_python_chart(sql_query, python_code)
+    Note over Client: Step 1: Local DuckDB-Wasm Query
+    Client->>DuckDB: queryRows(sql_query)
+    alt SQL Error or Zero Rows
+        DuckDB-->>Client: Error / Empty Rows
+        Client->>Agent: Tool Result: Error message (ReAct self-correction)
+    else Successful Projection
+        DuckDB-->>Client: Projected rows (e.g., 5 rows, ~300 bytes)
+        Note over Client: Step 2: Egress Safety Check (< 5,000 rows)
+        Note over Client: Step 3: Direct POST to existing /execute_code
+        Client->>Backend: POST /execute_code { data: projected_rows, code: python_code }
+        Backend-->>Client: { images: [base64Png], output: "...", error: null }
+        Note over Client: Step 4: UI Card Mount & State Binding
+        Client->>Client: Mount card with image + bind { sql: sql_query, code: python_code }
+        Client->>Agent: Tool Result: "Chart rendered successfully from 5 rows"
+        Agent->>User: Renders narrative text matching chart metrics
+    end
+```
+
 ---
 
-## Alternatives Weighed
+## 3. Subsystem Modifications & Contracts
 
-1. **Freeform 2D Infinite Canvas vs. Responsive Storyboard Grid**
-   * *Option A (Infinite 2D Canvas):* Miro-style infinite plane with pan/zoom and coordinate translation.
-   * *Option B (Responsive Storyboard Grid):* 12-column responsive grid or masonry card layout with native vertical scrolling and drag-to-reorder.
-   * *Decision:* Proceed with Freeform 2D Canvas using existing global `d3.zoom()`. Rejected pure Storyboard Grid because user explicitly requested a spatial widescreen layout for non-linear storytelling. Retain option to snap cards to grid via "Tidy" button.
+### 1. Browser Client (`static/js/agent.js`)
+* **Tool Delegation:** Add `generate_python_chart` to client-handled tools in `handleSend()`.
+* **Execution Pipeline:**
+  1. Execute `sql_query` against `window.duckdbEngine.queryRows(callArgs.sql_query)`.
+  2. Guardrail check: if projected rows exceed `5,000` rows, reject with `Observation: Projection exceeded 5,000 rows. Please add SQL aggregation or LIMIT.`
+  3. POST projected rows + `python_code` to the existing `POST /execute_code` endpoint.
+  4. Capture the returned Base64 PNG and store `{ sql: callArgs.sql_query, code: callArgs.python_code }` in card metadata.
+* **"Run Code" Interactive Card Editing:**
+  - Update `setupPlotCard()`: When the user edits code and clicks "Run Code", the client retrieves the card's `sql`, re-queries DuckDB-Wasm locally to ensure `df` has the expected schema, and sends the updated code + data to `/execute_code`.
+* **"Copy Code" Export for Jupyter Notebooks:**
+  - The copy button exports a self-contained script prepending the DuckDB extraction:
+    ```python
+    import duckdb
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
 
-2. **DOM-Based Nodes vs. HTML5 `<canvas>` (Konva.js / Pixi.js)**
-   * *Option A (HTML5 `<canvas>` via Konva.js):* Pixel-based canvas rendering.
-   * *Option B (DOM Elements + CSS Transforms):* Div-based card elements inside a transformed container.
-   * *Decision:* Adopt DOM Elements + CSS Transforms (`Option B`). Rejected HTML5 `<canvas>` because it prevents embedded SVG vector scaling, text selection, and native markdown rendering inside note cards.
+    # Query active dataset via DuckDB
+    con = duckdb.connect()
+    # con.register('dataset', raw_df)
+    df = con.execute("""<sql_query>""").df()
 
-3. **Storage Engine: LocalStorage vs. IndexedDB vs. SQLite-Wasm**
-   * *Option A (LocalStorage):* Retain existing key-value store.
-   * *Option B (IndexedDB):* Asynchronous browser document store.
-   * *Option C (SQLite-Wasm / DuckDB-Wasm):* In-browser SQL engine.
-   * *Decision:* Adopt IndexedDB (`Option B`). Rejected LocalStorage due to 5MB quota ceiling and silent eviction. Rejected SQLite-Wasm to avoid adding a heavy binary dependency when DuckDB-Wasm is already dedicated to analytics.
+    # Plotting code
+    <python_code>
+    plt.show()
+    ```
+
+### 2. Backend Agent (`src/agent.py` & `src/tools.py`)
+* **Tool Registration:**
+  - Register `generate_python_chart` in `CLIENT_DELEGATED_TOOLS` and `OPENAI_TOOLS`.
+  - Deprecate `execute_python_code` from the LLM prompt tool list during chat turns, keeping it active as a server fallback.
+* **Prompt Instructions:**
+  - Direct the agent:
+    - Pure analytical queries & metrics -> `execute_sql`
+    - Column derivations -> `propose_column`
+    - Publication charts -> `generate_python_chart`
+* **Backend Endpoint Reuse:**
+  - Reuse the existing `@app.post("/execute_code")` in `src/main.py`. No redundant `/execute_chart` route is created.
+
+### 3. Device & Mobile Strategy
+* **Uniform Lightweight Rendering:** The server-generated Base64 PNG is ~40 KB, which consumes significantly less volatile RAM on mobile devices (iOS Safari) than running heavy in-browser WebAssembly visualization engines.
+* **Responsive Layout:** The generated PNG renders responsively within the mobile chat drawer without fragile prompt branching on screen width. Users wanting declarative exploration can use the existing Vega / Graphic-Walker tabs.
 
 ---
 
-## Key Decisions & Staging for Next Steps
+## 4. Alternatives Considered & Rejected
 
-### Key Decisions Resolved
-1. **Zero New Build Tools:** Canvas implementation remains vanilla JavaScript (ES modules) and CSS, utilizing globally available `d3.zoom()` and CDN-loaded libraries.
-2. **Spec-First Vega Nodes:** Vega charts store compact Vega-Lite specs; DOM snapshots are reserved for non-declarative engines (Mermaid, Sankey, Matplotlib).
-3. **Session v2 Format:** `session.js` increments to version 2, adding `tools.canvas` while maintaining safe fallback instantiation for version 1 session files.
-4. **Side-by-Side Co-existence:** Agent side-panel copilot remains toggleable side-by-side with the Canvas view, enabling drag-and-drop or one-click pinning while reviewing data.
+| Alternative | Mechanics | Reason for Rejection |
+| :--- | :--- | :--- |
+| **A. Raw Full-Dataset Streaming** | POST entire dataset (up to 50k rows) in JSON on every chat turn. | **Rejected**: Triggers HTTP `413 Payload Too Large` on standard ingress gateways, multiplies network latency by 10x–50x, and causes client main-thread serialization jitter. |
+| **B. Client-Side Pyodide WebAssembly** | Run Python, Matplotlib, and Seaborn in-browser via WebAssembly. | **Rejected**: Requires 30 MB+ initial asset download, 3–5s initialization delay, and consumes 200 MB–300 MB RAM, causing immediate tab termination on mobile browsers. |
+| **C. Universal Vega-Lite (Retire Seaborn)** | Replace Python plotting entirely with in-browser Vega-Lite JSON specs. | **Rejected**: Fails user requirement for narrative layout discipline (`VK_*` bold takeaway titles, unit subtitles, driver accent highlighting) and breaks direct copy-paste export into Jupyter Notebook workflows. |
+| **D. Viewport-Coupled LLM Branching** | Instruct the LLM to generate Vega on screens < 768px and Seaborn on desktop. | **Rejected**: Couples transient CSS viewport width into agent system prompts, introduces dual prompt/test maintenance, and breaks cross-device chat sync. |
 
-### Staging for Coding Agent Implementation
-* **Phase 1: Storage Layer & Sanitizer Utilities**
-  * Create `static/js/storage-db.js` (IndexedDB wrapper for sessions and chat history).
-  * Migrate `AgentManager.saveChatHistory()` away from `localStorage` to IndexedDB.
-  * Add `extractStandaloneSvg()` in `static/js/studio-utils.js` with computed style inlining and DOMPurify sanitization.
-* **Phase 2: Canvas View & Manager**
-  * Add `#show-canvas-btn` and `#canvas-container` in `static/index.html`.
-  * Implement `CanvasManager` in `static/js/canvas.js` with D3 zoom/pan, drag physics, and card DOM nodes.
-  * Wire `activateViewByName('canvas')` in `static/main.js`.
-* **Phase 3: Pinning Triggers & Event Bus**
-  * Hook up `dataviz:pin-card` custom event listener in `CanvasManager`.
-  * Add pin buttons to Agent response bubbles, Vega Studio, Mermaid Studio, and Sankey Studio.
-* **Phase 4: Session v2 Integration & Verification**
-  * Update `exportSession` and `restoreSessionState` in `static/js/session.js` to serialize `tools.canvas`.
-  * Test end-to-end export, browser refresh, IndexedDB restore, and file download/upload.
+---
+
+## 5. Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+| :--- | :--- | :--- |
+| **Unbounded Projection (`SELECT *`)** | LLM generates unaggregated query, streaming large data over network. | Hard client-side cap: `rows.length > 5000` aborts network dispatch and returns an error observation instructing the agent to aggregate. |
+| **SQL Column Alias Mismatch** | Python code expects `df['headcount']` but SQL named column `total`. | Python `KeyError` traceback is captured by `/execute_code` and returned to the agent for automated ReAct self-correction. |
+| **Interactive Card Code Invalidation** | User edits Python code in card, but `df` lacks projected columns. | Card metadata stores `{ sql, code }`; clicking "Run Code" re-runs the SQL query against DuckDB-Wasm before posting to Python. |
+| **Backend Execution Security (RCE)** | Execution of arbitrary Python code in `/execute_code`. | AST linter checks (`src/vizkit/linter.py`), process timeout (5s), and execution in a dedicated sandboxed scope without network/file access. |
+
+---
+
+## 6. Handoff & Implementation Phases
+
+* **Phase 1: Tool Schema & Backend Support:** Register `generate_python_chart` in `src/tools.py` and `src/agent.py`. Preserve `/execute_code` in `src/main.py`.
+* **Phase 2: Client-Side Execution Pipeline:** Implement `generate_python_chart` handler in `static/js/agent.js` with local DuckDB execution, egress guardrails (< 5,000 rows), and `/execute_code` dispatch.
+* **Phase 3: Card State & Lifecycle:** Update `chat-plot-card` metadata to persist `{ sql, code }`, wire `setupPlotCard` re-query logic, and add runnable Jupyter script export.
+* **Phase 4: Automated Verification:** Test endpoint with synthetic projected payloads and verify zero-discrepancy end-to-end rendering.

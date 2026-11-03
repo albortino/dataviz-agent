@@ -1,280 +1,344 @@
-# Insight Canvas & Workspace Persistence Specification
+# SQL-First Minimal-Egress Visualization Architecture & Exact Parity
 
 * **Author:** Mats Schneider
-* **Status:** Finalized
+* **Status:** Draft
 * **Date:** 2026-11-03
 
 --------------------------------------------------------------------------------
 
 ## Overview
 
-Dataviz-Agent is an open-source, local-first visual analytics suite combining browser-native visualization engines (LineUp, Graphic-Walker, SandDance, Vega-Lite, Sankey, Mermaid) with an integrated ReAct AI copilot.
+Dataviz-Agent combines browser-native analytical tools with an embedded AI copilot. However, analytical execution is currently divided between two distinct runtimes:
+1. **Client-Side DuckDB-Wasm:** The authoritative Single Source of Truth (SSOT) operating directly inside the user's browser across 100% of the active dataset.
+2. **Server-Side Python Sandbox:** An ephemeral FastAPI backend executing Matplotlib and Seaborn code to render publication-grade narrative charts with layout helpers (`VK_apply_clean_layout`, `VK_apply_narrative_layout`).
 
-While users can discover patterns and generate plots interactively, analytical findings remain isolated within specific studio tabs and ephemeral across page reloads.
+Because the browser client previously truncated chat payloads to a 50-row preview (`data.slice(0, 50)`), the Python plotting environment operated on a fractional sample while DuckDB-Wasm calculated statistics across the full dataset. This led to conflicting numbers: textual answers, tables, and takeaway titles reported true full-dataset metrics (e.g. 516 Sales headcount across 250 rows), while the chart's bars and numerical labels plotted the 50-row sample (~100 headcount).
 
-The **Insight Canvas & Workspace Persistence** engine introduces:
-1. **A Freeform Spatial Canvas tab (`#canvas-container`)** allowing users to pin analytical artifacts (Vega-Lite specs, Mermaid diagrams, Sankey flows, and AI responses), organize them spatially on an infinite 2D plane, and add persistent notes.
-2. **Native Shaded Sticky Notes (Obsidian-Style)** for clear markdown annotations without awkward detached floating bars or UI flicker. Notes are grabbed and dragged anywhere on their surface and edited by clicking directly into the text.
-3. **8-Point Spatial Resizing Architecture** featuring isolated, pointer-captured hit zones at all 4 corners and all 4 edges with directional cursors, scale-normalized coordinate math, and zero D3 canvas viewport drift.
-4. **Decoupled Pinning Protocol** (`dataviz:pin-card` DOM events) connecting studios and the AI agent chat to the canvas.
-5. **IndexedDB Session & Multi-Chat Persistence** via `static/js/storage-db.js`, eliminating `localStorage` quota errors and enabling session switching.
+Attempting to resolve this by streaming complete raw datasets over HTTP to Python introduces severe failure modes: multi-megabyte JSON payloads, high latency, gateway `413 Payload Too Large` rejections, and enterprise data privacy leakage.
+
+This specification introduces a **SQL-First Minimal-Egress Projection Architecture** anchored around an atomic tool: `generate_python_chart(sql_query, python_code)`. The agent executes DuckDB SQL locally inside the user's browser to project or aggregate the exact data needed for visualization. Only the lightweight query output (typically < 1 KB) is transmitted to the Python backend to render the chart. Most critically, this architecture establishes a strict **Accuracy Invariant**: all analytics insights must be 100% mathematically grounded in the complete dataset, and whenever an unaggregated query is constrained by a safety cap, an explicit, persistent user-facing warning badge must be displayed.
 
 ---
 
 ## The Problem
 
-1. **Fragmented Findings & Rigid Organization:** Visualizations and AI insights exist in separate silos. Users cannot place a Mermaid process diagram next to a Vega distribution chart and a textual summary to synthesize an analytical story.
-2. **Text Note UI Friction & Detached Controls:** The current freeform text note implementation places drag and delete controls in an unstyled floating bar positioned outside the element boundary (`top: -26px`). This produces hover flicker, lacks visual alignment with Dataviz-Agent's design system (`--c-raised`, `--c-border`, `.card-action-btn`), and restricts dragging to an awkward 12px grip icon.
-3. **Broken Spatial Resizing (Canvas Pan Trap):** The current size changer relies on native CSS `resize: both` on the inline textarea. When users drag the resize corner, pointer events bubble directly to `#canvas-container`, triggering D3 zoom panning rather than card resizing. Furthermore, cards lack comprehensive edge/corner resize affordances.
-4. **Ephemeral Storage & 5MB LocalStorage Cap:** Pinned plots and chat messages containing base64 images exceed browser `localStorage` limits, causing silent history truncation and data loss.
-5. **Session Incoherence on Dataset Reset:** Resetting a dataset previously left stale canvas cards active in memory without clearing state or alerting the user of data loss.
+1. **Split-Brain Metric Discrepancies:** Users cannot trust an AI analyst whose chart bars contradict its own textual conclusions. Because backend Pandas was starved with 50 rows while client DuckDB-Wasm had 250+ rows, aggregations computed in Python diverged from SQL calculations.
+2. **The Raw Egress Trap:** Datasets in modern analytical workflows often exceed 20,000–100,000 rows. Serializing and re-transmitting entire raw tables in JSON over HTTP on every ReAct chat turn consumes massive bandwidth, stalls client threads, and causes reverse proxy timeouts (`413 Payload Too Large`).
+3. **Silent Sampling & Trust Erosion:** When systems silently sample datasets without user awareness, users make decisions on skewed metrics. Any fallback or sampling threshold must be transparently surfaced to the human analyst.
+4. **Interactive Invalidation ("Edit Code" Failure):** Pinned and in-chat chart cards allow users to click "Edit Code" and re-run Python snippets via `POST /execute_code`. If the Python script is written against a pre-aggregated schema (e.g. `df` having columns `department` and `headcount`), re-running code against the raw dataset crashes with `KeyError` or schema mismatch.
+5. **Multi-Turn LLM Latency:** Separating SQL aggregation and Python plotting into two distinct ReAct turns (`execute_sql` in Turn 1, `execute_python_code` in Turn 2) forces an unnecessary second LLM roundtrip, adding 2–4 seconds of latency per visualization.
 
 ---
 
 ## Goals
 
-* **G1: Native Shaded Sticky Notes (Obsidian-Style):** Style text notes as shaded sticky containers (`--c-raised`, `--r-md`, `--c-border`, `--shadow-sm`). Grabbing anywhere on the note surface repositions it. Clicking directly into the text enters markdown editing. A clean delete button (`.delete-card-btn`) fades in smoothly at the top-right corner on hover.
-* **G2: 8-Point Spatial Resizing Engine:** Implement isolated, pointer-captured hit zones across all 4 corners and all 4 edges of cards and text notes. Halt event propagation (`e.stopPropagation()`) to isolate D3 zoom, divide deltas by `currentScale`, anchor opposing edges, and enforce strict min/max dimension boundaries.
-* **G3: Dedicated Spatial Canvas View:** Integrate `#canvas-container` and `#show-canvas-btn` into the application view lifecycle with D3-powered pan, zoom, tidy grid, and fit-all.
-* **G4: Decoupled One-Click Pinning:** Provide hover and action-bar pin buttons across Agent Chat and Studios (Vega, Mermaid, Sankey) dispatching `dataviz:pin-card`.
-* **G5: Self-Contained Spec & Isolated SVG Rendering:** Render Vega cards via declarative specifications, and Mermaid/Sankey cards via isolated Shadow DOM / Blob SVGs with inlined styles.
-* **G6: Asynchronous IndexedDB Storage:** Persist full multi-chat histories and canvas session state without size limits or silent truncation.
-* **G7: Safe Reset Lifecycle:** Confirm dataset resets with an explanatory modal and cleanly clear canvas cards and viewport.
+* **100% Value Parity:** Eliminate all discrepancies between chart values and textual metrics by making DuckDB-Wasm the single authoritative compute engine for all data inputs feeding Python plots.
+* **Atomic Single-Turn Tooling (`generate_python_chart`):** Combine SQL data projection and Python plotting into a single atomic action, eliminating redundant LLM roundtrips and cutting visualization latency by 50%.
+* **Minimal-Egress Transfer:** Restrict HTTP transfers to projected query rows (typically < 10 KB), eliminating `413 Payload Too Large` ingress failures and protecting raw user data privacy.
+* **Mandatory Sampling Visibility:** If a query cannot be aggregated and exceeds the client-side safety cap (e.g., a scatter plot hitting 5,000 rows), display an explicit, visible sampling warning badge in the UI and inform the user that metrics reflect a sampled subset.
+* **Persistent Card State & Lifecycle:** Store both `sql_query` and `python_code` within the chart card metadata so that user code edits re-query DuckDB-Wasm before re-running Python code.
+* **Self-Contained Jupyter Notebook Portability:** Ensure the "Copy Code" button exports a complete, runnable script including the DuckDB connection and SQL query.
+* **Zero Viewport-Coupled Prompt Branching:** Maintain uniform execution and rendering across desktop and mobile devices without fragile screen-width branching in system prompts.
 
 ---
 
 ## Non-Goals
 
-* **NG1: Graphic-Walker & SandDance Pinning (v1):** Extraction of 3D WebGL and proprietary state objects is deferred to v2.
-* **NG2: Live In-Card Code Execution:** Canvas cards are presentation containers with "Open in Studio" navigation rather than full embedded IDEs.
-* **NG3: Real-Time Multi-User Collaboration:** No WebSockets or CRDT synchronization; Dataviz-Agent remains strictly local-first.
-* **NG4: Vector Connecting Lines / Mindmap Edges:** Node-link line drawing between cards is deferred to v2.
-* **NG5: Cloud Storage Adapters:** No cloud sync services; persistence relies solely on client-side IndexedDB and JSON exports.
-
----
-
-## Resolved Design Decisions
-
-* **DD1: 8-Point Boundary Resizing:** Every card and note exposes 8 active resize hit zones:
-  * Top-Left (`.resize-corner-tl`): `nwse-resize`
-  * Top Edge (`.resize-edge-t`): `ns-resize`
-  * Top-Right (`.resize-corner-tr`): `nesw-resize`
-  * Right Edge (`.resize-edge-r`): `ew-resize`
-  * Bottom-Right (`.resize-corner-br`): `nwse-resize`
-  * Bottom Edge (`.resize-edge-b`): `ns-resize`
-  * Bottom-Left (`.resize-corner-bl`): `nesw-resize`
-  * Left Edge (`.resize-edge-l`): `ew-resize`
-* **DD2: Minimum & Maximum Card Resize Bounds:** Text notes enforce min width 200px, min height 60px; max width 1200px, max height 1200px. Chart cards enforce min width 320px, min height 200px; max width 1200px, max height 900px.
-* **DD3: Auto-Resize Adaptation:** Resizing a Vega card dynamically adjusts container dimensions and triggers responsive layout; SVG cards (Mermaid, Sankey, Matplotlib) configure root `<svg>` with `width="100%"` and `height="100%"` and `preserveAspectRatio="xMidYMid meet"`.
-* **DD4: Obsidian Canvas Interaction Paradigm:** Direct grabbing anywhere on the card surface initiates drag. Clicking into notes switches to inline textarea editing; blurring or pressing Escape exits to grab state. Hover-only top-right delete button (`.card-action-btn.delete-card-btn`) fades in on hover.
+* **Heavy Server-Side Machine Learning:** Training complex models (XGBoost, Random Forests, deep clustering) remains out of scope.
+* **In-Browser WebAssembly Python (Pyodide):** No 30 MB+ Pyodide WebAssembly runtime download in the browser. Python execution remains securely contained in the stateless backend sandbox.
+* **Multi-Table Relational Joins:** The data model remains centered on the active tabular `dataset` table.
+* **Arbitrary In-Memory Server State:** The backend remains strictly stateless; no session databases, file uploads, or cached DataFrame stores on the server.
 
 ---
 
 ## Critical User Journeys (CUJs)
 
-### CUJ 1: Creating, Editing, and Dragging a Sticky Text Note (Obsidian-Style)
-* **Given:** The user has the Canvas view open.
-* **When:** The user clicks "Text" in the canvas control dock.
-* **Then:** A shaded sticky note (`--c-raised`, `--r-md`, `--c-border`) appears at the viewport center in edit mode. When blurred, hovering anywhere on the note displays a `grab` cursor and dragging moves the note. Clicking directly into the text returns to edit mode. A native close button appears smoothly in the top-right corner only when hovering over the card.
+### CUJ 1: Clean Aggregate Narrative Chart
+* **Given**: A user loads the 250-row demo dataset with columns `department` and `headcount`.
+* **When**: The user asks: "Show total headcount per department as a horizontal bar chart".
+* **Then**: The agent calls `generate_python_chart(sql_query, python_code)`. The browser executes the SQL in DuckDB-Wasm, producing a 5-row table (Sales: 516, Marketing: 438, etc.). The browser sends these 5 rows to `POST /execute_code`. The returned Seaborn chart displays bar lengths and labels of exactly 516, 438, etc., matching the text and takeaway title with 100% accuracy.
 
-### CUJ 2: 8-Point Resizing via Edge and Corner Hover Cues
-* **Given:** A Vega chart card and a sticky text note are mounted on the canvas.
-* **When:** The user hovers over any of the 4 corners or 4 edges and drags.
-* **Then:** The card dimensions and coordinates adjust smoothly in real-time clamped to min/max bounds. Top/left resizing shifts `x` and `y` while anchoring opposite edges. The canvas viewport remains completely stationary (zero D3 zoom panning). New dimensions and coordinates are saved to the card data model.
+### CUJ 2: Sampling Warning on Large Unaggregated Scatter Plot
+* **Given**: A user loads an active dataset of 50,000 rows.
+* **When**: The user asks: "Plot a scatter plot of revenue vs spend".
+* **Then**: The SQL query selects individual points. The client-side egress safety cap detects that the result exceeds 5,000 points. The query is capped at 5,000 rows for rendering, and the chart card renders an explicit warning badge: `⚠️ Displaying sampled subset (5,000 of 50,000 rows). Metric totals should be queried via aggregate SQL.`
 
-### CUJ 3: Assembling and Persisting a Multi-Card Storyboard
-* **Given:** The user pins an Agent response, a Vega-Lite chart, and adds 2 sticky text notes, resizing and rearranging them into a report layout.
-* **When:** The user reloads the browser tab or exports and re-imports the session JSON.
-* **Then:** All cards rehydrate with their exact spatial coordinates, customized widths and heights, and full content intact.
+### CUJ 3: Interactive "Run Code" Editing
+* **Given**: An existing chart card rendered via `generate_python_chart`.
+* **When**: The user expands the code drawer, modifies the Seaborn palette or title, and clicks "Run Code".
+* **Then**: The card retrieves its bound `sql_query`, re-queries DuckDB-Wasm locally to reconstruct the projected `df`, and dispatches the updated Python script to `/execute_code`, updating the chart smoothly without schema mismatch errors.
 
----
+--------------------------------------------------------------------------------
 
-## Technical Plan (Architecture)
+## Technical Plan
 
-### 1. System Topology & Data Flow
+### 1. High-Level Architecture & Component Interaction
+
+The architecture establishes a strict unidirectional data flow where client-side DuckDB-Wasm remains the Single Source of Truth, and Python operates purely as an on-demand rendering sandbox for projected data:
 
 ```mermaid
 flowchart TD
-    subgraph Producers["Analytical Producers"]
-        AgentChat["AI Agent Copilot<br/>(Markdown, Plots)"]
-        VegaStudio["Vega Studio<br/>(Specs)"]
-        MermaidStudio["Mermaid Studio<br/>(SVGs)"]
-        SankeyStudio["Sankey Studio<br/>(SVGs)"]
-        Dock["Canvas Control Dock<br/>(+ Text Note, Tidy, Fit)"]
+    subgraph Browser ["Client Browser (Local Execution & SSOT)"]
+        ChatInput["Chat Input (handleSend)"]
+        DuckDB[("DuckDB-Wasm (Table: dataset)")]
+        SafetyCap{"Egress Guardrail (Count > 5000?)"}
+        SampleBadge["⚠️ Sampling Warning Banner"]
+        ChartCard["Chat Plot Card (sql + code)"]
+        ReRunButton["'Run Code' Handler"]
     end
 
-    subgraph EventBus["Decoupled Event Protocol"]
-        PinEvent["CustomEvent: dataviz:pin-card"]
+    subgraph AgentRuntime ["ReAct Agent Orchestration (FastAPI Proxy / Direct)"]
+        ReActLoop["ReAct Agent (agent.py)"]
+        ToolRegistry["OPENAI_TOOLS & CLIENT_DELEGATED_TOOLS"]
     end
 
-    subgraph CanvasRuntime["CanvasManager (static/js/canvas.js)"]
-        D3Viewport["D3 Pan/Zoom Plane<br/>(#canvas-world)"]
-        DragHandler["initCardDrag<br/>(Surface Grab, Pointer Capture, Scaled Deltas)"]
-        ResizeHandler["initCardResize<br/>(8-Point Handles, Event Isolation, Scale Math)"]
-        Cards["Mounted Cards<br/>• Pinned Studio Charts (.canvas-card)<br/>• Shaded Sticky Notes (.canvas-text-note)"]
+    subgraph BackendSandbox ["Stateless Backend Sandbox (FastAPI)"]
+        ExecuteCode["POST /execute_code (main.py)"]
+        PythonEngine["execute_python_code (tools.py)"]
+        Matplotlib["Seaborn / Matplotlib (Base64 PNG)"]
     end
 
-    subgraph Persistence["Persistence & Session Hub"]
-        StorageDB["IndexedDB (dataviz_storage_v1)<br/>• chat_history store<br/>• sessions store"]
-        SessionJS["session.js (Session v2)<br/>tools.canvas: { viewport, cards }"]
-    end
-
-    AgentChat -- "Pin Button" --> PinEvent
-    VegaStudio -- "Pin Button" --> PinEvent
-    MermaidStudio -- "Pin Button" --> PinEvent
-    SankeyStudio -- "Pin Button" --> PinEvent
-    Dock -- "Add Text" --> CanvasRuntime
-
-    PinEvent --> CanvasRuntime
-    CanvasRuntime --> D3Viewport
-    D3Viewport --> DragHandler
-    D3Viewport --> ResizeHandler
-    DragHandler --> Cards
-    ResizeHandler --> Cards
-
-    CanvasRuntime <--> SessionJS
-    AgentChat <--> StorageDB
-    SessionJS <--> StorageDB
+    ChatInput -->|Prompt + Schema| ReActLoop
+    ReActLoop -->|Tool Call: generate_python_chart| ToolRegistry
+    ToolRegistry -->|Delegation (requires_action)| ChatInput
+    ChatInput -->|1. queryRows(sql_query)| DuckDB
+    DuckDB -->|Projected Rows| SafetyCap
+    SafetyCap -->|Rows > 5,000| SampleBadge
+    SafetyCap -->|Projected Rows <= 5,000| ExecuteCode
+    ExecuteCode --> PythonEngine
+    PythonEngine --> Matplotlib
+    Matplotlib -->|Base64 PNG + Lint Output| ChartCard
+    SampleBadge --> ChartCard
+    ChartCard -->|State Binding {sql, code}| ReRunButton
+    ReRunButton -->|Re-query DuckDB| DuckDB
 ```
 
 ---
 
-### 2. Component Architecture & Detailed Responsibilities
+### 2. Tool Interface Contract: `generate_python_chart`
 
-#### A. Shaded Sticky Note Anatomy (`static/js/canvas.js` & `static/style.css`)
-* **Visual Frame:** Text notes are styled as shaded sticky containers using `--c-raised` (#f8fafc) background, `--c-border` (#e2e8f0), `--r-md` (8px border radius), and `--shadow-sm`.
-* **Obsidian-Style Direct Grabbing:**
-  * No dedicated drag button is required. Hovering over the card body displays `cursor: grab`. Pointerdown on the card surface initiates drag (`cursor: grabbing`) via `initCardDrag`.
-  * A native close button (`.card-action-btn.delete-card-btn`) is positioned in the top-right corner. It remains invisible by default and fades in smoothly (`opacity: 1`) strictly on card hover (`.canvas-text-note:hover`) or while focused.
-* **Body & Inline Markdown Editing:**
-  * In view mode, clicking directly into the text switches the note into edit mode (`.is-editing`), auto-focusing the textarea.
-  * In edit mode, text editing and selection work naturally (`cursor: text`). Blurring the textarea or pressing Escape exits edit mode, sanitizes markdown via `DOMPurify` and renders via `marked`, and returns the note to the `grab` state.
-  * Browser-native `resize: both` is strictly eliminated from `.text-note-editor` to prevent pointer event leakage.
+In [`src/tools.py`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/src/tools.py), the new composite tool is declared and registered into `OPENAI_TOOLS` and `CLIENT_DELEGATED_TOOLS`:
 
-#### B. 8-Point Edge & Corner Resizing Engine (`CanvasManager.initCardResize`)
-* **Directional Resize Hit Zones:**
-  * Every card (`.canvas-card` and `.canvas-text-note`) includes 8 dedicated hit zones along borders:
-    * Corner Top-Left (`.resize-corner-tl`): `cursor: nwse-resize`
-    * Edge Top (`.resize-edge-t`): `cursor: ns-resize`
-    * Corner Top-Right (`.resize-corner-tr`): `cursor: nesw-resize`
-    * Edge Right (`.resize-edge-r`): `cursor: ew-resize`
-    * Corner Bottom-Right (`.resize-corner-br`): `cursor: nwse-resize`
-    * Edge Bottom (`.resize-edge-b`): `cursor: ns-resize`
-    * Corner Bottom-Left (`.resize-corner-bl`): `cursor: nesw-resize`
-    * Edge Left (`.resize-edge-l`): `cursor: ew-resize`
-  * Zones show clear directional cursors upon hover without intrusive chrome, matching desktop canvas tools.
-* **Pointer Isolation & Capture:**
-  * `pointerdown` on any resize handle invokes `e.stopPropagation()` and `e.preventDefault()`, completely isolating the interaction from D3 zoom/pan on `#canvas-container`.
-  * Acquires pointer capture (`handle.setPointerCapture(e.pointerId)`).
-* **Scale-Normalized Delta Math & Opposite-Edge Anchoring:**
-  $$\Delta X = \frac{\text{clientX} - \text{startClientX}}{\text{currentScale}}, \quad \Delta Y = \frac{\text{clientY} - \text{startClientY}}{\text{currentScale}}$$
-  * Right edge / Bottom edge resize adjusts width and height:
-    $$W = \max(W_{\min}, \min(W_{\max}, \text{startW} + \Delta X)), \quad H = \max(H_{\min}, \min(H_{\max}, \text{startH} + \Delta Y))$$
-  * Left edge resize adjusts width and shifts card X coordinate:
-    $$W = \max(W_{\min}, \min(W_{\max}, \text{startW} - \Delta X)), \quad X = \text{startX} + (\text{startW} - W)$$
-  * Top edge resize adjusts height and shifts card Y coordinate:
-    $$H = \max(H_{\min}, \min(H_{\max}, \text{startH} - \Delta Y)), \quad Y = \text{startY} + (\text{startH} - H)$$
-* **Enforced Dimension Clamping:**
-  * Text notes: min width 200px, min height 60px; max width 1200px, max height 1200px.
-  * Chart cards: min width 320px, max width 1200px; min height 200px, max height 900px.
-* **Visualizer Auto-Refit:**
-  * Card body adapts to new dimensions via CSS flex `flex: 1; overflow: hidden;`.
-  * Vega-Lite cards trigger container resize; SVG cards (Mermaid, Sankey, Matplotlib) configure SVG root with `width="100%"` and `height="100%"` and `preserveAspectRatio="xMidYMid meet"`.
-
-#### C. Card Data Model & Session Persistence
-* Pinned card records store explicit dimensions:
-  ```javascript
-  {
-    id: "card-text-1730635200000",
-    type: "text",
-    title: "Key Assumptions",
-    x: 420,
-    y: 180,
-    width: 320,
-    height: 160,
-    zIndex: 14,
-    payload: { content: "### Assumptions\n- Normal distribution across cohorts." },
-    source: { origin: "user", timestamp: 1730635200000 }
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "generate_python_chart",
+    "description": "Generates a publication-quality Seaborn/Matplotlib chart with takeaway titles and clean styling by executing an analytical SQL query against DuckDB-Wasm first, then plotting the projected data in Python.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "sql_query": {
+          "type": "string",
+          "description": "DuckDB SQL query targeting table 'dataset' to aggregate or project the exact columns and rows required for plotting."
+        },
+        "python_code": {
+          "type": "string",
+          "description": "Python plotting code using seaborn (sns) and matplotlib.pyplot (plt) targeting ax, with pre-loaded VK_* layout helpers. Plotted data is available in DataFrame 'df'."
+        }
+      },
+      "required": ["sql_query", "python_code"]
+    }
   }
-  ```
-* `CanvasManager.exportState()` includes `width` and `height` for every card. `CanvasManager.importState()` restores card `style.width` and `style.height` upon reload.
+}
+```
+
+#### Tool Routing Rules in Agent System Prompt:
+- **Pure calculations, single metrics, or correlation checks:** Call `execute_sql`.
+- **Derived columns or dataset transformations:** Call `propose_column`.
+- **Publication charts & visualizations:** Call `generate_python_chart`.
+- *Deprecation:* `execute_python_code` is removed from active tool choice in chat, preventing models from attempting direct plotting without SQL projection.
 
 ---
+
+### 3. Client-Side Execution Pipeline (`static/js/agent.js`)
+
+When the backend returns `status: "requires_action"` with tool call `generate_python_chart`:
+
+#### A. Local DuckDB Execution
+The client executes `callArgs.sql_query` directly against DuckDB-Wasm:
+```javascript
+const rows = await window.duckdbEngine.queryRows(callArgs.sql_query);
+```
+
+#### B. Egress Safety Cap & Mandatory Sampling Warning Invariant
+To enforce the **100% Data Accuracy Invariant**:
+- If `rows.length === 0`: Abort network dispatch and return observation:
+  `"Observation: SQL query returned 0 rows. Verify filter criteria and column names."`
+- If `rows.length > 5000`: 
+  1. The dataset is clamped to the first 5,000 rows for rendering:
+     `const renderRows = rows.slice(0, 5000);`
+  2. A persistent sampling flag is recorded:
+     `const isSampled = true; const totalRowCount = rows.length;`
+  3. An explicit warning badge is injected into the rendered card header:
+     `<div class="chat-sampling-warning"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Sampled Data:</strong> Displaying 5,000 of ${totalRowCount.toLocaleString()} rows. Summary totals should be queried via aggregate SQL.</div>`
+  4. The observation sent back to the agent includes the sampling notice so the agent's textual explanation reflects the sample:
+     `"Observation: Rendered with 5,000 rows (sampled from ${totalRowCount} query rows). Warning displayed to user."`
+- If `rows.length <= 5000`:
+  `isSampled = false;`
+
+#### C. Backend Dispatch (`POST /execute_code`)
+The client dispatches the projected rows and code to the existing endpoint:
+```javascript
+const resp = await fetch('/execute_code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        data: renderRows,
+        code: callArgs.python_code
+    })
+});
+```
+
+#### D. Card State Binding & Interactive Editing
+The returned Base64 PNG is mounted into a chat plot card. The card DOM element stores both properties:
+```javascript
+cardEl._plotMetadata = {
+    sql: callArgs.sql_query,
+    code: callArgs.python_code,
+    isSampled: isSampled,
+    totalRows: rows.length
+};
+```
+
+When the user modifies Python code and clicks "Run Code" in `setupPlotCard()`:
+1. The handler reads `cardEl._plotMetadata.sql`.
+2. It re-executes the SQL query against `window.duckdbEngine.queryRows(cardEl._plotMetadata.sql)` to ensure `df` contains the exact projected schema.
+3. It sends the fresh projected rows + edited code to `/execute_code`.
+
+#### E. Self-Contained Jupyter Notebook Export
+The card's "Copy Code" action builds a self-contained, reproducible Python snippet:
+```python
+import duckdb
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Query active dataset from DuckDB
+con = duckdb.connect()
+# Register local data table or replace with your CSV path:
+# con.register('dataset', pd.read_csv('your_dataset.csv'))
+df = con.execute("""${sql_query}""").df()
+
+# Plotting script
+${python_code}
+
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+### 4. Backend Sandbox Contract (`src/main.py`)
+
+No new backend endpoints are needed. The existing endpoint:
+```python
+@app.post("/execute_code")
+def execute_code_endpoint(request: ExecuteCodeRequest):
+```
+accepts `ExecuteCodeRequest(code=..., data=...)`. It constructs `df = pd.DataFrame(request.data)` and calls `execute_python_code(df, request.code)`. Because `request.data` now contains the projected rows (typically 5–50 rows), execution completes in < 100ms with negligible memory overhead.
+
+--------------------------------------------------------------------------------
 
 ## Alternatives Considered
 
-### Alternative 1: Dedicated Top Grab Ribbon & Floating Drag Handles
-* **Description:** Providing an explicit full-width header ribbon or a detached floating hover pill (`top: -26px`) containing grip icons (`fa-grip-vertical`) and action buttons for dragging text notes.
-* **Pros:** Explicit visual signifier distinguishing the drag handle from the editable content area.
-* **Cons:** Introduces visual noise, causes hover flicker when mousing near borders, and forces users to accurately target a tiny 12px grip icon to reposition notes.
-* **Reason for Rejection:** Rejected by author: The Obsidian Canvas interaction paradigm—direct grabbing anywhere on the card surface, immediate click-to-edit for text, and an unobtrusive hover-only close button—offers a dramatically smoother user experience with zero unnecessary chrome.
+### 1. Raw Full-Dataset Streaming over HTTP
+* **Description:** Forward the entire active in-memory dataset (`data` array up to 50,000 rows) in the JSON payload of every `/chat` request and continuation turn.
+* **Rejected by author:** Rejected due to severe transport and infrastructure failure modes. Datasets with 10,000–50,000 rows generate 15 MB–35 MB JSON bodies. In a multi-turn ReAct loop, re-transmitting this payload over WAN adds 15–30 seconds of pure network latency, causes browser main-thread UI jitter during `JSON.stringify()`, and triggers HTTP `413 Payload Too Large` errors on standard reverse proxies (Nginx `client_max_body_size 1M`, AWS API Gateway 10M). Furthermore, transmitting unneeded raw columns over the wire introduces unnecessary enterprise data leakage risks.
 
-### Alternative 2: Native Browser CSS `resize: both`
-* **Description:** Applying native CSS `resize: both` on textareas or card wrappers.
-* **Pros:** Native browser feature requiring zero custom JavaScript event handlers.
-* **Cons:** Native browser resize grabbers do not expose accessible pointerdown event hooks to stop event propagation. Pointer events bubble directly to the D3 zoom handler on `#canvas-container`, causing the entire viewport to pan instead of resizing the element. Furthermore, native resizing fails to divide deltas by `currentScale`, producing erratic jumpy movement when the canvas is zoomed.
-* **Reason for Rejection:** Rejected by author: Causes catastrophic canvas viewport drift in transformed D3 containers and lacks edge-based resizing.
+### 2. In-Browser Pyodide WebAssembly Sandbox
+* **Description:** Run Python, NumPy, Matplotlib, and Seaborn directly inside the browser using Pyodide compiled to WebAssembly, eliminating the backend Python container entirely.
+* **Rejected by author:** Rejected due to client resource constraints and mobile fragility. Pyodide requires downloading 25 MB–35 MB of WebAssembly binaries before rendering the first chart. Once initialized, the runtime allocates 200 MB–300 MB of browser memory. On mobile devices (iOS Safari, mobile Chrome), running DuckDB-Wasm and Pyodide concurrently causes the operating system to forcefully kill the browser tab due to out-of-memory limits.
 
-### Alternative 3: External Canvas Resizing Libraries (e.g., interact.js, Moveable.js)
-* **Description:** Bundling an external multi-touch transform library to manage bounding boxes, handles, and aspect ratios.
-* **Pros:** Pre-packaged rotation, 8-point handles, and snapping algorithms.
-* **Cons:** Introduces 40–80 KB of external third-party script bloat, creates matrix math collisions with D3's zoom transform state, and violates the project's minimalist dependency policy.
-* **Reason for Rejection:** Rejected by author: Native Pointer Events (`setPointerCapture`), directional CSS cursors, and scale division solve 8-point multi-edge resizing reliably in under 80 lines of vanilla JS with zero external dependencies.
+### 3. Universal Vega-Lite (Retire Seaborn Completely)
+* **Description:** Eliminate Python Seaborn charting entirely and standardize exclusively on declarative in-browser Vega-Lite JSON specifications.
+* **Rejected by author:** Rejected to preserve core user analytical workflows. While Vega-Lite provides interactive brushing and zooming, out-of-the-box it lacks the publication-grade layout discipline provided by Seaborn and the custom `VK_*` helpers (left-aligned bold takeaway titles with exact figures, muted unit subtitles, focal driver accent highlighting). Crucially, users frequently sketch chart drafts in the agent to copy into Jupyter Notebooks; retiring Python plotting breaks seamless copy-paste export into Python data science environments.
 
----
+### 4. Viewport-Coupled LLM Prompt Branching
+* **Description:** Inject the client's screen width into the LLM system prompt and instruct the agent to generate Vega-Lite on screens < 768px and Seaborn on desktop screens.
+* **Rejected by author:** Rejected due to architectural anti-patterns and fragile prompt maintenance. Viewport dimensions belong strictly in client CSS layout, not in agent decision trees or system prompts. If a user resizes a browser window or rotates a mobile device, the agent's core capabilities would arbitrarily mutate, invalidating prompt caches and causing tool hallucinations. Furthermore, a 40 KB Base64 PNG generated by Python consumes significantly less volatile client RAM on mobile devices than running client-side WebAssembly visualization engines.
+
+### 5. Dedicated `/execute_chart` Endpoint
+* **Description:** Introduce a new dedicated FastAPI route `@app.post("/execute_chart")` specifically for projected chart rendering.
+* **Rejected by author:** Rejected due to code duplication and YAGNI. The codebase already provides a production-tested endpoint in `src/main.py:279-294` (`POST /execute_code`) that accepts `ExecuteCodeRequest(code: str, data: List[Any])` and executes sandboxed Python code with AST linting and Base64 PNG capture. Reusing the existing endpoint keeps the backend interface minimal and eliminates redundant maintenance surfaces.
+
+--------------------------------------------------------------------------------
 
 ## Detailed Implementation Plan
 
-### Unified Implementation Step-by-Step
+The implementation is structured into four sequential phases. Each phase leaves the codebase buildable and testable:
 
-1. **Step 1: CSS Polish & 8-Point Directional Resize Zones (`static/style.css`)**
-   * Transform `.canvas-text-note` into a shaded sticky container with `--c-raised` background, `--c-border`, `--r-md`, and default `cursor: grab`.
-   * Implement hover-activated top-right delete button (`.delete-card-btn`) with smooth opacity fade (`opacity: 0` transitioning to `1` on card hover).
-   * Eradicate `resize: both` from `.text-note-editor` to permanently halt unstopped pointer bubbling to D3.
-   * Define invisible, high-precision directional resize zones across `.canvas-card` and `.canvas-text-note`:
-     * `.resize-corner-tl` (14×14px top-left, `cursor: nwse-resize`).
-     * `.resize-edge-t` (6px top edge, `cursor: ns-resize`).
-     * `.resize-corner-tr` (14×14px top-right, `cursor: nesw-resize`).
-     * `.resize-edge-r` (6px right edge, `cursor: ew-resize`).
-     * `.resize-corner-br` (14×14px bottom-right, `cursor: nwse-resize`).
-     * `.resize-edge-b` (6px bottom edge, `cursor: ns-resize`).
-     * `.resize-corner-bl` (14×14px bottom-left, `cursor: nesw-resize`).
-     * `.resize-edge-l` (6px left edge, `cursor: ew-resize`).
-   * Add `.is-resizing` rule with `transition: none !important;` to ensure 60fps rendering during active drag.
+### Phase 1: Tool Schema Registration & Prompt Architecture (Backend)
 
-2. **Step 2: Obsidian-Style Card Dragging & Click-to-Edit (`static/js/canvas.js`)**
-   * Refactor `createTextNoteDOM` to generate the clean sticky note structure without the detached `-26px` hover bar.
-   * Wire card-level pointer events in `initCardDrag`: grabbing anywhere on the card surface (except interactive action buttons, resize zones, or active textarea in edit mode) initiates card repositioning with `cursor: grabbing`.
-   * Implement click-to-edit logic: clicking rendered markdown enters edit mode (`.is-editing`), revealing the auto-expanding textarea and setting text focus. Blurring or pressing Escape exits back to the grab state.
+#### [`src/tools.py`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/src/tools.py)
+* **Rationale:** Register the composite `generate_python_chart` tool schema and configure client delegation.
+* **Modifications:**
+  - Define function schema for `generate_python_chart` in `OPENAI_TOOLS` requiring `sql_query` and `python_code`.
+  - Add `"generate_python_chart"` to the `CLIENT_DELEGATED_TOOLS` frozenset so `ReActAgent` yields `status: "requires_action"` to the browser without executing on the server.
+  - Define a server-side stub/fallback handler in `AVAILABLE_TOOLS` that logs a clear deprecation message if invoked outside client delegation.
 
-3. **Step 3: Isolated 8-Point Resizing Engine (`static/js/canvas.js`)**
-   * Implement `initCardResize(cardEl, card)` binding 8 directional handles (4 corners, 4 edges) to both visualization cards and text notes.
-   * Halt propagation on pointerdown (`e.stopPropagation()`, `e.preventDefault()`) to ensure the D3 zoom plane never receives resize pointer inputs.
-   * Acquire pointer capture via `setPointerCapture(e.pointerId)` on the active handle.
-   * Compute scale-normalized deltas divided by `this.currentScale`.
-   * Support top/left anchoring: adjusting width/height and shifting `card.x`/`card.y` so opposite edges stay fixed in world coordinates.
-   * Enforce boundary clamps:
-     * Text notes: width [200px, 1200px], height [60px, 1200px].
-     * Chart cards: width [320px, 1200px], height [200px, 900px].
-   * Update `card.width`, `card.height`, `card.x`, `card.y` in real-time, applying inline pixel styles to `cardEl`.
-   * Provide responsive container adaptation callback (`onCardResized`) to adjust inner Vega embeds and SVG viewBoxes.
-
-4. **Step 4: Dimension Persistence & Session Schema Update (`static/js/canvas.js`)**
-   * Include `width` and `height` in `CanvasManager.exportState()`.
-   * In `CanvasManager.importState()`, rehydrate `card.width` and `card.height` and apply them to `cardEl.style.width` and `cardEl.style.height`.
-
-5. **Step 5: Automated Testing (`tests/test_insight_canvas_phase2.mjs`)**
-   * Add test verifying `.canvas-text-note` Obsidian-style DOM structure and top-right hover close button.
-   * Add test verifying `initCardResize`: 8-point handles, pointerdown isolation, delta math with zoom scale division, and min/max dimension clamping.
-   * Add test verifying `width` and `height` round-trip in `exportState` and `importState`.
+#### [`src/agent.py`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/src/agent.py)
+* **Rationale:** Guide the LLM to use the new atomic projection tool for all visualizations while preserving analytical SQL querying.
+* **Modifications:**
+  - In `_build_system_prompt()`:
+    - Update `CRITICAL EXECUTION RULES: Rule 4 (BE DECISIVE)`: Instruct the agent that when generating charts or visualizations, it must call `generate_python_chart(sql_query, python_code)`.
+    - Update `VISUALIZATION CAPABILITY` section: Instruct that `sql_query` must select and aggregate the exact columns and rows required from table `dataset`, and `python_code` has the resulting query rows pre-loaded into DataFrame `df`.
+    - Remove `execute_python_code` from the active tool set exposed to the LLM during conversational chat turns.
 
 ---
 
-## File Changes & Enumeration
+### Phase 2: Client-Side Execution Pipeline & Egress Guardrail (Frontend)
 
-| File Path | Change Type | Rationale |
-| :--- | :--- | :--- |
-| `static/js/canvas.js` | Modified | Refactor `createTextNoteDOM` for Obsidian-style direct grab and click-to-edit, implement `initCardResize` with 8 directional edge/corner handles, stop event bubbling to D3, and persist card dimensions. |
-| `static/style.css` | Modified | Redesign `.canvas-text-note` into shaded sticky container, remove `resize: both` from textarea, define 8 directional resize cursors and hit zones, and style hover-only close action. |
-| `tests/test_insight_canvas_phase2.mjs` | Modified | Add unit tests verifying 8-point edge/corner resizing, event bubbling isolation, scale normalization, and dimension serialization. |
-| `docs/designs/insight-canvas.md` | Modified | Finalized persistent architecture reference matching `design_draft.md`. |
+#### [`static/js/agent.js`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/static/js/agent.js)
+* **Rationale:** Intercept the atomic tool call, query DuckDB-Wasm locally, enforce egress guardrails, dispatch to the Python sandbox, and bind metadata to the chat card.
+* **Modifications:**
+  - In `handleSend()` tool result loop:
+    - Add handler branch for `callName === 'generate_python_chart'`.
+    - Execute `sql_query` via `window.duckdbEngine.queryRows(callArgs.sql_query)`.
+    - Enforce the **Sampling Warning Invariant**:
+      - If `rows.length === 0`: Return tool error observation without hitting network.
+      - If `rows.length > 5000`: Set `isSampled = true`, slice to 5,000 rows for rendering, and record `totalRows = rows.length`.
+      - If `rows.length <= 5000`: Set `isSampled = false`.
+    - POST `{ data: renderRows, code: callArgs.python_code }` to `POST /execute_code`.
+    - Ingest returned Base64 PNG into `collectedPlots` array for immediate card mounting.
+    - Return execution confirmation observation into `toolResults` for the agent's textual summary.
+  - In `renderPlotCard()`:
+    - Accept `plotMetadata` containing `{ sql, code, isSampled, totalRows }`.
+    - If `isSampled` is true, inject the sampling warning badge into the card header.
+  - In `setupPlotCard()`:
+    - Update "Run Code" click handler: When re-executing edited Python code, check for card's bound `sql` query. If present, re-execute `window.duckdbEngine.queryRows(card.sql)` to repopulate `df` with the projected schema before POSTing to `/execute_code`.
+    - Update "Copy Code" click handler: Export a self-contained script prepending the DuckDB query and imports.
+  - In `extractCodeBlocksFromLogs()`:
+    - Update regex matching to extract code blocks from both `execute_python_code` and `generate_python_chart`.
+
+---
+
+### Phase 3: Visual Presentation & Warning Banner (Styling)
+
+#### [`static/style.css`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/static/style.css)
+* **Rationale:** Provide a clean, high-visibility warning badge when sampling occurs, matching the design system.
+* **Modifications:**
+  - Add styles for `.chat-sampling-warning`:
+    - Yellow/Amber muted border and subtle background tint (`var(--warning-bg)` or `rgba(245, 158, 11, 0.1)`).
+    - Compact typography, warning icon (`fa-triangle-exclamation`), and clear explanation.
+    - Positioned directly above the rendered chart figure inside `.chat-plot-card`.
+
+---
+
+### Phase 4: Verification, Automated Testing & Documentation
+
+#### [`tests/test_agent.py`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/tests/test_agent.py)
+* **Rationale:** Verify tool schema registration, client delegation tagging, and prompt consistency.
+* **Modifications:**
+  - Test `generate_python_chart` schema presence in `OPENAI_TOOLS`.
+  - Assert that `generate_python_chart` is present in `CLIENT_DELEGATED_TOOLS`.
+  - Test `POST /execute_code` with projected synthetic payloads (5 rows) verifying 100% aggregation parity and Base64 PNG generation.
+
+#### [`tests/test_comprehensive.py`](file:///Users/matsschneider/Documents/Ideas/dataviz-agent/tests/test_comprehensive.py)
+* **Rationale:** Guard against regressions in existing analytics tools (`execute_sql`, `propose_column`).
+* **Modifications:**
+  - Assert that `execute_sql` remains fully operational for non-visual analytical queries.
+  - Verify that `propose_column` retains its preview and confirmation lifecycle.
+
+
+
