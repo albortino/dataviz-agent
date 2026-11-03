@@ -3301,7 +3301,7 @@ hr.control-divider,
 .agent-welcome-badge {
     margin: 2px 0 0;
     font-size: var(--fs-12);
-    color: var(--c-muted);
+    color: var(--c-faint);
     font-weight: var(--fw-med);
 }
 
@@ -3507,6 +3507,37 @@ hr.control-divider,
     color: var(--c-warning, #d97706);
     font-size: var(--fs-12, 12px);
     line-height: 1.4;
+}
+
+.chat-free-model-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--r-sm, 6px);
+    color: var(--c-warning, #d97706);
+    font-size: var(--fs-12, 12px);
+    line-height: 1.45;
+}
+
+.chat-free-model-notice i {
+    color: #f59e0b;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.chat-free-model-notice strong {
+    color: var(--c-ink, #1e293b);
+    font-weight: var(--fw-semi, 600);
+}
+
+.chat-free-model-notice a {
+    color: var(--c-primary, #3b82f6);
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 .chat-sampling-warning i {

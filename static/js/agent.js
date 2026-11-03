@@ -310,14 +310,25 @@ export class AgentManager {
 
     getWelcomeMessageHtml() {
         const modelBadge = this.activeModel || 'LLM Agent';
+        const userModel = (localStorage.getItem('ai_model') || '').trim();
+        const isFreeModel = userModel.toLowerCase().includes(':free') || this.activeModel?.toLowerCase().includes(':free');
+        const freeModelDisclaimer = isFreeModel ? `
+            <div class="chat-free-model-notice">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    <strong>Free Model:</strong> You are using a free model via OpenRouter. Prompts and responses
+                    may be <strong>logged and used for training</strong> by the model provider.
+                    Do not share sensitive or personal data.
+                    <a href="/privacy#4" target="_blank" rel="noopener">Privacy Policy</a>
+                </span>
+            </div>
+        ` : '';
         return `
         <div class="agent-welcome">
-            <div class="agent-welcome-header">
-                <div>
-                    <h3 class="agent-welcome-title">AI Copilot</h3>
-                    <p class="agent-welcome-badge">${escapeHtml(modelBadge)}</p>
-                </div>
+            <div>
+                <p class="agent-welcome-badge">${escapeHtml(modelBadge)}</p>
             </div>
+            ${freeModelDisclaimer}
             <p class="agent-welcome-desc">
                 Ask questions about your data, generate interactive charts, or inspect statistics. Click a starter or type below:
             </p>
@@ -1107,9 +1118,22 @@ plt.show()`;
         `;
     }
 
+    ensureWelcomeMessage() {
+        if (!this.messagesContainer) return;
+        if (document.getElementById('agent-status-msg')) return;
+        const welcome = document.createElement('div');
+        welcome.className = 'message agent';
+        welcome.id = 'agent-status-msg';
+        welcome.innerHTML = this.getWelcomeMessageHtml();
+        this.messagesContainer.prepend(welcome);
+    }
+
     renderStoredMessages() {
         const history = this.getChatHistory();
-        if (!history || history.length === 0) return;
+        if (!history || history.length === 0) {
+            this.ensureWelcomeMessage();
+            return;
+        }
 
         const statusMsg = document.getElementById('agent-status-msg');
         if (statusMsg) statusMsg.remove();
@@ -1874,11 +1898,7 @@ plt.show()`;
 
         if (this.messagesContainer) {
             this.messagesContainer.innerHTML = '';
-            const welcome = document.createElement('div');
-            welcome.className = 'message agent';
-            welcome.id = 'agent-status-msg';
-            welcome.innerHTML = this.getWelcomeMessageHtml();
-            this.messagesContainer.appendChild(welcome);
+            this.ensureWelcomeMessage();
         }
 
         if (this.chatHistoryPanel) {
