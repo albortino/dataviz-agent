@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateDatasetIndicator = (name, rowCount = 0) => {
         currentDatasetName = name;
+        window.currentDatasetName = name;
         // Header chip removed by design: dataset identity lives in the
         // Data dropdown ("Active Dataset") only, keeping the header quiet.
         if (dataActiveDatasetText) {
@@ -150,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingFile = null;
 
     const getData = () => currentData;
+    const getDatasetName = () => currentDatasetName;
 
     // Instantiate Sub-Managers
     const lineupMgr = new LineUpManager({
@@ -158,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mermaidMgr = new MermaidManager({
         getData,
+        getDatasetName,
         onApplyToChat: ({ code, sourceChartId }) => {
             toggleAgent(true);
             if (sourceChartId) {
@@ -170,11 +173,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sankeyMgr = new SankeyManager({
-        getData
+        getData,
+        getDatasetName
     });
 
     const vegaMgr = new VegaManager({
         getData,
+        getDatasetName,
         onApplyToChat: ({ spec, sourceChartId }) => {
             toggleAgent(true);
             if (sourceChartId) {
@@ -196,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const agentMgr = new AgentManager({
         getData,
+        getDatasetName,
         onOpenMermaid: (code, chartId) => {
             mermaidMgr.loadDiagram(code, chartId);
             showMermaid();

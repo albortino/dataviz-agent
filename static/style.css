@@ -3355,6 +3355,47 @@ hr.control-divider,
     font-size: var(--fs-13) !important;
 }
 
+.chat-pin-chart-btn {
+    color: var(--c-muted);
+}
+
+.chat-pin-chart-btn:hover {
+    color: var(--c-primary) !important;
+    border-color: var(--c-primary-soft) !important;
+    background: var(--c-surface) !important;
+}
+
+/* Agent message hover pin button */
+.chat-msg-pin-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    padding: 2px 7px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    font-size: var(--fs-12) !important;
+    background: var(--c-raised);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    color: var(--c-muted);
+    cursor: pointer;
+    z-index: 5;
+}
+
+.message.agent:hover .chat-msg-pin-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.chat-msg-pin-btn:hover {
+    background: var(--c-surface) !important;
+    color: var(--c-primary) !important;
+    border-color: var(--c-primary-soft) !important;
+}
+
 /* Chat Plot Card Live Code Editor */
 .chat-plot-code-tray {
     display: flex;

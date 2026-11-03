@@ -7,7 +7,12 @@
 import { ClientDataTools } from './data-transform.js';
 import { fetchAgentSkills, getActiveSkills, setActiveSkills, renderSkillsModal } from './agent-skills.js?v=20261020_v6';
 import { validateBrowserDirectConnection, runBrowserDirectAgent } from './browser-agent.js';
-import { copyToClipboard, extractCodeFence } from './studio-utils.js';
+import { copyToClipboard, extractCodeFence, extractStandaloneSvg } from './studio-utils.js';
+import {
+    saveChatHistory as dbSaveChatHistory,
+    getChatHistory as dbGetChatHistory,
+    migrateLegacyChatHistory
+} from './storage-db.js';
 
 export const CHAT_STORAGE_KEY = 'ai_agent_chat_history_v1';
 
@@ -83,10 +88,12 @@ function escapeHtml(str) {
 export class AgentManager {
     constructor(options = {}) {
         this.getData = options.getData || (() => []);
+        this.getDatasetName = options.getDatasetName || null;
         this.onOpenMermaid = options.onOpenMermaid || (() => { });
         this.onOpenVega = options.onOpenVega || (() => { });
         this.agentAvailable = false;
         this.activeModel = 'Unknown';
+        this._chatHistoryCache = null;
 
         // DOM elements
         this.container = document.getElementById('agent-container');
@@ -111,9 +118,21 @@ export class AgentManager {
         this.allSkills = [];
     }
 
-    init() {
+    async init() {
         this.bindEvents();
         this.initPreviewCollapseState();
+        try {
+            await migrateLegacyChatHistory();
+            const stored = await dbGetChatHistory('default');
+            if (Array.isArray(stored)) {
+                this._chatHistoryCache = stored;
+            }
+        } catch (e) {
+            console.warn("Failed to migrate/load chat history from storage-db:", e);
+        }
+        if (this.messagesContainer) {
+            this.messagesContainer.innerHTML = '';
+        }
         this.renderStoredMessages();
         this.checkAvailability();
         this.initSkills();
@@ -354,33 +373,35 @@ export class AgentManager {
     }
 
     saveChatHistory(history) {
+        this._chatHistoryCache = history;
         try {
-            let trimmed = history.slice(-30);
-            try {
-                localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(trimmed));
-            } catch (storageErr) {
-                console.warn("Storage quota warning, trimming chat history:", storageErr);
-                while (trimmed.length > 5) {
-                    trimmed.shift();
-                    try {
-                        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(trimmed));
-                        break;
-                    } catch (e) { }
-                }
-            }
+            dbSaveChatHistory('default', history).catch(storageErr => {
+                console.warn("Failed to save chat history to storage-db:", storageErr);
+            });
         } catch (err) {
-            console.error("Failed to save chat history to browser cache:", err);
+            console.error("Failed to initiate chat history save:", err);
         }
     }
 
     getChatHistory() {
+        if (this._chatHistoryCache !== null) {
+            return this._chatHistoryCache;
+        }
         try {
             const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-            return raw ? JSON.parse(raw) : [];
-        } catch (err) {
-            console.warn("Error reading chat history from localStorage:", err);
-            return [];
-        }
+            if (raw) {
+                this._chatHistoryCache = JSON.parse(raw);
+                return this._chatHistoryCache;
+            }
+        } catch (err) { }
+
+        dbGetChatHistory('default').then(dbHist => {
+            if (Array.isArray(dbHist) && this._chatHistoryCache === null) {
+                this._chatHistoryCache = dbHist;
+            }
+        }).catch(() => {});
+
+        return [];
     }
 
     renderMarkdownSafe(text) {
@@ -418,6 +439,9 @@ export class AgentManager {
           <div class="chat-plot-header">
             <span><i class="fa-solid fa-chart-line text-primary-icon"></i>Matplotlib Chart ${index > 1 ? '#' + index : ''}</span>
             <div class="chat-mermaid-actions">
+              <button class="button icon-button chat-pin-chart-btn" id="pin-${id}" title="Pin plot to Insight Canvas">
+                <i class="fa-solid fa-thumbtack"></i> Pin
+              </button>
               ${hasCode ? `
               <button class="button icon-button chat-edit-code-btn" id="toggle-code-${id}" data-card-id="${id}" title="View & Edit Python Code">
                 <i class="fa-solid fa-code"></i> Edit Code
@@ -476,6 +500,28 @@ export class AgentManager {
         const copyBtn = document.getElementById(`copy-code-${cardId}`);
         const feedbackEl = document.getElementById(`feedback-${cardId}`);
         const imgEl = document.getElementById(`img-${cardId}`);
+        const pinBtn = document.getElementById(`pin-${cardId}`);
+
+        if (pinBtn) {
+            pinBtn.onclick = () => {
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+                const currentImg = imgEl ? imgEl.src : '';
+                const currentCode = editor ? editor.value : '';
+
+                window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                    detail: {
+                        type: 'plot',
+                        title: `Matplotlib Chart ${plotIndex !== undefined ? '#' + (plotIndex + 1) : ''}`.trim(),
+                        payload: {
+                            image: currentImg,
+                            dataUrl: currentImg,
+                            code: currentCode
+                        },
+                        source: { origin: 'agent', datasetName: currentDatasetName, timestamp: Date.now() }
+                    }
+                }));
+            };
+        }
 
         if (!tray || !editor || !runBtn) return;
 
@@ -658,6 +704,7 @@ export class AgentManager {
           <div class="chat-mermaid-header">
             <span><i class="fa-solid ${conf.icon} chat-mermaid-title-icon"></i>${conf.title}</span>
             <div class="chat-mermaid-actions">
+              <button class="button icon-button chat-pin-chart-btn" id="pin-${chartId}" title="Pin to Insight Canvas"><i class="fa-solid fa-thumbtack"></i> Pin</button>
               <button class="button icon-button" id="copy-${chartId}" title="${conf.copyTitle}"><i class="fa-regular fa-copy"></i> Copy</button>
               <button class="button icon-button" id="open-${chartId}" title="${conf.openTitle}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
             </div>
@@ -680,6 +727,52 @@ export class AgentManager {
         const openBtn = document.getElementById(`open-${chartId}`);
         if (openBtn) {
             openBtn.onclick = () => conf.open(this, content, chartId);
+        }
+
+        const pinBtn = document.getElementById(`pin-${chartId}`);
+        if (pinBtn) {
+            pinBtn.onclick = () => {
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                if (type === 'vega') {
+                    let specObj = content;
+                    if (typeof content === 'string') {
+                        try {
+                            specObj = JSON.parse(content);
+                        } catch (e) {
+                            specObj = {};
+                        }
+                    }
+                    const activeData = (data && Array.isArray(data)) ? data : (typeof this.getData === 'function' ? this.getData() : []);
+                    if (specObj && (!specObj.data || !specObj.data.values || specObj.data.values.length === 0) && activeData && activeData.length > 0) {
+                        specObj = JSON.parse(JSON.stringify(specObj));
+                        specObj.data = { values: activeData };
+                    }
+                    const title = (specObj && typeof specObj.title === 'string' ? specObj.title : null) || 'Vega-Lite Chart';
+
+                    window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                        detail: {
+                            type: 'vega',
+                            title,
+                            payload: { spec: specObj },
+                            source: { origin: 'agent', datasetName: currentDatasetName, timestamp: Date.now() }
+                        }
+                    }));
+                } else if (type === 'mermaid') {
+                    const targetEl = document.getElementById(chartId);
+                    const svgEl = targetEl ? targetEl.querySelector('svg') : null;
+                    const svgString = svgEl ? extractStandaloneSvg(svgEl) : '';
+
+                    window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                        detail: {
+                            type: 'mermaid',
+                            title: 'Mermaid Diagram',
+                            payload: { code: content, svgString },
+                            source: { origin: 'agent', datasetName: currentDatasetName, timestamp: Date.now() }
+                        }
+                    }));
+                }
+            };
         }
 
         setTimeout(async () => {
@@ -819,7 +912,13 @@ export class AgentManager {
         const vegaHtml = (vegaSpec && vegaId) ? this.renderVegaCard(vegaId) : '';
         const logsHtml = this.renderToolLogs(logs);
 
+        const pinBtnHtml = content ? `
+            <button class="chat-msg-pin-btn button icon-button" title="Pin finding to Insight Canvas">
+                <i class="fa-solid fa-thumbtack"></i>
+            </button>` : '';
+
         return `
+            ${pinBtnHtml}
             <div class="markdown-content">${this.renderMarkdownSafe(content)}</div>
             ${plotsHtml}
             ${mermaidHtml}
@@ -875,6 +974,7 @@ export class AgentManager {
                     code: (codeBlocks && codeBlocks[idx]) || ''
                 }));
 
+                aMsg._rawContent = item.content;
                 aMsg.innerHTML = this.renderAgentMessageContent({
                     content: item.content,
                     plots: itemPlots,
@@ -967,6 +1067,7 @@ export class AgentManager {
         }
 
         if (clientAnswer) {
+            agentMsg._rawContent = clientAnswer;
             agentMsg.innerHTML = this.renderAgentMessageContent({
                 content: clientAnswer,
                 logs: [clientLog]
@@ -1197,6 +1298,7 @@ export class AgentManager {
             const vegaId = vegaSpec ? `chat-vega-${msgTimestamp}-${Math.floor(Math.random() * 1000)}` : null;
             const displayMarkdown = rawAnswer || (images.length > 0 ? 'Here is the chart based on your data analysis:' : (mermaidCode ? 'Here is the diagram based on your data:' : (vegaSpec ? 'Here is the Vega chart based on your data:' : 'Analysis complete.')));
 
+            agentMsg._rawContent = displayMarkdown;
             agentMsg.innerHTML = this.renderAgentMessageContent({
                 content: displayMarkdown,
                 plots: plots,
@@ -1262,6 +1364,7 @@ export class AgentManager {
             this.chatClearBtn.addEventListener('click', () => {
                 if (confirm("Start a new chat? Your current conversation history will be deleted.")) {
                     localStorage.removeItem(CHAT_STORAGE_KEY);
+                    this.saveChatHistory([]);
                     this.messagesContainer.innerHTML = '';
                     const welcome = document.createElement('div');
                     welcome.className = 'message agent';
@@ -1284,6 +1387,36 @@ export class AgentManager {
                         this.chatInput.focus();
                         this.handleSend();
                     }
+                    return;
+                }
+
+                const pinBtn = e.target.closest('.chat-msg-pin-btn');
+                if (pinBtn) {
+                    const msgEl = pinBtn.closest('.message.agent');
+                    if (!msgEl) return;
+
+                    const rawMarkdown = msgEl._rawContent || msgEl.querySelector('.markdown-content')?.innerText || '';
+                    if (!rawMarkdown.trim()) return;
+
+                    const lines = rawMarkdown.trim().split('\n');
+                    let title = 'Agent Insight';
+                    if (lines[0]) {
+                        const clean = lines[0].replace(/^[#*\s-]+/, '').trim();
+                        if (clean.length > 0) {
+                            title = clean.length > 50 ? clean.slice(0, 50) + '...' : clean;
+                        }
+                    }
+
+                    const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                    window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                        detail: {
+                            type: 'markdown',
+                            title: title || 'Agent Insight',
+                            payload: { content: rawMarkdown },
+                            source: { origin: 'agent', datasetName: currentDatasetName, timestamp: Date.now() }
+                        }
+                    }));
                 }
             });
         }

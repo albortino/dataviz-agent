@@ -118,8 +118,10 @@ export class VegaManager {
         this.aiModalCancelBtn = document.getElementById('cancel-vega-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-vega-ai-modal-btn');
         this.applyChatBtn = document.getElementById('vega-apply-chat-btn');
+        this.pinCanvasBtn = document.getElementById('vega-pin-canvas-btn');
         this.sourceChartId = null;
         this.onApplyToChat = options.onApplyToChat || null;
+        this.getDatasetName = options.getDatasetName || null;
     }
 
     init() {
@@ -351,6 +353,39 @@ export class VegaManager {
                 if (typeof this.onApplyToChat === 'function') {
                     this.onApplyToChat({ spec, sourceChartId: this.sourceChartId });
                 }
+            });
+        }
+
+        if (this.pinCanvasBtn) {
+            this.pinCanvasBtn.addEventListener('click', () => {
+                let currentSpec = null;
+                const raw = this.getSpecText()?.trim();
+                if (raw) {
+                    try {
+                        currentSpec = JSON.parse(raw);
+                    } catch (e) {
+                        currentSpec = null;
+                    }
+                }
+                if (!currentSpec) return;
+
+                const data = typeof this.getData === 'function' ? this.getData() : [];
+                if ((!currentSpec.data || !currentSpec.data.values || currentSpec.data.values.length === 0) && data && data.length > 0) {
+                    currentSpec = JSON.parse(JSON.stringify(currentSpec));
+                    currentSpec.data = { values: data };
+                }
+
+                const title = this.chartTitleInput?.value?.trim() || (typeof currentSpec.title === 'string' ? currentSpec.title : null) || 'Vega-Lite Chart';
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                    detail: {
+                        type: 'vega',
+                        title: title || 'Vega-Lite Chart',
+                        payload: { spec: currentSpec },
+                        source: { origin: 'vega', datasetName: currentDatasetName, timestamp: Date.now() }
+                    }
+                }));
             });
         }
 
