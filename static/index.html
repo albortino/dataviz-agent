@@ -1276,14 +1276,31 @@
                     </div>
                 </div>
                 <div class="copilot-header-actions">
+                    <button type="button" id="chat-history-btn" class="copilot-action-btn"
+                        title="Previous conversations (Chat History)">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </button>
                     <button type="button" id="chat-clear-btn" class="copilot-action-btn"
-                        title="New conversation (clears history)">
+                        title="New conversation">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                     <button id="agent-copilot-collapse-btn" class="copilot-action-btn" title="Close Copilot Panel">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
+            </div>
+            <!-- Chat History Overlay Drawer -->
+            <div id="chat-history-panel" class="chat-history-panel hidden">
+                <div class="chat-history-header">
+                    <div class="chat-history-header-title">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>Previous Conversations</span>
+                    </div>
+                    <button type="button" id="chat-history-close-btn" class="copilot-action-btn" title="Close History">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="chat-history-list" class="chat-history-list"></div>
             </div>
             <!-- Simplified Chat Area -->
             <div class="chat-panel">

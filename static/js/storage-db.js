@@ -96,9 +96,10 @@ async function performStoreRequest(storeName, mode, callback) {
  * Saves chat history array for a session/dataset key.
  * @param {string} key - Session or dataset identifier (defaults to 'default')
  * @param {Array} history - Array of chat turns/messages
+ * @param {string} [title=null] - Optional conversation title
  * @returns {Promise<string>} - sessionId key
  */
-export async function saveChatHistory(key, history) {
+export async function saveChatHistory(key, history, title = null) {
     let actualKey = key;
     let actualHistory = history;
 
@@ -109,8 +110,18 @@ export async function saveChatHistory(key, history) {
         actualKey = 'default';
     }
 
+    let derivedTitle = title;
+    if (!derivedTitle && Array.isArray(actualHistory)) {
+        const firstUser = actualHistory.find(m => m.role === 'user' || m.sender === 'user');
+        if (firstUser && (firstUser.text || firstUser.content)) {
+            const text = (firstUser.text || firstUser.content).trim();
+            derivedTitle = text.length > 36 ? text.slice(0, 36) + '...' : text;
+        }
+    }
+
     const record = {
         sessionId: actualKey,
+        title: derivedTitle || 'Conversation',
         history: actualHistory,
         updatedAt: Date.now()
     };
@@ -135,6 +146,36 @@ export async function getChatHistory(key = 'default') {
     const record = await performStoreRequest(CHAT_HISTORY_STORE, 'readonly', store => store.get(actualKey));
     if (!record) return null;
     return record.history !== undefined ? record.history : record;
+}
+
+/**
+ * Lists all stored chat conversations with metadata (sessionId, title, updatedAt, messageCount).
+ * @returns {Promise<Array<{ sessionId: string, title: string, updatedAt: number, messageCount: number }>>}
+ */
+export async function listChatHistories() {
+    await migrateLegacyChatHistory();
+    const records = await performStoreRequest(CHAT_HISTORY_STORE, 'readonly', store => store.getAll());
+    if (!records || !Array.isArray(records)) return [];
+    return records
+        .filter(r => r && r.sessionId)
+        .map(r => ({
+            sessionId: r.sessionId,
+            title: r.title || (Array.isArray(r.history) && r.history[0]?.text?.slice(0, 36)) || 'Conversation',
+            updatedAt: r.updatedAt || Date.now(),
+            messageCount: Array.isArray(r.history) ? r.history.length : 0
+        }))
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+/**
+ * Deletes a chat history by sessionId.
+ * @param {string} sessionId
+ * @returns {Promise<boolean>}
+ */
+export async function deleteChatHistory(sessionId) {
+    if (!sessionId) return false;
+    await performStoreRequest(CHAT_HISTORY_STORE, 'readwrite', store => store.delete(sessionId));
+    return true;
 }
 
 /**

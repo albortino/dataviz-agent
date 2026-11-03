@@ -11,6 +11,8 @@ import { copyToClipboard, extractCodeFence, extractStandaloneSvg } from './studi
 import {
     saveChatHistory as dbSaveChatHistory,
     getChatHistory as dbGetChatHistory,
+    listChatHistories,
+    deleteChatHistory,
     migrateLegacyChatHistory
 } from './storage-db.js';
 
@@ -94,12 +96,20 @@ export class AgentManager {
         this.agentAvailable = false;
         this.activeModel = 'Unknown';
         this._chatHistoryCache = null;
+        this.currentChatId = 'default';
+        try {
+            this.currentChatId = localStorage.getItem('ai_agent_active_chat_id') || 'default';
+        } catch (e) { }
 
         // DOM elements
         this.container = document.getElementById('agent-container');
         this.chatInput = document.getElementById('chat-input');
         this.sendBtn = document.getElementById('chat-send-btn');
         this.chatClearBtn = document.getElementById('chat-clear-btn');
+        this.chatHistoryBtn = document.getElementById('chat-history-btn');
+        this.chatHistoryPanel = document.getElementById('chat-history-panel');
+        this.chatHistoryCloseBtn = document.getElementById('chat-history-close-btn');
+        this.chatHistoryList = document.getElementById('chat-history-list');
         this.messagesContainer = document.getElementById('chat-messages');
         this.previewEl = document.getElementById('agent-data-preview');
         this.previewWrapper = document.getElementById('agent-preview-wrapper');
@@ -123,9 +133,18 @@ export class AgentManager {
         this.initPreviewCollapseState();
         try {
             await migrateLegacyChatHistory();
-            const stored = await dbGetChatHistory('default');
+            const stored = await dbGetChatHistory(this.currentChatId);
             if (Array.isArray(stored)) {
                 this._chatHistoryCache = stored;
+            } else if (this.currentChatId !== 'default') {
+                const defStored = await dbGetChatHistory('default');
+                if (Array.isArray(defStored)) {
+                    this._chatHistoryCache = defStored;
+                    this.currentChatId = 'default';
+                    try {
+                        localStorage.setItem('ai_agent_active_chat_id', 'default');
+                    } catch (e) { }
+                }
             }
         } catch (e) {
             console.warn("Failed to migrate/load chat history from storage-db:", e);
@@ -375,7 +394,7 @@ export class AgentManager {
     saveChatHistory(history) {
         this._chatHistoryCache = history;
         try {
-            dbSaveChatHistory('default', history).catch(storageErr => {
+            dbSaveChatHistory(this.currentChatId || 'default', history).catch(storageErr => {
                 console.warn("Failed to save chat history to storage-db:", storageErr);
             });
         } catch (err) {
@@ -395,7 +414,7 @@ export class AgentManager {
             }
         } catch (err) { }
 
-        dbGetChatHistory('default').then(dbHist => {
+        dbGetChatHistory(this.currentChatId || 'default').then(dbHist => {
             if (Array.isArray(dbHist) && this._chatHistoryCache === null) {
                 this._chatHistoryCache = dbHist;
             }
@@ -1362,15 +1381,28 @@ export class AgentManager {
 
         if (this.chatClearBtn) {
             this.chatClearBtn.addEventListener('click', () => {
-                if (confirm("Start a new chat? Your current conversation history will be deleted.")) {
-                    localStorage.removeItem(CHAT_STORAGE_KEY);
-                    this.saveChatHistory([]);
-                    this.messagesContainer.innerHTML = '';
-                    const welcome = document.createElement('div');
-                    welcome.className = 'message agent';
-                    welcome.id = 'agent-status-msg';
-                    welcome.innerHTML = this.getWelcomeMessageHtml();
-                    this.messagesContainer.appendChild(welcome);
+                this.startNewChat();
+            });
+        }
+
+        if (this.chatHistoryBtn) {
+            this.chatHistoryBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.chatHistoryPanel) return;
+                const isHidden = this.chatHistoryPanel.classList.contains('hidden');
+                if (isHidden) {
+                    this.chatHistoryPanel.classList.remove('hidden');
+                    this.renderChatHistoryList();
+                } else {
+                    this.chatHistoryPanel.classList.add('hidden');
+                }
+            });
+        }
+
+        if (this.chatHistoryCloseBtn) {
+            this.chatHistoryCloseBtn.addEventListener('click', () => {
+                if (this.chatHistoryPanel) {
+                    this.chatHistoryPanel.classList.add('hidden');
                 }
             });
         }
@@ -1429,6 +1461,126 @@ export class AgentManager {
         });
     }
 
+    async startNewChat() {
+        const newId = `chat_${Date.now()}`;
+        this.currentChatId = newId;
+        try {
+            localStorage.setItem('ai_agent_active_chat_id', newId);
+        } catch (e) { }
+
+        this._chatHistoryCache = [];
+        this.saveChatHistory([]);
+
+        if (this.messagesContainer) {
+            this.messagesContainer.innerHTML = '';
+            const welcome = document.createElement('div');
+            welcome.className = 'message agent';
+            welcome.id = 'agent-status-msg';
+            welcome.innerHTML = this.getWelcomeMessageHtml();
+            this.messagesContainer.appendChild(welcome);
+        }
+
+        if (this.chatHistoryPanel) {
+            this.chatHistoryPanel.classList.add('hidden');
+        }
+    }
+
+    async switchChat(chatId) {
+        if (!chatId) return;
+        this.currentChatId = chatId;
+        try {
+            localStorage.setItem('ai_agent_active_chat_id', chatId);
+        } catch (e) { }
+
+        try {
+            const hist = await dbGetChatHistory(chatId);
+            this._chatHistoryCache = Array.isArray(hist) ? hist : [];
+        } catch (err) {
+            console.warn("Failed to load chat history for", chatId, err);
+            this._chatHistoryCache = [];
+        }
+
+        if (this.messagesContainer) {
+            this.messagesContainer.innerHTML = '';
+            this.renderStoredMessages();
+        }
+
+        if (this.chatHistoryPanel) {
+            this.chatHistoryPanel.classList.add('hidden');
+        }
+    }
+
+    async renderChatHistoryList() {
+        if (!this.chatHistoryList) return;
+        this.chatHistoryList.innerHTML = '<div class="chat-history-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading previous chats...</div>';
+
+        try {
+            const list = await listChatHistories();
+            this.chatHistoryList.innerHTML = '';
+
+            if (!list || list.length === 0) {
+                this.chatHistoryList.innerHTML = `
+                    <div class="chat-history-empty">
+                        <i class="fa-regular fa-comments" style="font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                        <p>No previous conversations yet.</p>
+                    </div>`;
+                return;
+            }
+
+            list.forEach(item => {
+                const isActive = item.sessionId === this.currentChatId;
+                const dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '';
+
+                const el = document.createElement('div');
+                el.className = `chat-history-item${isActive ? ' active' : ''}`;
+                el.innerHTML = `
+                    <div class="chat-history-item-info">
+                        <span class="chat-history-item-title" title="${item.title}">${item.title}</span>
+                        <div class="chat-history-item-meta">
+                            <span><i class="fa-regular fa-clock"></i> ${dateStr}</span>
+                            <span>•</span>
+                            <span>${item.messageCount} ${item.messageCount === 1 ? 'msg' : 'msgs'}</span>
+                        </div>
+                    </div>
+                    <div class="chat-history-item-actions">
+                        <button type="button" class="chat-history-item-delete-btn" title="Delete conversation" data-id="${item.sessionId}">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+
+                el.addEventListener('click', (e) => {
+                    if (e.target.closest('.chat-history-item-delete-btn')) return;
+                    this.switchChat(item.sessionId);
+                });
+
+                const delBtn = el.querySelector('.chat-history-item-delete-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete conversation "${item.title}"?`)) {
+                            await deleteChatHistory(item.sessionId);
+                            if (item.sessionId === this.currentChatId) {
+                                await this.startNewChat();
+                            }
+                            await this.renderChatHistoryList();
+                        }
+                    });
+                }
+
+                this.chatHistoryList.appendChild(el);
+            });
+        } catch (err) {
+            console.error("Failed to render chat history list:", err);
+            this.chatHistoryList.innerHTML = '<div class="chat-history-empty">Failed to load chat history</div>';
+        }
+    }
+
     exportState() {
         let skills = [];
         if (this.allSkills && this.allSkills.length) {
@@ -1441,12 +1593,19 @@ export class AgentManager {
         }
         return {
             history: this.getChatHistory(),
+            currentChatId: this.currentChatId,
             activeSkills: skills
         };
     }
 
     importState(state) {
         if (!state) return;
+        if (state.currentChatId) {
+            this.currentChatId = state.currentChatId;
+            try {
+                localStorage.setItem('ai_agent_active_chat_id', state.currentChatId);
+            } catch (e) { }
+        }
         if (Array.isArray(state.history)) {
             this.saveChatHistory(state.history);
             if (this.messagesContainer) {

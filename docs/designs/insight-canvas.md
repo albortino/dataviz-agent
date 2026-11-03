@@ -249,7 +249,6 @@ To prevent SVG ID collisions (`<clipPath id="clip-1">`, gradients, arrow markers
 }
 ```
 
-* **Format Standard:** `session.js` enforces `SESSION_VERSION = 2`. Because the project is in alpha, legacy v1 session shims are not required.
 
 
 ---
