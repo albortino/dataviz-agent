@@ -5518,7 +5518,7 @@ label.modal-section-label,
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    will-change: transform;
     user-select: none;
 }
 
@@ -5531,6 +5531,141 @@ label.modal-section-label,
     box-shadow: var(--shadow-pop);
     opacity: 0.95;
     cursor: grabbing !important;
+    transition: none !important;
+}
+
+/* Clean Freeform Canvas Text Notes (no heavy card chrome) */
+.canvas-text-note {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 180px;
+    max-width: 520px;
+    width: auto;
+    padding: 8px 12px;
+    border-radius: var(--r-sm);
+    border: 1px dashed transparent;
+    background: transparent;
+    cursor: default;
+    user-select: text;
+    will-change: transform;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.canvas-text-note:hover,
+.canvas-text-note.is-editing {
+    border-color: var(--c-border-strong);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--shadow-sm);
+}
+
+.canvas-text-note.is-dragging {
+    opacity: 0.94;
+    cursor: grabbing !important;
+    border-color: var(--c-primary);
+    background: var(--c-surface);
+    box-shadow: var(--shadow-pop);
+    transition: none !important;
+}
+
+.canvas-text-note .text-note-hover-bar {
+    position: absolute;
+    top: -26px;
+    right: 0;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 2px 4px;
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+}
+
+.canvas-text-note:hover .text-note-hover-bar,
+.canvas-text-note.is-editing .text-note-hover-bar {
+    display: flex;
+}
+
+.canvas-text-note .text-drag-handle {
+    cursor: grab;
+    color: var(--c-muted);
+    font-size: var(--fs-12);
+    padding: 2px 4px;
+}
+
+.canvas-text-note .text-drag-handle:hover {
+    color: var(--c-ink);
+}
+
+.canvas-text-note .text-note-delete-btn {
+    border: none;
+    background: transparent;
+    color: var(--c-muted);
+    cursor: pointer;
+    font-size: var(--fs-12);
+    padding: 2px 4px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.canvas-text-note .text-note-delete-btn:hover {
+    color: var(--c-danger);
+    background: var(--c-danger-bg);
+}
+
+.canvas-text-note .text-note-content {
+    font-size: var(--fs-14);
+    line-height: 1.5;
+    color: var(--c-ink);
+    min-height: 24px;
+    outline: none;
+    cursor: text;
+    word-break: break-word;
+}
+
+.canvas-text-note .text-note-content:empty::before {
+    content: "Type text...";
+    color: var(--c-faint);
+}
+
+.canvas-text-note .text-note-editor {
+    width: 100%;
+    min-width: 240px;
+    min-height: 48px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--fs-14);
+    line-height: 1.5;
+    color: var(--c-ink);
+    resize: both;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+@keyframes msgHighlightPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+        border-color: var(--c-primary);
+    }
+    40% {
+        box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.25);
+        border-color: var(--c-primary);
+        background-color: var(--c-primary-soft);
+    }
+    100% {
+        box-shadow: var(--shadow-sm);
+        border-color: var(--c-border);
+    }
+}
+
+.message-highlight-pulse {
+    animation: msgHighlightPulse 2s ease-in-out;
 }
 
 /* Card Header */

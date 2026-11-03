@@ -994,6 +994,9 @@ export class AgentManager {
                 }));
 
                 aMsg._rawContent = item.content;
+                const aTimestamp = item.timestamp || Date.now();
+                aMsg.dataset.timestamp = aTimestamp;
+                aMsg.id = `msg_${aTimestamp}`;
                 aMsg.innerHTML = this.renderAgentMessageContent({
                     content: item.content,
                     plots: itemPlots,
@@ -1318,6 +1321,8 @@ export class AgentManager {
             const displayMarkdown = rawAnswer || (images.length > 0 ? 'Here is the chart based on your data analysis:' : (mermaidCode ? 'Here is the diagram based on your data:' : (vegaSpec ? 'Here is the Vega chart based on your data:' : 'Analysis complete.')));
 
             agentMsg._rawContent = displayMarkdown;
+            agentMsg.dataset.timestamp = msgTimestamp;
+            agentMsg.id = `msg_${msgTimestamp}`;
             agentMsg.innerHTML = this.renderAgentMessageContent({
                 content: displayMarkdown,
                 plots: plots,
@@ -1440,13 +1445,21 @@ export class AgentManager {
                     }
 
                     const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+                    const msgTimestamp = Number(msgEl?.dataset?.timestamp) || Date.now();
+                    const msgId = msgEl?.id || `msg_${msgTimestamp}`;
 
                     window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
                         detail: {
                             type: 'markdown',
                             title: title || 'Agent Insight',
                             payload: { content: rawMarkdown },
-                            source: { origin: 'agent', datasetName: currentDatasetName, timestamp: Date.now() }
+                            source: {
+                                origin: 'agent',
+                                chatId: this.currentChatId,
+                                messageId: msgId,
+                                timestamp: msgTimestamp,
+                                datasetName: currentDatasetName
+                            }
                         }
                     }));
                 }
@@ -1458,6 +1471,54 @@ export class AgentManager {
         if (this.skillsCancelBtn) this.skillsCancelBtn.addEventListener('click', () => this.closeSkillsModal(false));
         if (this.skillsModal) this.skillsModal.addEventListener('click', (e) => {
             if (e.target === this.skillsModal) this.closeSkillsModal(false);
+        });
+
+        // Jump to chat message listener from Canvas
+        window.addEventListener('dataviz:jump-chat', async (e) => {
+            const { chatId, messageId, timestamp, card } = e.detail || {};
+
+            // 1. Open agent sidebar if closed
+            const showAgentBtn = document.getElementById('show-agent-btn');
+            const agentContainer = document.getElementById('agent-container');
+            if (agentContainer && agentContainer.classList.contains('hidden')) {
+                if (showAgentBtn) showAgentBtn.click();
+            }
+
+            // 2. Switch conversation if from a different session
+            if (chatId && chatId !== this.currentChatId) {
+                await this.switchChat(chatId);
+            }
+
+            // 3. Find and scroll to target message element
+            setTimeout(() => {
+                let targetEl = null;
+                if (messageId) {
+                    targetEl = document.getElementById(messageId);
+                }
+                if (!targetEl && timestamp) {
+                    targetEl = this.messagesContainer?.querySelector(`[data-timestamp="${timestamp}"]`);
+                }
+                if (!targetEl && this.messagesContainer) {
+                    const snippet = (card?.payload?.content || '').slice(0, 35).trim();
+                    if (snippet) {
+                        const allMsgs = this.messagesContainer.querySelectorAll('.message.agent');
+                        for (const m of allMsgs) {
+                            if (m.innerText.includes(snippet)) {
+                                targetEl = m;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetEl.classList.remove('message-highlight-pulse');
+                    void targetEl.offsetWidth; // trigger reflow
+                    targetEl.classList.add('message-highlight-pulse');
+                    setTimeout(() => targetEl.classList.remove('message-highlight-pulse'), 2500);
+                }
+            }, 50);
         });
     }
 

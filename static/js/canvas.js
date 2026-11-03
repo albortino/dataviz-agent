@@ -111,7 +111,7 @@ export class CanvasManager {
 
         const noteBtn = this.container.querySelector('#canvas-add-note-btn');
         if (noteBtn) {
-            noteBtn.addEventListener('click', () => this.addNoteCard());
+            noteBtn.addEventListener('click', () => this.addTextNote());
         }
 
         const arrangeBtn = this.container.querySelector('#canvas-arrange-btn');
@@ -148,19 +148,23 @@ export class CanvasManager {
         }
     }
 
-    addNoteCard() {
-        this.addCard({
-            type: 'markdown',
-            title: 'Note',
+    addTextNote() {
+        return this.addCard({
+            type: 'text',
+            title: 'Text',
             payload: {
-                content: 'Double-click to edit note.'
+                content: ''
             },
             source: {
                 origin: 'user',
-                datasetName: 'Sticky Note',
+                datasetName: 'Text Note',
                 timestamp: Date.now()
             }
         });
+    }
+
+    addNoteCard() {
+        return this.addTextNote();
     }
 
     addCard(cardDetail = {}, options = {}) {
@@ -214,8 +218,10 @@ export class CanvasManager {
             this.world.appendChild(cardEl);
         }
 
-        this.mountCardBody(card, cardEl.querySelector('.canvas-card-body'));
-        this.initCardDrag(cardEl, card);
+        if (card.type !== 'text') {
+            this.mountCardBody(card, cardEl.querySelector('.canvas-card-body'));
+            this.initCardDrag(cardEl, card);
+        }
 
         this.cards.set(id, card);
         this.updateCardCountBadge();
@@ -239,6 +245,10 @@ export class CanvasManager {
     }
 
     createCardDOM(card) {
+        if (card.type === 'text') {
+            return this.createTextNoteDOM(card);
+        }
+
         const cardEl = document.createElement('div');
         cardEl.id = card.id;
         cardEl.className = `canvas-card card-${card.type}`;
@@ -261,16 +271,19 @@ export class CanvasManager {
             mermaid: 'Mermaid',
             sankey: 'Sankey',
             plot: 'Plot',
-            markdown: 'Note'
+            markdown: 'Agent Insight',
+            text: 'Text'
         };
         const badgeLabel = typeLabels[card.type] || card.type.toUpperCase();
 
         const canOpenStudio = ['vega', 'mermaid', 'sankey'].includes(card.type);
+        const isFromAgent = card.source?.origin === 'agent' || !!card.source?.chatId;
 
         header.innerHTML = `
             <i class="fa-solid fa-grip-vertical drag-handle" title="Drag to move card"></i>
             <span class="badge-card badge-${card.type}">${badgeLabel}</span>
             <span class="canvas-card-title" contenteditable="true" spellcheck="false" title="Click to rename">${escapeHtml(card.title)}</span>
+            ${isFromAgent ? '<button class="card-action-btn jump-chat-btn" title="Jump to message in chat"><i class="fa-solid fa-comment-dots"></i></button>' : ''}
             ${canOpenStudio ? '<button class="card-action-btn open-studio-btn" title="Open in Studio"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>' : ''}
             <button class="card-action-btn delete-card-btn" title="Delete card"><i class="fa-solid fa-xmark"></i></button>
         `;
@@ -283,6 +296,17 @@ export class CanvasManager {
             });
             titleSpan.addEventListener('pointerdown', (e) => e.stopPropagation());
             titleSpan.addEventListener('mousedown', (e) => e.stopPropagation());
+        }
+
+        // Jump to Chat Button
+        if (isFromAgent) {
+            const jumpBtn = header.querySelector('.jump-chat-btn');
+            if (jumpBtn) {
+                jumpBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.jumpToChatMessage(card);
+                });
+            }
         }
 
         // Studio Button
@@ -315,7 +339,7 @@ export class CanvasManager {
         // Footer
         const footer = document.createElement('div');
         footer.className = 'canvas-card-footer';
-        const datasetLabel = card.source?.datasetName || (card.type === 'markdown' ? 'Manual Note' : 'Dataset');
+        const datasetLabel = card.source?.datasetName || (card.type === 'markdown' ? 'Agent Insight' : 'Dataset');
         const timeLabel = formatTimestamp(card.source?.timestamp);
 
         footer.innerHTML = `
@@ -328,6 +352,101 @@ export class CanvasManager {
         cardEl.appendChild(footer);
 
         return cardEl;
+    }
+
+    createTextNoteDOM(card) {
+        const noteEl = document.createElement('div');
+        noteEl.id = card.id;
+        noteEl.className = 'canvas-text-note';
+        noteEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
+        noteEl.style.zIndex = card.zIndex;
+
+        // Bring to front on pointerdown
+        noteEl.addEventListener('pointerdown', () => {
+            card.zIndex = ++this.nextZIndex;
+            noteEl.style.zIndex = card.zIndex;
+        });
+
+        // Hover toolbar with drag handle and delete button
+        const hoverBar = document.createElement('div');
+        hoverBar.className = 'text-note-hover-bar';
+        hoverBar.innerHTML = `
+            <i class="fa-solid fa-grip-vertical text-drag-handle" title="Drag to move text"></i>
+            <button type="button" class="text-note-delete-btn" title="Delete text"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        noteEl.appendChild(hoverBar);
+
+        const deleteBtn = hoverBar.querySelector('.text-note-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeCard(card.id);
+            });
+        }
+
+        // Content div (rendered markdown)
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'text-note-content markdown-content';
+        noteEl.appendChild(contentDiv);
+
+        // Textarea editor (inline)
+        const textarea = document.createElement('textarea');
+        textarea.className = 'text-note-editor hidden';
+        textarea.placeholder = 'Type text...';
+        textarea.value = card.payload?.content || '';
+        noteEl.appendChild(textarea);
+
+        const renderText = () => {
+            const raw = (card.payload?.content || '').trim();
+            if (!raw) {
+                contentDiv.innerHTML = '';
+            } else if (typeof window !== 'undefined' && window.marked) {
+                const parsed = window.marked.parse(raw);
+                contentDiv.innerHTML = window.DOMPurify ? window.DOMPurify.sanitize(parsed) : parsed;
+            } else {
+                contentDiv.textContent = raw;
+            }
+        };
+
+        const enterEdit = () => {
+            textarea.value = card.payload?.content || '';
+            contentDiv.classList.add('hidden');
+            textarea.classList.remove('hidden');
+            noteEl.classList.add('is-editing');
+            textarea.focus();
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(48, textarea.scrollHeight)}px`;
+        };
+
+        const exitEdit = () => {
+            if (textarea.classList.contains('hidden')) return;
+            card.payload.content = textarea.value;
+            renderText();
+            textarea.classList.add('hidden');
+            contentDiv.classList.remove('hidden');
+            noteEl.classList.remove('is-editing');
+        };
+
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(48, textarea.scrollHeight)}px`;
+        });
+
+        contentDiv.addEventListener('click', enterEdit);
+        textarea.addEventListener('blur', exitEdit);
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') exitEdit();
+        });
+
+        renderText();
+        if (!card.payload?.content && typeof setTimeout !== 'undefined') {
+            setTimeout(enterEdit, 20);
+        }
+
+        const dragHandle = hoverBar.querySelector('.text-drag-handle');
+        this.initCardDrag(noteEl, card, dragHandle);
+
+        return noteEl;
     }
 
     mountCardBody(card, cardBody) {
@@ -478,30 +597,101 @@ export class CanvasManager {
         }
     }
 
-    initCardDrag(cardEl, card) {
-        if (!cardEl || typeof window === 'undefined' || !window.d3) return;
+    initCardDrag(cardEl, card, customHandle) {
+        if (!cardEl) return;
+        const handle = customHandle || cardEl.querySelector('.canvas-card-header') || cardEl;
+        if (!handle) return;
 
-        const d3 = window.d3;
-        const drag = d3.drag()
-            .on('start', () => {
-                cardEl.classList.add('is-dragging');
-                card.zIndex = ++this.nextZIndex;
-                cardEl.style.zIndex = card.zIndex;
-            })
-            .on('drag', (event) => {
-                // Coordinate division by current zoom scale to eliminate pointer drift
-                card.x += event.dx / this.currentScale;
-                card.y += event.dy / this.currentScale;
-                cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
-            })
-            .on('end', () => {
-                cardEl.classList.remove('is-dragging');
-            });
+        let startClientX = 0;
+        let startClientY = 0;
+        let startCardX = 0;
+        let startCardY = 0;
+        let isDragging = false;
 
-        const header = cardEl.querySelector('.canvas-card-header');
-        if (header) {
-            d3.select(header).call(drag);
+        const onPointerDown = (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+            if (e.target && e.target.closest) {
+                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('[contenteditable="true"]')) {
+                    return;
+                }
+            }
+
+            if (e.stopPropagation) e.stopPropagation();
+            isDragging = true;
+            if (handle.setPointerCapture && e.pointerId !== undefined) {
+                try {
+                    handle.setPointerCapture(e.pointerId);
+                } catch (_) {}
+            }
+
+            startClientX = e.clientX || 0;
+            startClientY = e.clientY || 0;
+            startCardX = card.x;
+            startCardY = card.y;
+
+            card.zIndex = ++this.nextZIndex;
+            cardEl.style.zIndex = card.zIndex;
+            cardEl.classList.add('is-dragging');
+        };
+
+        const onPointerMove = (e) => {
+            if (!isDragging) return;
+            const scale = this.currentScale || 1.0;
+            const deltaX = ((e.clientX || 0) - startClientX) / scale;
+            const deltaY = ((e.clientY || 0) - startClientY) / scale;
+            card.x = Math.round(startCardX + deltaX);
+            card.y = Math.round(startCardY + deltaY);
+            cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
+        };
+
+        const onPointerUp = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            if (handle.releasePointerCapture && e.pointerId !== undefined) {
+                try {
+                    handle.releasePointerCapture(e.pointerId);
+                } catch (_) {}
+            }
+            cardEl.classList.remove('is-dragging');
+        };
+
+        handle.addEventListener('pointerdown', onPointerDown);
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerUp);
+
+        // Fallback for mock/test environments
+        if (typeof window !== 'undefined' && window.d3) {
+            const d3 = window.d3;
+            const drag = d3.drag()
+                .on('start', () => {
+                    cardEl.classList.add('is-dragging');
+                    card.zIndex = ++this.nextZIndex;
+                    cardEl.style.zIndex = card.zIndex;
+                })
+                .on('drag', (event) => {
+                    const scale = this.currentScale || 1.0;
+                    card.x += event.dx / scale;
+                    card.y += event.dy / scale;
+                    cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
+                })
+                .on('end', () => {
+                    cardEl.classList.remove('is-dragging');
+                });
+            d3.select(handle).call(drag);
         }
+    }
+
+    jumpToChatMessage(card) {
+        if (!card || typeof window === 'undefined') return;
+        window.dispatchEvent(new CustomEvent('dataviz:jump-chat', {
+            detail: {
+                card,
+                chatId: card.source?.chatId,
+                messageId: card.source?.messageId,
+                timestamp: card.source?.timestamp
+            }
+        }));
     }
 
     openInStudio(card) {
@@ -670,15 +860,9 @@ export class CanvasManager {
     }
 
     updateCardCountBadge() {
-        const countEl = this.cardCountEl || document.getElementById('canvas-card-count');
-        if (!countEl) return;
-        const count = this.cards.size;
-        countEl.textContent = String(count);
-        if (count > 0) {
-            countEl.classList.remove('hidden');
-        } else {
-            countEl.classList.add('hidden');
-        }
+        // Badge indicator removed per user request
+        const countEl = this.cardCountEl || (typeof document !== 'undefined' ? document.getElementById('canvas-card-count') : null);
+        if (countEl) countEl.classList.add('hidden');
     }
 
     showToast(message = 'Pinned to Canvas') {
