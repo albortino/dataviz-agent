@@ -1,78 +1,91 @@
-# Insight Canvas & Workspace Persistence MVP
+# Insight Canvas & Workspace Persistence Specification
 
 * **Author:** Mats Schneider
-* **Status:** Draft
+* **Status:** Finalized
 * **Date:** 2026-11-03
 
 --------------------------------------------------------------------------------
 
 ## Overview
 
-Dataviz-Agent is an open-source, local-first visual analytics suite that pairs browser-native data visualization engines (LineUp, Graphic-Walker, SandDance, Vega-Lite, Sankey, Mermaid) with a sandboxed ReAct AI agent. 
+Dataviz-Agent is an open-source, local-first visual analytics suite combining browser-native visualization engines (LineUp, Graphic-Walker, SandDance, Vega-Lite, Sankey, Mermaid) with an integrated ReAct AI copilot.
 
-While the platform allows users to explore data and generate plots conversationally, analytical findings currently remain ephemeral and isolated across disparate tool tabs. When users switch datasets or reload their browser, their analytical reasoning and intermediate visual discoveries are lost.
+While users can discover patterns and generate plots interactively, analytical findings remain isolated within specific studio tabs and ephemeral across page reloads.
 
-The **Insight Canvas & Workspace Persistence** feature introduces:
-1. **A dedicated Freeform Spatial Canvas tab** where users accumulate, position, and curate analytical artifacts (AI summaries, Vega-Lite charts, Mermaid diagrams, and Sankey flows) alongside markdown annotations.
-2. **One-click "Pin to Canvas" triggers** across the Agent Copilot chat and Studio control sidebars.
-3. **Robust browser persistence via IndexedDB**, replacing unreliable `localStorage` caching to prevent silent context and chat history truncation.
-4. **Session v2 format integration**, enabling offline workspace export and restoration without external database dependencies.
+The **Insight Canvas & Workspace Persistence** engine introduces:
+1. **A Freeform Spatial Canvas tab (`#canvas-container`)** allowing users to pin analytical artifacts (Vega-Lite specs, Mermaid diagrams, Sankey flows, and AI responses), organize them spatially on an infinite 2D plane, and add persistent notes.
+2. **Native Shaded Sticky Notes (Obsidian-Style)** for clear markdown annotations without awkward detached floating bars or UI flicker. Notes are grabbed and dragged anywhere on their surface and edited by clicking directly into the text.
+3. **8-Point Spatial Resizing Architecture** featuring isolated, pointer-captured hit zones at all 4 corners and all 4 edges with directional cursors, scale-normalized coordinate math, and zero D3 canvas viewport drift.
+4. **Decoupled Pinning Protocol** (`dataviz:pin-card` DOM events) connecting studios and the AI agent chat to the canvas.
+5. **IndexedDB Session & Multi-Chat Persistence** via `static/js/storage-db.js`, eliminating `localStorage` quota errors and enabling session switching.
 
 ---
 
 ## The Problem
 
-1. **Fragmented Insight Discovery:** Users can generate charts in Vega Studio, extract relational workflows in Mermaid, inspect flows in Sankey, or query the AI Agent, but they have no central workspace to collect and synthesize these disparate findings into a coherent analytical narrative.
-2. **Ephemeral Context & Data Loss:** Active chat history is currently cached in `localStorage` under key `ai_agent_chat_history_v1`. Because Matplotlib/Seaborn plots produce base64 image strings, extended sessions rapidly exceed the 5 MB browser quota. When `QuotaExceededError` occurs, the current code silently purges all but the last 5 messages, destroying user context.
-3. **Linear Rigidity:** Analytical stories are multi-dimensional. Forcing findings into vertical lists fails to utilize widescreen displays and prevents spatial grouping of related hypotheses and metrics.
+1. **Fragmented Findings & Rigid Organization:** Visualizations and AI insights exist in separate silos. Users cannot place a Mermaid process diagram next to a Vega distribution chart and a textual summary to synthesize an analytical story.
+2. **Text Note UI Friction & Detached Controls:** The current freeform text note implementation places drag and delete controls in an unstyled floating bar positioned outside the element boundary (`top: -26px`). This produces hover flicker, lacks visual alignment with Dataviz-Agent's design system (`--c-raised`, `--c-border`, `.card-action-btn`), and restricts dragging to an awkward 12px grip icon.
+3. **Broken Spatial Resizing (Canvas Pan Trap):** The current size changer relies on native CSS `resize: both` on the inline textarea. When users drag the resize corner, pointer events bubble directly to `#canvas-container`, triggering D3 zoom panning rather than card resizing. Furthermore, cards lack comprehensive edge/corner resize affordances.
+4. **Ephemeral Storage & 5MB LocalStorage Cap:** Pinned plots and chat messages containing base64 images exceed browser `localStorage` limits, causing silent history truncation and data loss.
+5. **Session Incoherence on Dataset Reset:** Resetting a dataset previously left stale canvas cards active in memory without clearing state or alerting the user of data loss.
 
 ---
 
 ## Goals
 
-* **G1: Dedicated Canvas View:** Introduce an `#canvas-container` tab and `#show-canvas-btn` navigation button integrated into Dataviz-Agent's view lifecycle.
-* **G2: Battle-Tested Spatial Navigation:** Implement pan, zoom, and card dragging on an infinite 2D plane by reusing the globally loaded `d3.zoom()` and `d3.drag()` engines (zero new runtime dependencies).
-* **G3: Decoupled One-Click Pinning:** Establish a global `dataviz:pin-card` DOM event protocol allowing Agent chat cards and Studio sidebars (Vega, Mermaid, Sankey) to pin findings instantly with visual confirmation.
-* **G4: Self-Contained Card Rendering:** Render pinned Vega charts via compact declarative specifications (~2 KB), and Mermaid/Sankey/Matplotlib cards via standalone sanitized SVGs with inlined CSS styles and shadow DOM isolation.
-* **G5: Quota-Resilient Storage:** Replace `localStorage` chat caching with an asynchronous IndexedDB adapter (`static/js/storage-db.js`) supporting multiple sessions and large plot payloads without truncation.
-* **G6: Unified Session Export:** Upgrade the session JSON format to version 2 (`SESSION_VERSION = 2`) with `tools.canvas`. Alpha stage: no legacy backward-compatibility shims required.
+* **G1: Native Shaded Sticky Notes (Obsidian-Style):** Style text notes as shaded sticky containers (`--c-raised`, `--r-md`, `--c-border`, `--shadow-sm`). Grabbing anywhere on the note surface repositions it. Clicking directly into the text enters markdown editing. A clean delete button (`.delete-card-btn`) fades in smoothly at the top-right corner on hover.
+* **G2: 8-Point Spatial Resizing Engine:** Implement isolated, pointer-captured hit zones across all 4 corners and all 4 edges of cards and text notes. Halt event propagation (`e.stopPropagation()`) to isolate D3 zoom, divide deltas by `currentScale`, anchor opposing edges, and enforce strict min/max dimension boundaries.
+* **G3: Dedicated Spatial Canvas View:** Integrate `#canvas-container` and `#show-canvas-btn` into the application view lifecycle with D3-powered pan, zoom, tidy grid, and fit-all.
+* **G4: Decoupled One-Click Pinning:** Provide hover and action-bar pin buttons across Agent Chat and Studios (Vega, Mermaid, Sankey) dispatching `dataviz:pin-card`.
+* **G5: Self-Contained Spec & Isolated SVG Rendering:** Render Vega cards via declarative specifications, and Mermaid/Sankey cards via isolated Shadow DOM / Blob SVGs with inlined styles.
+* **G6: Asynchronous IndexedDB Storage:** Persist full multi-chat histories and canvas session state without size limits or silent truncation.
+* **G7: Safe Reset Lifecycle:** Confirm dataset resets with an explanatory modal and cleanly clear canvas cards and viewport.
 
 ---
 
 ## Non-Goals
 
-* **NG1: Graphic-Walker & SandDance Pinning (v1):** Extracting views from Graphic-Walker and SandDance is excluded from MVP due to proprietary state encodings and 3D WebGL rendering boundaries.
-* **NG2: Live In-Card Interactivity:** Canvas cards will not host live, interactive data-query runtimes or full code editors. Interactive manipulation is handled via "Open in Studio" navigation.
-* **NG3: Real-Time Multi-User Collaboration:** No WebSockets, peer-to-peer WebRTC, or CRDT synchronization (e.g., Yjs). Dataviz-Agent remains strictly local-first and client-side.
-* **NG4: Vector Connectors & Mindmap Edges:** Spatial card positioning and auto-grid arrangement are in scope; drawing arrows and relational edge lines between cards is deferred to v2.
-* **NG5: Cloud Storage & Multi-Tenant Backends:** Cloud connectors (Google Drive, OneDrive) and user account databases are out of scope. Persistence relies solely on browser IndexedDB and JSON file export/import.
+* **NG1: Graphic-Walker & SandDance Pinning (v1):** Extraction of 3D WebGL and proprietary state objects is deferred to v2.
+* **NG2: Live In-Card Code Execution:** Canvas cards are presentation containers with "Open in Studio" navigation rather than full embedded IDEs.
+* **NG3: Real-Time Multi-User Collaboration:** No WebSockets or CRDT synchronization; Dataviz-Agent remains strictly local-first.
+* **NG4: Vector Connecting Lines / Mindmap Edges:** Node-link line drawing between cards is deferred to v2.
+* **NG5: Cloud Storage Adapters:** No cloud sync services; persistence relies solely on client-side IndexedDB and JSON exports.
 
 ---
 
-## Open Questions
+## Resolved Design Decisions
 
-* **OQ1: Multi-Dataset Canvas Coexistence:** When a user uploads a new dataset during an active session, should previously pinned cards remain visible with a "Historical Dataset" badge, or should users be prompted to clear the canvas? *(Proposed resolution: Keep cards visible with dataset provenance badges, but disable "Open in Studio" if source data columns mismatch).*
-* **OQ2: Auto-Layout Behavior:** What default coordinate placement should be assigned to newly pinned cards? *(Proposed resolution: Place new cards at the next open slot in a virtual 3-column grid starting near viewport center, avoiding card overlap).*
+* **DD1: 8-Point Boundary Resizing:** Every card and note exposes 8 active resize hit zones:
+  * Top-Left (`.resize-corner-tl`): `nwse-resize`
+  * Top Edge (`.resize-edge-t`): `ns-resize`
+  * Top-Right (`.resize-corner-tr`): `nesw-resize`
+  * Right Edge (`.resize-edge-r`): `ew-resize`
+  * Bottom-Right (`.resize-corner-br`): `nwse-resize`
+  * Bottom Edge (`.resize-edge-b`): `ns-resize`
+  * Bottom-Left (`.resize-corner-bl`): `nesw-resize`
+  * Left Edge (`.resize-edge-l`): `ew-resize`
+* **DD2: Minimum & Maximum Card Resize Bounds:** Text notes enforce min width 200px, min height 60px; max width 1200px, max height 1200px. Chart cards enforce min width 320px, min height 200px; max width 1200px, max height 900px.
+* **DD3: Auto-Resize Adaptation:** Resizing a Vega card dynamically adjusts container dimensions and triggers responsive layout; SVG cards (Mermaid, Sankey, Matplotlib) configure root `<svg>` with `width="100%"` and `height="100%"` and `preserveAspectRatio="xMidYMid meet"`.
+* **DD4: Obsidian Canvas Interaction Paradigm:** Direct grabbing anywhere on the card surface initiates drag. Clicking into notes switches to inline textarea editing; blurring or pressing Escape exits to grab state. Hover-only top-right delete button (`.card-action-btn.delete-card-btn`) fades in on hover.
 
 ---
 
 ## Critical User Journeys (CUJs)
 
-### CUJ 1: Pinning an Agent Statistical Finding & Chart to Canvas
-* **Given:** The user has loaded `sales_q3.csv` and asked the AI Agent to identify regional outliers. The Agent returns a summary and a Seaborn boxplot.
-* **When:** The user hovers over the Agent response bubble and clicks the top-right "Pin" icon (or clicks "Pin" on the chart action bar).
-* **Then:** A brief toast confirms `"Pinned to Canvas"`, the Canvas tab counter increments (`Canvas (1)`), and an immutable card containing the markdown summary and plot is placed onto the canvas plane.
+### CUJ 1: Creating, Editing, and Dragging a Sticky Text Note (Obsidian-Style)
+* **Given:** The user has the Canvas view open.
+* **When:** The user clicks "Text" in the canvas control dock.
+* **Then:** A shaded sticky note (`--c-raised`, `--r-md`, `--c-border`) appears at the viewport center in edit mode. When blurred, hovering anywhere on the note displays a `grab` cursor and dragging moves the note. Clicking directly into the text returns to edit mode. A native close button appears smoothly in the top-right corner only when hovering over the card.
 
-### CUJ 2: Assembling a Storyboard & Arranging Spatially
-* **Given:** The user has pinned 2 Agent insights, 1 Vega-Lite trend chart from Vega Studio, and 1 Mermaid process diagram.
-* **When:** The user switches to the Canvas tab, drags cards into logical clusters (e.g., "North Region Problem" on the left, "Proposed Workflow" on the right), adds a freeform Markdown note card (`➕ Note`), and clicks `Tidy Grid`.
-* **Then:** Cards snap smoothly to aligned coordinates. The user can pan and zoom across the board using mouse wheel and drag gestures.
+### CUJ 2: 8-Point Resizing via Edge and Corner Hover Cues
+* **Given:** A Vega chart card and a sticky text note are mounted on the canvas.
+* **When:** The user hovers over any of the 4 corners or 4 edges and drags.
+* **Then:** The card dimensions and coordinates adjust smoothly in real-time clamped to min/max bounds. Top/left resizing shifts `x` and `y` while anchoring opposite edges. The canvas viewport remains completely stationary (zero D3 zoom panning). New dimensions and coordinates are saved to the card data model.
 
-### CUJ 3: Exporting, Reloading, and Resuming Session State
-* **Given:** The user has an active canvas with 4 cards and 15 turns of AI chat history.
-* **When:** The user refreshes the browser tab or clicks "Export Session (.json)" from the Workspace menu and reloads the `.json` file days later.
-* **Then:** The workspace rehydrates from IndexedDB (or imported JSON): all 4 canvas cards reappear at their exact spatial coordinates, the active dataset is restored, and the full un-truncated chat history is re-rendered in the Agent sidebar.
-
+### CUJ 3: Assembling and Persisting a Multi-Card Storyboard
+* **Given:** The user pins an Agent response, a Vega-Lite chart, and adds 2 sticky text notes, resizing and rearranging them into a report layout.
+* **When:** The user reloads the browser tab or exports and re-imports the session JSON.
+* **Then:** All cards rehydrate with their exact spatial coordinates, customized widths and heights, and full content intact.
 
 ---
 
@@ -82,265 +95,186 @@ The **Insight Canvas & Workspace Persistence** feature introduces:
 
 ```mermaid
 flowchart TD
-    subgraph DataSources["Analytical Engines (Producers)"]
-        AgentChat["AI Agent Copilot<br/>(Markdown + Matplotlib/Seaborn)"]
-        VegaStudio["Vega-Lite Studio<br/>(Declarative Specs)"]
-        MermaidStudio["Mermaid Studio<br/>(Flows & Entity Diagrams)"]
-        SankeyStudio["Sankey Studio<br/>(Flow Pathways)"]
+    subgraph Producers["Analytical Producers"]
+        AgentChat["AI Agent Copilot<br/>(Markdown, Plots)"]
+        VegaStudio["Vega Studio<br/>(Specs)"]
+        MermaidStudio["Mermaid Studio<br/>(SVGs)"]
+        SankeyStudio["Sankey Studio<br/>(SVGs)"]
+        Dock["Canvas Control Dock<br/>(+ Text Note, Tidy, Fit)"]
     end
 
-    subgraph EventBus["Decoupled Pinning Protocol"]
+    subgraph EventBus["Decoupled Event Protocol"]
         PinEvent["CustomEvent: dataviz:pin-card"]
     end
 
-    subgraph StorageLayer["Persistence & Normalization"]
-        IndexedDB["IndexedDB (dataviz_storage_v1)<br/>• chat_history store<br/>• sessions store"]
-        SVGUtils["studio-utils.js<br/>(extractStandaloneSvg + DOMPurify)"]
+    subgraph CanvasRuntime["CanvasManager (static/js/canvas.js)"]
+        D3Viewport["D3 Pan/Zoom Plane<br/>(#canvas-world)"]
+        DragHandler["initCardDrag<br/>(Surface Grab, Pointer Capture, Scaled Deltas)"]
+        ResizeHandler["initCardResize<br/>(8-Point Handles, Event Isolation, Scale Math)"]
+        Cards["Mounted Cards<br/>• Pinned Studio Charts (.canvas-card)<br/>• Shaded Sticky Notes (.canvas-text-note)"]
     end
 
-    subgraph CanvasRuntime["Insight Canvas View (#canvas-container)"]
-        CanvasMgr["CanvasManager (static/js/canvas.js)"]
-        D3Viewport["D3 Pan/Zoom Plane (#canvas-world)"]
-        Cards["Pinned Cards (.canvas-card)<br/>• Vega (vegaEmbed / Shadow DOM)<br/>• SVG (Blob URL / Shadow DOM)<br/>• Markdown Notes"]
+    subgraph Persistence["Persistence & Session Hub"]
+        StorageDB["IndexedDB (dataviz_storage_v1)<br/>• chat_history store<br/>• sessions store"]
+        SessionJS["session.js (Session v2)<br/>tools.canvas: { viewport, cards }"]
     end
 
-    subgraph SessionExport["Session State Hub (session.js)"]
-        SessionJSON["Session JSON (v2)<br/>tools.canvas + tools.agent"]
-    end
+    AgentChat -- "Pin Button" --> PinEvent
+    VegaStudio -- "Pin Button" --> PinEvent
+    MermaidStudio -- "Pin Button" --> PinEvent
+    SankeyStudio -- "Pin Button" --> PinEvent
+    Dock -- "Add Text" --> CanvasRuntime
 
-    AgentChat -- "Pin Button Click" --> PinEvent
-    VegaStudio -- "Pin Button Click" --> PinEvent
-    MermaidStudio -- "Pin Button Click" --> PinEvent
-    SankeyStudio -- "Pin Button Click" --> PinEvent
+    PinEvent --> CanvasRuntime
+    CanvasRuntime --> D3Viewport
+    D3Viewport --> DragHandler
+    D3Viewport --> ResizeHandler
+    DragHandler --> Cards
+    ResizeHandler --> Cards
 
-    PinEvent --> CanvasMgr
-    CanvasMgr --> SVGUtils
-    CanvasMgr --> D3Viewport
-    D3Viewport --> Cards
-
-    AgentChat -. "Auto-save Chat" .-> IndexedDB
-    CanvasMgr -. "Debounced Auto-save (1s)" .-> IndexedDB
-
-    CanvasMgr <--> SessionJSON
-    IndexedDB <--> SessionJSON
+    CanvasRuntime <--> SessionJS
+    AgentChat <--> StorageDB
+    SessionJS <--> StorageDB
 ```
 
 ---
 
-### 2. Component Architecture & Responsibilities
+### 2. Component Architecture & Detailed Responsibilities
 
-#### A. CanvasManager (`static/js/canvas.js`)
-* **Role:** Manages the lifecycle, DOM nodes, drag/pan/zoom transforms, and state serialization of the canvas plane.
-* **Key Methods:**
-  * `constructor({ container, onOpenVega, onOpenMermaid })`: Initializes DOM container `#canvas-container`, inner `#canvas-world`, and floating `#canvas-control-dock`.
-  * `initD3Zoom()`: Binds `d3.zoom().scaleExtent([0.15, 3.0])` to the container and applies `translate3d(x, y, 0) scale(k)` to `#canvas-world`.
-  * `initCardDrag(cardEl, cardData)`: Uses `d3.drag()` with coordinate division (`dx / currentScale`, `dy / currentScale`) and pointer capture to allow card dragging without pointer drift.
-  * `addCard(cardDetail)`: Normalizes payload, assigns unique ID, calculates placement coordinates, appends DOM card, and increments the `#canvas-card-count` badge.
-  * `tidyGrid()`: Smoothly animates cards into a responsive 3-column grid sorted by creation timestamp.
-  * `fitAll()`: Calculates bounding box of all cards and smoothly transitions `d3.zoom()` viewport to fit all cards with 40px padding.
-  * `exportState()`: Returns serializable `{ version: 1, viewport: { panX, panY, zoom }, cards: [...] }`.
-  * `importState(state)`: Clears existing DOM nodes, rehydrates cards, and restores viewport coordinates.
+#### A. Shaded Sticky Note Anatomy (`static/js/canvas.js` & `static/style.css`)
+* **Visual Frame:** Text notes are styled as shaded sticky containers using `--c-raised` (#f8fafc) background, `--c-border` (#e2e8f0), `--r-md` (8px border radius), and `--shadow-sm`.
+* **Obsidian-Style Direct Grabbing:**
+  * No dedicated drag button is required. Hovering over the card body displays `cursor: grab`. Pointerdown on the card surface initiates drag (`cursor: grabbing`) via `initCardDrag`.
+  * A native close button (`.card-action-btn.delete-card-btn`) is positioned in the top-right corner. It remains invisible by default and fades in smoothly (`opacity: 1`) strictly on card hover (`.canvas-text-note:hover`) or while focused.
+* **Body & Inline Markdown Editing:**
+  * In view mode, clicking directly into the text switches the note into edit mode (`.is-editing`), auto-focusing the textarea.
+  * In edit mode, text editing and selection work naturally (`cursor: text`). Blurring the textarea or pressing Escape exits edit mode, sanitizes markdown via `DOMPurify` and renders via `marked`, and returns the note to the `grab` state.
+  * Browser-native `resize: both` is strictly eliminated from `.text-note-editor` to prevent pointer event leakage.
 
-#### B. Storage Database Adapter (`static/js/storage-db.js`)
-* **Role:** Lightweight asynchronous IndexedDB wrapper (`dataviz_storage_v1`) replacing synchronous `localStorage`.
-* **Database Stores:**
-  * `chat_history`: Keyed by session/dataset ID. Stores full array of agent turns, code snippets, and image data URLs without size truncation.
-  * `sessions`: Stores active workspace dumps (canvas state, active tab, tool dumps, and dataset schema).
-* **Migration Safeguard:** On startup, detects existing `ai_agent_chat_history_v1` in `localStorage`, migrates records to IndexedDB, and safely removes the legacy key.
+#### B. 8-Point Edge & Corner Resizing Engine (`CanvasManager.initCardResize`)
+* **Directional Resize Hit Zones:**
+  * Every card (`.canvas-card` and `.canvas-text-note`) includes 8 dedicated hit zones along borders:
+    * Corner Top-Left (`.resize-corner-tl`): `cursor: nwse-resize`
+    * Edge Top (`.resize-edge-t`): `cursor: ns-resize`
+    * Corner Top-Right (`.resize-corner-tr`): `cursor: nesw-resize`
+    * Edge Right (`.resize-edge-r`): `cursor: ew-resize`
+    * Corner Bottom-Right (`.resize-corner-br`): `cursor: nwse-resize`
+    * Edge Bottom (`.resize-edge-b`): `cursor: ns-resize`
+    * Corner Bottom-Left (`.resize-corner-bl`): `cursor: nesw-resize`
+    * Edge Left (`.resize-edge-l`): `cursor: ew-resize`
+  * Zones show clear directional cursors upon hover without intrusive chrome, matching desktop canvas tools.
+* **Pointer Isolation & Capture:**
+  * `pointerdown` on any resize handle invokes `e.stopPropagation()` and `e.preventDefault()`, completely isolating the interaction from D3 zoom/pan on `#canvas-container`.
+  * Acquires pointer capture (`handle.setPointerCapture(e.pointerId)`).
+* **Scale-Normalized Delta Math & Opposite-Edge Anchoring:**
+  $$\Delta X = \frac{\text{clientX} - \text{startClientX}}{\text{currentScale}}, \quad \Delta Y = \frac{\text{clientY} - \text{startClientY}}{\text{currentScale}}$$
+  * Right edge / Bottom edge resize adjusts width and height:
+    $$W = \max(W_{\min}, \min(W_{\max}, \text{startW} + \Delta X)), \quad H = \max(H_{\min}, \min(H_{\max}, \text{startH} + \Delta Y))$$
+  * Left edge resize adjusts width and shifts card X coordinate:
+    $$W = \max(W_{\min}, \min(W_{\max}, \text{startW} - \Delta X)), \quad X = \text{startX} + (\text{startW} - W)$$
+  * Top edge resize adjusts height and shifts card Y coordinate:
+    $$H = \max(H_{\min}, \min(H_{\max}, \text{startH} - \Delta Y)), \quad Y = \text{startY} + (\text{startH} - H)$$
+* **Enforced Dimension Clamping:**
+  * Text notes: min width 200px, min height 60px; max width 1200px, max height 1200px.
+  * Chart cards: min width 320px, max width 1200px; min height 200px, max height 900px.
+* **Visualizer Auto-Refit:**
+  * Card body adapts to new dimensions via CSS flex `flex: 1; overflow: hidden;`.
+  * Vega-Lite cards trigger container resize; SVG cards (Mermaid, Sankey, Matplotlib) configure SVG root with `width="100%"` and `height="100%"` and `preserveAspectRatio="xMidYMid meet"`.
 
-#### C. Standalone SVG Extractor & Normalizer (`static/js/studio-utils.js`)
-* **Role:** Isolates SVGs from the host DOM to prevent black silhouettes and CSS bleed.
-* **Mechanism (`extractStandaloneSvg(svgElement)`):**
-  1. Clones the target SVG node deeply.
-  2. Traverses child nodes and inlines computed CSS properties (`fill`, `stroke`, `stroke-width`, `font-family`, `font-size`) calculated via `window.getComputedStyle()`.
-  3. Computes bounding box via `svgElement.getBBox()` and normalizes `viewBox`, `width`, and `height`.
-  4. Ensures `xmlns="http://www.w3.org/2000/svg"` is explicitly set on the root `<svg>`.
-  5. Sanitizes through DOMPurify (`DOMPurify.sanitize(svgString, { USE_PROFILES: { svg: true } })`).
-
----
-
-### 3. Decoupled Pinning Event Protocol
-
-Any visualizer or agent bubble pins artifacts to the canvas by dispatching the `dataviz:pin-card` custom event on `window`:
-
-```javascript
-window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
-    detail: {
-        type: 'vega' | 'mermaid' | 'sankey' | 'plot' | 'markdown',
-        title: 'Q3 Revenue Outliers',
-        payload: {
-            spec: { ... },              // Declarative Vega-Lite spec (for vega cards)
-            code: 'flowchart LR...',    // Mermaid source string (for mermaid cards)
-            svgString: '<svg>...</svg>', // Clean inlined SVG (for sankey/plot cards)
-            content: '# Executive Memo' // Raw markdown (for note/agent cards)
-        },
-        source: {
-            origin: 'agent' | 'vega' | 'mermaid' | 'sankey' | 'user',
-            datasetName: 'sales_q3.csv',
-            timestamp: Date.now()
-        }
-    }
-}));
-```
-
----
-
-### 4. Card Isolation & Rendering Mechanics
-
-To prevent SVG ID collisions (`<clipPath id="clip-1">`, gradients, arrow markers) and CSS font collisions:
-1. **Vega Cards:** Pinned with compact JSON spec (~2 KB). Rendered inside an isolated DOM container using `vegaEmbed(cardBodyEl, spec, { actions: false, renderer: 'svg' })`.
-2. **Mermaid & Sankey Cards:** Rendered inside a Shadow Root (`cardBodyEl.attachShadow({ mode: 'open' })`) containing an internal stylesheet resetting margins, or rendered via an `<img>` tag pointing to `URL.createObjectURL(new Blob([svgString], { type: 'image/svg+xml' }))`.
-3. **Agent & Note Cards:** Rendered using the existing `marked.parse()` and `DOMPurify.sanitize()` pipeline, styled with `.markdown-content`.
-
----
-
-### 5. Session Schema Integration (v2)
-
-`static/js/session.js` bumps `SESSION_VERSION` from `1` to `2`.
-
-```json
-{
-  "format": "dataviz-agent-session",
-  "version": 2,
-  "exportedAt": "2026-11-03T12:00:00.000Z",
-  "activeView": "canvas",
-  "datasetSchema": {
-    "name": "sales_q3.csv",
-    "rowCount": 1420,
-    "columnCount": 12,
-    "columns": ["region", "revenue", "cost", "date"]
-  },
-  "tools": {
-    "lineup": { "dump": {} },
-    "graphicWalker": null,
-    "sanddance": null,
-    "sankey": null,
-    "mermaid": null,
-    "vega": null,
-    "agent": {
-      "history": [...],
-      "activeSkills": [...]
-    },
-    "canvas": {
-      "version": 1,
-      "viewport": { "panX": 0, "panY": 0, "zoom": 1.0 },
-      "cards": [
-        {
-          "id": "card-1730635200-1",
-          "type": "vega",
-          "title": "Revenue Trend by Region",
-          "x": 80,
-          "y": 100,
-          "width": 460,
-          "height": 320,
-          "zIndex": 1,
-          "source": {
-            "origin": "vega",
-            "datasetName": "sales_q3.csv",
-            "timestamp": 1730635200000
-          },
-          "payload": {
-            "spec": { "$schema": "https://vega.github.io/schema/vega-lite/v5.json", "mark": "bar" }
-          }
-        }
-      ]
-    }
+#### C. Card Data Model & Session Persistence
+* Pinned card records store explicit dimensions:
+  ```javascript
+  {
+    id: "card-text-1730635200000",
+    type: "text",
+    title: "Key Assumptions",
+    x: 420,
+    y: 180,
+    width: 320,
+    height: 160,
+    zIndex: 14,
+    payload: { content: "### Assumptions\n- Normal distribution across cohorts." },
+    source: { origin: "user", timestamp: 1730635200000 }
   }
-}
-```
-
-
+  ```
+* `CanvasManager.exportState()` includes `width` and `height` for every card. `CanvasManager.importState()` restores card `style.width` and `style.height` upon reload.
 
 ---
 
 ## Alternatives Considered
 
-### Alternative A: Storyboard / Masonry Grid Layout (Linear / Fixed Grid)
-* **Description:** A purely vertical or 12-column responsive grid where cards stack sequentially, with native browser scroll and no 2D pan/zoom.
-* **Pros:** Zero coordinate translation math; avoids CSS transform scaling quirks; easy PDF/HTML export.
-* **Cons:** Lacks spatial grouping; fails to utilize wide displays for non-linear storytelling.
-* **Reason for Rejection:** Rejected by author: Data storytelling across diverse hypotheses requires a freeform spatial layout where users can cluster related metrics side-by-side.
+### Alternative 1: Dedicated Top Grab Ribbon & Floating Drag Handles
+* **Description:** Providing an explicit full-width header ribbon or a detached floating hover pill (`top: -26px`) containing grip icons (`fa-grip-vertical`) and action buttons for dragging text notes.
+* **Pros:** Explicit visual signifier distinguishing the drag handle from the editable content area.
+* **Cons:** Introduces visual noise, causes hover flicker when mousing near borders, and forces users to accurately target a tiny 12px grip icon to reposition notes.
+* **Reason for Rejection:** Rejected by author: The Obsidian Canvas interaction paradigm—direct grabbing anywhere on the card surface, immediate click-to-edit for text, and an unobtrusive hover-only close button—offers a dramatically smoother user experience with zero unnecessary chrome.
 
-### Alternative B: HTML5 Pixel Canvas (Konva.js / Pixi.js)
-* **Description:** Rendering cards directly onto an HTML5 `<canvas>` element using a 2D scene graph library.
-* **Pros:** Handles thousands of objects with high rendering frame rates.
-* **Cons:** Pinned Vega charts cannot be rendered declaratively or scaled as vector SVGs; markdown notes cannot support native text selection, copy-paste, or rich DOM elements.
-* **Reason for Rejection:** Rejected by author: Preserving vector chart clarity and native markdown typography requires DOM elements with CSS transforms.
+### Alternative 2: Native Browser CSS `resize: both`
+* **Description:** Applying native CSS `resize: both` on textareas or card wrappers.
+* **Pros:** Native browser feature requiring zero custom JavaScript event handlers.
+* **Cons:** Native browser resize grabbers do not expose accessible pointerdown event hooks to stop event propagation. Pointer events bubble directly to the D3 zoom handler on `#canvas-container`, causing the entire viewport to pan instead of resizing the element. Furthermore, native resizing fails to divide deltas by `currentScale`, producing erratic jumpy movement when the canvas is zoomed.
+* **Reason for Rejection:** Rejected by author: Causes catastrophic canvas viewport drift in transformed D3 containers and lacks edge-based resizing.
 
-### Alternative C: LocalStorage Binary Compression (LZ-String)
-* **Description:** Compressing base64 image strings and canvas JSON into `localStorage` using LZ-based algorithms.
-* **Pros:** Avoids introducing an asynchronous database API.
-* **Cons:** Only postpones quota exhaustion; synchronous compression freezes the main UI thread during typing and dragging.
-* **Reason for Rejection:** Rejected by author: IndexedDB provides true asynchronous multi-megabyte storage capacity and eliminates the need for destructive chat truncation.
+### Alternative 3: External Canvas Resizing Libraries (e.g., interact.js, Moveable.js)
+* **Description:** Bundling an external multi-touch transform library to manage bounding boxes, handles, and aspect ratios.
+* **Pros:** Pre-packaged rotation, 8-point handles, and snapping algorithms.
+* **Cons:** Introduces 40–80 KB of external third-party script bloat, creates matrix math collisions with D3's zoom transform state, and violates the project's minimalist dependency policy.
+* **Reason for Rejection:** Rejected by author: Native Pointer Events (`setPointerCapture`), directional CSS cursors, and scale division solve 8-point multi-edge resizing reliably in under 80 lines of vanilla JS with zero external dependencies.
 
 ---
 
 ## Detailed Implementation Plan
 
-### File Modification Inventory
+### Unified Implementation Step-by-Step
 
-1. **`static/js/storage-db.js` (NEW)**
-   * *Rationale:* Lightweight asynchronous IndexedDB adapter (`dataviz_storage_v1`) managing `chat_history` and `sessions` stores, with one-time migration from legacy `localStorage`.
+1. **Step 1: CSS Polish & 8-Point Directional Resize Zones (`static/style.css`)**
+   * Transform `.canvas-text-note` into a shaded sticky container with `--c-raised` background, `--c-border`, `--r-md`, and default `cursor: grab`.
+   * Implement hover-activated top-right delete button (`.delete-card-btn`) with smooth opacity fade (`opacity: 0` transitioning to `1` on card hover).
+   * Eradicate `resize: both` from `.text-note-editor` to permanently halt unstopped pointer bubbling to D3.
+   * Define invisible, high-precision directional resize zones across `.canvas-card` and `.canvas-text-note`:
+     * `.resize-corner-tl` (14×14px top-left, `cursor: nwse-resize`).
+     * `.resize-edge-t` (6px top edge, `cursor: ns-resize`).
+     * `.resize-corner-tr` (14×14px top-right, `cursor: nesw-resize`).
+     * `.resize-edge-r` (6px right edge, `cursor: ew-resize`).
+     * `.resize-corner-br` (14×14px bottom-right, `cursor: nwse-resize`).
+     * `.resize-edge-b` (6px bottom edge, `cursor: ns-resize`).
+     * `.resize-corner-bl` (14×14px bottom-left, `cursor: nesw-resize`).
+     * `.resize-edge-l` (6px left edge, `cursor: ew-resize`).
+   * Add `.is-resizing` rule with `transition: none !important;` to ensure 60fps rendering during active drag.
 
-2. **`static/js/studio-utils.js` (MODIFIED)**
-   * *Rationale:* Add `extractStandaloneSvg(svgElement)` helper that deeply clones an SVG, inlines computed typography and colors, normalizes `viewBox` from `getBBox()`, and sanitizes output via DOMPurify.
+2. **Step 2: Obsidian-Style Card Dragging & Click-to-Edit (`static/js/canvas.js`)**
+   * Refactor `createTextNoteDOM` to generate the clean sticky note structure without the detached `-26px` hover bar.
+   * Wire card-level pointer events in `initCardDrag`: grabbing anywhere on the card surface (except interactive action buttons, resize zones, or active textarea in edit mode) initiates card repositioning with `cursor: grabbing`.
+   * Implement click-to-edit logic: clicking rendered markdown enters edit mode (`.is-editing`), revealing the auto-expanding textarea and setting text focus. Blurring or pressing Escape exits back to the grab state.
 
-3. **`static/js/canvas.js` (NEW)**
-   * *Rationale:* Implements `CanvasManager` class:
-     * D3 zoom/pan binding on `#canvas-container` and `#canvas-world`.
-     * Card drag physics via `d3.drag()` with coordinate-space scale translation (`dx / scale`).
-     * Card DOM creation, header dragging, editable titles, and "Open in Studio" navigation.
-     * `addCard()`, `tidyGrid()`, `fitAll()`, `exportState()`, and `importState()`.
-     * Listener for `dataviz:pin-card` custom event.
+3. **Step 3: Isolated 8-Point Resizing Engine (`static/js/canvas.js`)**
+   * Implement `initCardResize(cardEl, card)` binding 8 directional handles (4 corners, 4 edges) to both visualization cards and text notes.
+   * Halt propagation on pointerdown (`e.stopPropagation()`, `e.preventDefault()`) to ensure the D3 zoom plane never receives resize pointer inputs.
+   * Acquire pointer capture via `setPointerCapture(e.pointerId)` on the active handle.
+   * Compute scale-normalized deltas divided by `this.currentScale`.
+   * Support top/left anchoring: adjusting width/height and shifting `card.x`/`card.y` so opposite edges stay fixed in world coordinates.
+   * Enforce boundary clamps:
+     * Text notes: width [200px, 1200px], height [60px, 1200px].
+     * Chart cards: width [320px, 1200px], height [200px, 900px].
+   * Update `card.width`, `card.height`, `card.x`, `card.y` in real-time, applying inline pixel styles to `cardEl`.
+   * Provide responsive container adaptation callback (`onCardResized`) to adjust inner Vega embeds and SVG viewBoxes.
 
-4. **`static/index.html` (MODIFIED)**
-   * *Rationale:*
-     * Add `#show-canvas-btn` to `#view-controls` in header bar.
-     * Add `#canvas-container` with inner `#canvas-world` and `#canvas-control-dock`.
-     * Add "Pin to Canvas" action buttons to Vega Studio (`#vega-pin-canvas-btn`), Mermaid Studio (`#mermaid-pin-canvas-btn`), and Sankey Studio (`#sankey-pin-canvas-btn`).
+4. **Step 4: Dimension Persistence & Session Schema Update (`static/js/canvas.js`)**
+   * Include `width` and `height` in `CanvasManager.exportState()`.
+   * In `CanvasManager.importState()`, rehydrate `card.width` and `card.height` and apply them to `cardEl.style.width` and `cardEl.style.height`.
 
-5. **`static/style.css` (MODIFIED)**
-   * *Rationale:*
-     * Add layout rules for `#canvas-container`, `#canvas-world`, and dot-matrix background pattern.
-     * Add `.canvas-card`, `.canvas-card-header`, `.canvas-card-body`, and drag states.
-     * Add `.chat-msg-pin-btn` hover button on `.message.agent` and `.chat-pin-chart-btn`.
-     * Add `#canvas-control-dock` floating toolbar styling matching `.sidebars-controls-pill`.
-
-6. **`static/js/agent.js` (MODIFIED)**
-   * *Rationale:*
-     * Replace `localStorage` calls in `saveChatHistory()` and `getChatHistory()` with asynchronous `storage-db.js` IndexedDB methods.
-     * Add pin action button on hover of assistant message bubbles.
-     * Add `Pin` button to inline chart cards (Vega, Plot, Mermaid) dispatching `dataviz:pin-card`.
-
-7. **`static/js/session.js` (MODIFIED)**
-   * *Rationale:*
-     * Bump `SESSION_VERSION` to `2`.
-     * Add `tools.canvas = managers.canvas?.exportState()` in `exportSession`.
-     * Add `managers.canvas.importState(tools.canvas)` in `restoreSessionState`.
-
-8. **`static/main.js` (MODIFIED)**
-   * *Rationale:*
-     * Import `CanvasManager` and instantiate it with visualizer callbacks.
-     * Register `canvasContainer` in `visualContainers` and `showCanvasBtn` in `visualViewButtons`.
-     * Wire `showCanvas()` and add `'canvas'` case to `activateViewByName()`.
+5. **Step 5: Automated Testing (`tests/test_insight_canvas_phase2.mjs`)**
+   * Add test verifying `.canvas-text-note` Obsidian-style DOM structure and top-right hover close button.
+   * Add test verifying `initCardResize`: 8-point handles, pointerdown isolation, delta math with zoom scale division, and min/max dimension clamping.
+   * Add test verifying `width` and `height` round-trip in `exportState` and `importState`.
 
 ---
 
-## Testing, Observability & Rollout
+## File Changes & Enumeration
 
-### Test Matrix
-1. **D3 Zoom/Drag Verification:**
-   * Test pan, zoom-in, zoom-out, and reset via wheel, touch gestures, and toolbar buttons.
-   * Verify card dragging operates without drift across various zoom levels (0.2x to 3.0x).
-2. **Pinning Reliability:**
-   * Pin Vega-Lite chart from Vega Studio -> Verify card renders vector chart cleanly.
-   * Pin Mermaid diagram -> Verify card displays diagram with inlined colors and typography (no black silhouettes).
-   * Pin Sankey diagram -> Verify node colors and link paths match active studio.
-   * Pin Agent answer with embedded Matplotlib PNG -> Verify markdown and plot image render cleanly.
-   * Click "Open in Studio" on a pinned Vega card -> Verify Vega Studio opens with matching spec.
-3. **Storage & Quota Stress Testing:**
-   * Generate 20+ chat turns with embedded plots -> Verify IndexedDB persists all turns without truncation.
-   * Verify browser page reload cleanly rehydrates canvas cards and agent conversation history.
-4. **Session Export/Import Roundtrip:**
-   * Export active workspace to `.json` file.
-   * Reset workspace and reload exported `.json` -> Verify canvas cards and coordinates restore 1:1.
+| File Path | Change Type | Rationale |
+| :--- | :--- | :--- |
+| `static/js/canvas.js` | Modified | Refactor `createTextNoteDOM` for Obsidian-style direct grab and click-to-edit, implement `initCardResize` with 8 directional edge/corner handles, stop event bubbling to D3, and persist card dimensions. |
+| `static/style.css` | Modified | Redesign `.canvas-text-note` into shaded sticky container, remove `resize: both` from textarea, define 8 directional resize cursors and hit zones, and style hover-only close action. |
+| `tests/test_insight_canvas_phase2.mjs` | Modified | Add unit tests verifying 8-point edge/corner resizing, event bubbling isolation, scale normalization, and dimension serialization. |
+| `docs/designs/insight-canvas.md` | Modified | Finalized persistent architecture reference matching `design_draft.md`. |
