@@ -166,6 +166,11 @@
                         </button>
                     </div>
                 </div>
+                <div class="nav-separator-dot"></div>
+                <button id="show-canvas-btn" class="button icon-button" disabled
+                    title="Storytelling board with pinned findings, charts, and notes (Canvas)">
+                    <i class="fa-solid fa-shapes"></i><span>Canvas</span>
+                </button>
             </nav>
         </div>
 
@@ -250,7 +255,7 @@
             </div>
         </div>
     </header>
-    <main>
+    <main id="main-content">
         <div id="visual-stage" class="visual-stage">
             <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
             <div id="empty-state-container" class="vis-container">
@@ -437,12 +442,12 @@
                             <div class="control-group">
                                 <label for="sanddance-chart-type">Chart Type</label>
                                 <select id="sanddance-chart-type" class="control-select">
-                                    <option value="density" selected>Density</option>
+                                    <option value="stacks" selected>Stacks</option>
+                                    <option value="density">Density</option>
                                     <option value="scatterplot">Scatterplot</option>
                                     <option value="barchart">Bar Chart (Vertical)</option>
                                     <option value="barchartH">Bar Chart (Horizontal)</option>
                                     <option value="treemap">Treemap</option>
-                                    <option value="stacks">Stacks</option>
                                     <option value="strips">Strips</option>
                                     <option value="grid">Grid</option>
                                 </select>
@@ -481,6 +486,13 @@
                             </div>
                             <hr class="control-divider">
                             <div class="control-group sanddance-disaggregate-group">
+                                <div id="sanddance-no-id-info" class="sanddance-no-id-info hidden">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div class="sanddance-no-id-content">
+                                        <span class="sanddance-no-id-title">No ID Column Found</span>
+                                        <p class="sanddance-no-id-text">Number of distinct values &ne; number of rows in all columns. The <strong>Disaggregate</strong> by column value option should be taken.</p>
+                                    </div>
+                                </div>
                                 <label class="checkbox-label checkbox-label-compact" for="sanddance-disaggregate-check"
                                     title="Unroll aggregated rows into individual data points using a numeric count column">
                                     <input type="checkbox" id="sanddance-disaggregate-check"
@@ -685,6 +697,9 @@
                                     <button id="sankey-add-text-btn" class="button icon-button"
                                         title="Add Text Annotation to Canvas"><i class="fa-solid fa-font"></i><span>Add
                                             Text</span></button>
+                                    <button id="sankey-pin-canvas-btn" class="button icon-button" title="Pin flow diagram to Insight Canvas">
+                                        <i class="fa-solid fa-thumbtack"></i><span>Pin to Canvas</span>
+                                    </button>
                                 </div>
 
                                 <div class="control-group">
@@ -854,6 +869,9 @@
                                 <button id="mermaid-ai-btn" class="button icon-button ai-action-btn"
                                     title="Use AI Agent to generate Mermaid diagram from dataset structure">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Generate</span>
+                                </button>
+                                <button id="mermaid-pin-canvas-btn" class="button icon-button" title="Pin diagram to Insight Canvas">
+                                    <i class="fa-solid fa-thumbtack"></i><span>Pin to Canvas</span>
                                 </button>
                                 <button id="mermaid-demo-btn" class="button icon-button"
                                     title="Show a sample demo diagram with full configuration enabled">
@@ -1178,6 +1196,9 @@
                                     title="Use AI Agent to generate or transform Vega-Lite chart">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Generate</span>
                                 </button>
+                                <button id="vega-pin-canvas-btn" class="button icon-button" title="Pin chart to Insight Canvas">
+                                    <i class="fa-solid fa-thumbtack"></i><span>Pin to Canvas</span>
+                                </button>
                                 <button id="vega-demo-btn" class="button icon-button"
                                     title="Load a recommended demo chart for current dataset">
                                     <i class="fa-solid fa-play"></i><span>Show Demo</span>
@@ -1221,6 +1242,26 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Insight Canvas (Infinite 2D Storytelling Workspace) -->
+            <div id="canvas-container" class="vis-container hidden">
+                <div id="canvas-control-dock" class="sidebars-controls-pill canvas-floating-dock">
+                    <button id="canvas-add-note-btn" class="icon-button copilot-header-btn" title="Add Text">
+                        <i class="fa-solid fa-font"></i><span>Text</span>
+                    </button>
+                    <button id="canvas-arrange-btn" class="icon-button copilot-header-btn" title="Auto-arrange cards in grid">
+                        <i class="fa-solid fa-table-cells-large"></i><span>Tidy</span>
+                    </button>
+                    <button id="canvas-fit-btn" class="icon-button copilot-header-btn" title="Fit all cards in view">
+                        <i class="fa-solid fa-expand"></i><span>Fit</span>
+                    </button>
+                    <div class="nav-separator-dot"></div>
+                    <button id="canvas-zoom-out-btn" class="icon-button copilot-header-btn" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                    <span id="canvas-zoom-level" class="canvas-zoom-text">100%</span>
+                    <button id="canvas-zoom-in-btn" class="icon-button copilot-header-btn" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="canvas-world"></div>
+            </div>
         </div>
 
         <!-- Draggable Split-Pane Divider -->
@@ -1241,14 +1282,28 @@
                     </div>
                 </div>
                 <div class="copilot-header-actions">
-                    <button type="button" id="chat-clear-btn" class="copilot-action-btn"
-                        title="New conversation (clears history)">
-                        <i class="fa-solid fa-plus"></i>
+                    <button type="button" id="chat-history-btn" class="copilot-action-btn"
+                        title="Previous conversations">
+                        <i class="fa-solid fa-message"></i>
                     </button>
-                    <button id="agent-copilot-collapse-btn" class="copilot-action-btn" title="Close Copilot Panel">
+                    <button type="button" id="chat-clear-btn" class="copilot-action-btn"
+                        title="New conversation">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Chat History Overlay Drawer -->
+            <div id="chat-history-panel" class="chat-history-panel hidden">
+                <div class="chat-history-header">
+                    <div class="chat-history-header-title">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>Previous Conversations</span>
+                    </div>
+                    <button type="button" id="chat-history-close-btn" class="copilot-action-btn" title="Close History">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
+                <div id="chat-history-list" class="chat-history-list"></div>
             </div>
             <!-- Simplified Chat Area -->
             <div class="chat-panel">
@@ -1483,6 +1538,39 @@
             <div class="modal-footer">
                 <button id="cancel-set-data-btn" class="button">Cancel</button>
                 <button id="confirm-set-data-paste-btn" class="button primary hidden">Load Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Dataset Confirmation Modal -->
+    <div id="reset-confirm-modal" class="modal hidden">
+        <div class="modal-content modal-dialog-centered">
+            <div class="modal-header">
+                <div class="modal-header-top-row">
+                    <div class="modal-header-brand-row">
+                        <i class="fa-solid fa-triangle-exclamation text-danger-icon-md"></i>
+                        <div>
+                            <h2>Reset Dataset</h2>
+                            <p class="modal-header-subtitle">Clear workspace and active visualizations</p>
+                        </div>
+                    </div>
+                    <button id="close-reset-confirm-modal-btn" class="modal-close-btn" title="Close"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 0.75rem; color: var(--c-text);">Are you sure you want to reset the dataset? This will discard your current working state:</p>
+                <ul class="reset-effects-list" style="margin: 0; padding-left: 1.25rem; font-size: 0.85rem; color: var(--c-text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+                    <li>Unload the active dataset from memory and DuckDB.</li>
+                    <li>Reset all charts in Vega, Mermaid, Sankey, Graphic Walker, and SandDance.</li>
+                    <li><strong style="color: var(--c-text);">Permanently remove all pinned cards, visualizations, and notes from the Insight Canvas.</strong></li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-reset-confirm-btn" class="button" type="button">Cancel</button>
+                <button id="confirm-reset-btn" class="button danger" type="button">
+                    <i class="fa-solid fa-trash-can"></i><span>Reset Everything</span>
+                </button>
             </div>
         </div>
     </div>

@@ -140,6 +140,22 @@ export const BROWSER_TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'propose_column',
+            description: "Propose adding a calculated or derived column to the active dataset using a safe SQL expression. Automatically validates arithmetic expressions and presents an interactive preview confirmation card for the user. Use this whenever the user asks to add, calculate, or derive a new column or metric.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    column_name: { type: 'string', description: "The proposed target column name (e.g. 'profit_margin', 'tenure_years')." },
+                    sql_expression: { type: 'string', description: "DuckDB SQL expression to calculate the column values (e.g. '((revenue - cost) / NULLIF(revenue, 0)) * 100')." },
+                    description: { type: 'string', description: "Brief explanation of what the column calculates." }
+                },
+                required: ['column_name', 'sql_expression']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'list_columns',
             description: 'Lists all column names in the dataset.',
             parameters: { type: 'object', properties: {} }
@@ -275,6 +291,18 @@ export async function executeBrowserTool(callName, callArgs, duckdbEngine) {
             const query = args.query || args.sql || '';
             return await duckdbEngine.executeSQL(query);
         }
+        case 'propose_column': {
+            const colName = args.column_name || args.column || args.name || '';
+            const expr = args.sql_expression || args.expression || args.expr || args.sql || '';
+            if (!colName || !expr) {
+                return JSON.stringify({ valid: false, error: 'Both column_name and sql_expression are required.' });
+            }
+            if (duckdbEngine && typeof duckdbEngine.dryRunExpression === 'function') {
+                const dryRun = await duckdbEngine.dryRunExpression(colName, expr);
+                return JSON.stringify(dryRun);
+            }
+            return JSON.stringify({ valid: false, error: 'DuckDB engine not ready.' });
+        }
         case 'audit_dataset': {
             return await duckdbEngine.auditDataset();
         }
@@ -373,7 +401,7 @@ ABOUT THIS WORKBENCH & VISUALIZATION ENVIRONMENT:
 - When the user asks for charts, plots, or visual summaries, generate a complete Vega-Lite specification in a \`\`\`vega-lite ... \`\`\` code block. Do NOT hardcode the entire dataset in values; omit data.values or leave it empty, and the workbench will automatically bind the active dataset to your chart spec.
 - When the user asks for flow diagrams, architectures, or process charts, generate a Mermaid diagram in a \`\`\`mermaid ... \`\`\` code block.
 - You are running in direct browser mode without Python backend access. Do not call execute_python_code or write Python scripts.
-- DATASET MODIFICATIONS: If the user asks to add, calculate, rename, or drop columns, or transform/filter the dataset permanently, you MUST execute a SQL statement on table 'dataset' using \`execute_sql\` (e.g. \`ALTER TABLE dataset ADD COLUMN col_name INT DEFAULT 1;\` or \`CREATE OR REPLACE TABLE dataset AS SELECT *, 1 AS col_ones, 2 AS col_twos FROM dataset;\`). This permanently updates table 'dataset' so that the user's Live Data State preview reflects the new columns.
+- DATASET MODIFICATIONS: If the user asks to add, calculate, or derive a new column or metric, invoke \`propose_column(column_name, sql_expression, description)\`. This runs a safe dry-run preview and presents an interactive confirmation card for the user to commit the column to the active dataset.
 - Present direct, concise answers without redundant filler text.`;
 
     let messages = [];
@@ -408,6 +436,7 @@ ABOUT THIS WORKBENCH & VISUALIZATION ENVIRONMENT:
     const tools = getActiveBrowserTools(activeSkills);
     const maxSteps = 10;
     const logs = [];
+    const proposals = [];
 
     for (let step = 0; step < maxSteps; step++) {
         const isLastStep = (step === maxSteps - 1);
@@ -480,6 +509,14 @@ ABOUT THIS WORKBENCH & VISUALIZATION ENVIRONMENT:
                 }
 
                 logs.push(`Observation: ${outputStr.slice(0, 400)}`);
+                if (funcName === 'propose_column') {
+                    try {
+                        const parsed = JSON.parse(outputStr);
+                        if (parsed && parsed.valid) {
+                            proposals.push(parsed);
+                        }
+                    } catch {}
+                }
                 messages.push({
                     role: 'tool',
                     tool_call_id: tc.id,
@@ -503,7 +540,8 @@ ABOUT THIS WORKBENCH & VISUALIZATION ENVIRONMENT:
                 logs: logs,
                 images: [],
                 code_blocks: [],
-                df_head: dfHead
+                df_head: dfHead,
+                proposals: proposals
             };
         }
     }

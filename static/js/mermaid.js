@@ -17,9 +17,11 @@ import {
 import { formatMermaidSyntax } from './spec-formatter.js';
 import {
     exportSvg,
+    extractStandaloneSvg,
     fetchAiDiagram,
     bindCollapsibleSidebar,
     populateColumnSelects,
+    getInitialViewColumns,
     bindAiModal,
     withButtonSpinner
 } from './studio-utils.js';
@@ -237,8 +239,10 @@ export class MermaidManager {
         this.aiModalCancelBtn = document.getElementById('cancel-mermaid-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-mermaid-ai-modal-btn');
         this.applyChatBtn = document.getElementById('mermaid-apply-chat-btn');
+        this.pinCanvasBtn = document.getElementById('mermaid-pin-canvas-btn');
         this.sourceChartId = null;
         this.onApplyToChat = options.onApplyToChat || null;
+        this.getDatasetName = options.getDatasetName || null;
     }
 
     setSourceChartId(chartId) {
@@ -583,14 +587,15 @@ export class MermaidManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
+        const initialCols = getInitialViewColumns(currentData);
 
-        const numCol = columns.find(c => {
+        const numCol = initialCols.numericCol || columns.find(c => {
             const sample = currentData.find(r => r[c] !== null && r[c] !== undefined)?.[c];
             return typeof sample === 'number' || (!isNaN(parseFloat(sample)) && isFinite(sample));
         });
 
         populateColumnSelects([
-            { select: this.sourceCol, defaultIndex: 0 },
+            { select: this.sourceCol, defaultVal: initialCols.categoricalCol, defaultIndex: 0 },
             { select: this.targetCol, defaultIndex: 1, defaultVal: numCol || '' },
             { select: this.valCol, includeNone: true, noneText: 'Row Count (1 per row)', defaultVal: numCol || '' }
         ], columns);
@@ -967,6 +972,25 @@ export class MermaidManager {
                 if (typeof this.onApplyToChat === 'function') {
                     this.onApplyToChat({ code, sourceChartId: this.sourceChartId });
                 }
+            });
+        }
+
+        if (this.pinCanvasBtn) {
+            this.pinCanvasBtn.addEventListener('click', () => {
+                const code = this.textEditor?.value?.trim() || '';
+                const svgEl = this.renderOutput?.querySelector('svg');
+                const svgString = svgEl ? extractStandaloneSvg(svgEl) : '';
+                const title = this.chartTitleInput?.value?.trim() || 'Mermaid Diagram';
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                    detail: {
+                        type: 'mermaid',
+                        title: title || 'Mermaid Diagram',
+                        payload: { code, svgString },
+                        source: { origin: 'mermaid', datasetName: currentDatasetName, timestamp: Date.now() }
+                    }
+                }));
             });
         }
         

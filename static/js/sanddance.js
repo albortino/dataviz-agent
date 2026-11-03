@@ -5,7 +5,7 @@
  */
 
 import { detectType } from './data-transform.js';
-import { bindCollapsibleSidebar } from './studio-utils.js';
+import { bindCollapsibleSidebar, getInitialViewColumns } from './studio-utils.js';
 
 export class SandDanceManager {
     constructor(options = {}) {
@@ -22,6 +22,7 @@ export class SandDanceManager {
         this.colorSelect = document.getElementById('sanddance-color');
         this.sortSelect = document.getElementById('sanddance-sort');
         this.facetSelect = document.getElementById('sanddance-facet');
+        this.noIdInfo = document.getElementById('sanddance-no-id-info');
         this.disaggregateCheck = document.getElementById('sanddance-disaggregate-check');
         this.disaggregateContainer = document.getElementById('sanddance-disaggregate-container');
         this.disaggregateCol = document.getElementById('sanddance-disaggregate-col');
@@ -387,7 +388,7 @@ export class SandDanceManager {
         }
         this.hasRenderedData = false;
         this.lastDataLength = 0;
-        if (this.chartSelect) this.chartSelect.value = 'density';
+        if (this.chartSelect) this.chartSelect.value = 'stacks';
         if (this.totalStyleSelect) this.totalStyleSelect.value = '';
         [this.xSelect, this.ySelect, this.colorSelect, this.sortSelect, this.facetSelect, this.disaggregateCol].forEach(el => {
             if (el) {
@@ -398,13 +399,14 @@ export class SandDanceManager {
         if (this.disaggregateCheck) this.disaggregateCheck.checked = false;
         if (this.disaggregateContainer) this.disaggregateContainer.classList.add('hidden');
         if (this.disaggregateInfo) this.disaggregateInfo.textContent = 'Unrolls rows by numerical count';
+        if (this.noIdInfo) this.noIdInfo.classList.add('hidden');
         if (this.panelGroup) this.panelGroup.classList.add('hidden');
         this.updateLabelsForChartType();
         this.updateTotalStyleVisibility();
     }
 
     updateLabelsForChartType() {
-        const chartType = (this.chartSelect && this.chartSelect.value) || 'density';
+        const chartType = (this.chartSelect && this.chartSelect.value) || 'stacks';
         const totalStyle = (this.totalStyleSelect && this.totalStyleSelect.value) || '';
         if (!this.xLabel || !this.yLabel) return;
 
@@ -428,6 +430,13 @@ export class SandDanceManager {
             if (this.chartHint) {
                 this.chartHint.style.display = 'block';
                 this.chartHint.textContent = 'Grid organizes all units into a regular matrix. Use Color By or Sort By.';
+            }
+        } else if (chartType === 'stacks') {
+            this.xLabel.textContent = 'Category (X Axis)';
+            this.yLabel.textContent = 'Measure (Y Axis)';
+            if (this.chartHint) {
+                this.chartHint.style.display = 'block';
+                this.chartHint.textContent = 'Stacks builds 3D columns of particles grouped by category and ordered by measure.';
             }
         } else if (chartType === 'barchart' || chartType === 'barchartV') {
             this.xLabel.textContent = 'Category (X Axis)';
@@ -455,9 +464,10 @@ export class SandDanceManager {
     ensureValidColumnsForChartType() {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return;
-        const chartType = (this.chartSelect && this.chartSelect.value) || 'density';
+        const chartType = (this.chartSelect && this.chartSelect.value) || 'stacks';
         const totalStyle = (this.totalStyleSelect && this.totalStyleSelect.value) || '';
 
+        const initialCols = getInitialViewColumns(currentData);
         const isColNumeric = (colName) => {
             if (!colName) return false;
             for (let r = 0; r < Math.min(currentData.length, 30); r++) {
@@ -473,7 +483,16 @@ export class SandDanceManager {
         const numericCols = cols.filter(c => isColNumeric(c));
         const categoricalCols = cols.filter(c => !isColNumeric(c));
 
-        if (chartType === 'treemap') {
+        if (chartType === 'stacks') {
+            if (this.xSelect && (!this.xSelect.value || initialCols.idColumns.includes(this.xSelect.value))) {
+                if (initialCols.categoricalCol) {
+                    this.xSelect.value = initialCols.categoricalCol;
+                }
+            }
+            if (this.ySelect && (!this.ySelect.value || this.ySelect.value === this.xSelect.value) && initialCols.numericCol) {
+                this.ySelect.value = initialCols.numericCol;
+            }
+        } else if (chartType === 'treemap') {
             // Ensure Group By is preferably categorical and Size By is numeric
             if (this.xSelect && !this.xSelect.value && categoricalCols.length > 0) {
                 this.xSelect.value = categoricalCols[0];
@@ -569,6 +588,16 @@ export class SandDanceManager {
         const currentData = this.getData();
         if (!currentData || currentData.length === 0) return;
         const columns = Object.keys(currentData[0]);
+        const initialCols = getInitialViewColumns(currentData);
+
+        if (this.noIdInfo) {
+            if (!initialCols.hasIdColumn) {
+                this.noIdInfo.classList.remove('hidden');
+            } else {
+                this.noIdInfo.classList.add('hidden');
+            }
+        }
+
         const selects = [this.xSelect, this.ySelect, this.colorSelect, this.sortSelect, this.facetSelect];
 
         selects.forEach((sel, index) => {
@@ -588,10 +617,15 @@ export class SandDanceManager {
                 opt.textContent = col;
                 sel.appendChild(opt);
             });
-            if (currentVal && columns.includes(currentVal)) sel.value = currentVal;
-            else if (index === 0 && columns.length > 0) sel.value = columns[0];
-            else if (index === 1 && columns.length > 1) sel.value = columns[1];
-            else sel.value = "";
+            if (currentVal && columns.includes(currentVal)) {
+                sel.value = currentVal;
+            } else if (index === 0 && columns.length > 0) {
+                sel.value = initialCols.categoricalCol || columns[0];
+            } else if (index === 1 && columns.length > 1) {
+                sel.value = initialCols.numericCol || (columns.find(c => c !== initialCols.categoricalCol) || columns[1]);
+            } else {
+                sel.value = "";
+            }
         });
 
         if (this.disaggregateCol) {
@@ -680,7 +714,7 @@ export class SandDanceManager {
         const width = Math.max(availWidth, 300);
         const height = Math.max(availHeight, 300);
 
-        const chartType = (this.chartSelect && this.chartSelect.value) || 'density';
+        const chartType = (this.chartSelect && this.chartSelect.value) || 'stacks';
         const xVal = (this.xSelect && this.xSelect.value) || undefined;
         const yVal = (this.ySelect && this.ySelect.value) || undefined;
         const totalStyle = (this.totalStyleSelect && this.totalStyleSelect.value) || undefined;
@@ -829,6 +863,15 @@ export class SandDanceManager {
             });
         }
 
+        if (this.noIdInfo) {
+            this.noIdInfo.addEventListener('click', () => {
+                if (this.disaggregateCheck && !this.disaggregateCheck.checked) {
+                    this.disaggregateCheck.checked = true;
+                    this.disaggregateCheck.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
         if (this.tooltipCheck) {
             this.tooltipCheck.addEventListener('change', () => {
                 this.tooltipsEnabled = !!this.tooltipCheck.checked;
@@ -855,7 +898,7 @@ export class SandDanceManager {
 
     exportState() {
         return {
-            chart: (this.chartSelect && this.chartSelect.value) || 'density',
+            chart: (this.chartSelect && this.chartSelect.value) || 'stacks',
             x: (this.xSelect && this.xSelect.value) || '',
             y: (this.ySelect && this.ySelect.value) || '',
             color: (this.colorSelect && this.colorSelect.value) || '',

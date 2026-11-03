@@ -15,3 +15,6 @@ __pycache__/
 *.png
 .github/skills
 .github/agents
+concepts_brief.md
+design_draft.md
+docs/

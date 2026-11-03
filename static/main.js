@@ -11,7 +11,7 @@
  */
 
 import { detectType, parseValue, processFullCSV } from './js/data-transform.js';
-import { duckdbEngine } from './js/duckdb-engine.js';
+import { duckdbEngine, tableToObjects } from './js/duckdb-engine.js';
 import { LineUpManager } from './js/lineup.js';
 import { MermaidManager } from './js/mermaid.js';
 import { SankeyManager } from './js/sankey.js';
@@ -20,6 +20,7 @@ import { SandDanceManager } from './js/sanddance.js';
 import { GraphicWalkerManager } from './js/graphic-walker.js';
 import { AgentManager } from './js/agent.js?v=20261020_v6';
 import { SettingsManager } from './js/settings.js';
+import { CanvasManager } from './js/canvas.js';
 import { exportSession, validateDatasetForSession, restoreSessionState } from './js/session.js';
 
 const isInternalColumn = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
@@ -41,15 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
+    const showCanvasBtn = document.getElementById('show-canvas-btn');
     const headerSpecToggleBtn = document.getElementById('header-spec-toggle-btn');
     const headerControlsToggleBtn = document.getElementById('header-controls-toggle-btn');
     const headerControlsLabel = document.getElementById('header-controls-label');
-    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
+    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showCanvasBtn];
     // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
     // buttons never fire click events, so including the Charts engine picker
     // would make the dropdown unopenable. The picker stays enabled so users
     // can always switch engines; engine items no-op until data is loaded.
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showCanvasBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -58,9 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const mermaidContainer = document.getElementById('mermaid-container');
     const sankeyContainer = document.getElementById('sankey-container');
     const vegaContainer = document.getElementById('vega-container');
+    const canvasContainer = document.getElementById('canvas-container');
     const agentContainer = document.getElementById('agent-container');
     const copilotDragHandle = document.getElementById('copilot-drag-handle');
-    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer];
+    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer, canvasContainer];
     const allContainers = [...visualContainers, agentContainer];
 
     const emptyStateContainer = document.getElementById('empty-state-container');
@@ -97,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateDatasetIndicator = (name, rowCount = 0) => {
         currentDatasetName = name;
+        window.currentDatasetName = name;
         // Header chip removed by design: dataset identity lives in the
         // Data dropdown ("Active Dataset") only, keeping the header quiet.
         if (dataActiveDatasetText) {
@@ -140,6 +144,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmImportBtn = document.getElementById('confirm-import-btn');
     const cancelImportBtn = document.getElementById('cancel-import-btn');
 
+    // Reset Dataset Confirmation Modal
+    const resetConfirmModal = document.getElementById('reset-confirm-modal');
+    const confirmResetBtn = document.getElementById('confirm-reset-btn');
+    const cancelResetConfirmBtn = document.getElementById('cancel-reset-confirm-btn');
+    const closeResetConfirmModalBtn = document.getElementById('close-reset-confirm-modal-btn');
+
     // Global Data State
     let currentData = [];
     window.currentData = currentData;
@@ -147,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingFile = null;
 
     const getData = () => currentData;
+    const getDatasetName = () => currentDatasetName;
 
     // Instantiate Sub-Managers
     const lineupMgr = new LineUpManager({
@@ -155,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mermaidMgr = new MermaidManager({
         getData,
+        getDatasetName,
         onApplyToChat: ({ code, sourceChartId }) => {
             toggleAgent(true);
             if (sourceChartId) {
@@ -167,11 +179,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sankeyMgr = new SankeyManager({
-        getData
+        getData,
+        getDatasetName
     });
 
     const vegaMgr = new VegaManager({
         getData,
+        getDatasetName,
         onApplyToChat: ({ spec, sourceChartId }) => {
             toggleAgent(true);
             if (sourceChartId) {
@@ -193,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const agentMgr = new AgentManager({
         getData,
+        getDatasetName,
         onOpenMermaid: (code, chartId) => {
             mermaidMgr.loadDiagram(code, chartId);
             showMermaid();
@@ -209,6 +224,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const canvasMgr = new CanvasManager({
+        container: canvasContainer,
+        onOpenVega: (spec, chartId) => {
+            vegaMgr.loadSpec(spec, chartId);
+            showVega();
+        },
+        onOpenMermaid: (code, chartId) => {
+            mermaidMgr.loadDiagram(code, chartId);
+            showMermaid();
+        },
+        onOpenSankey: (payload) => {
+            if (payload?.state) {
+                sankeyMgr.importState(payload.state);
+            } else if (payload?.text && sankeyMgr.textEditor) {
+                sankeyMgr.textEditor.value = payload.text;
+                sankeyMgr.renderChart();
+            }
+            showSankey();
+        }
+    });
+
     // Initialize modules
     lineupMgr.init();
     mermaidMgr.init();
@@ -218,6 +254,63 @@ document.addEventListener('DOMContentLoaded', () => {
     graphicWalkerMgr.init();
     agentMgr.init();
     settingsMgr.init();
+
+    // Central Dataset Single Source of Truth Store
+    window.datasetStore = {
+        async applyColumnMutation(columnName, sqlExpr) {
+            if (!duckdbEngine || !duckdbEngine.isReady()) {
+                throw new Error('DuckDB engine is not initialized or ready.');
+            }
+            await duckdbEngine.addColumnExpression(columnName, sqlExpr);
+            const table = await duckdbEngine.query(`SELECT * FROM ${duckdbEngine.tableName};`);
+            const updatedRecords = tableToObjects(table);
+            currentData = updatedRecords;
+            window.currentData = updatedRecords;
+            window.globalData = updatedRecords;
+
+            const schema = await duckdbEngine.getSchema();
+            const newColumns = schema.map(c => c.name);
+            const totalRows = updatedRecords.length;
+
+            const eventDetail = { columnName, newColumns, totalRows };
+            window.dispatchEvent(new CustomEvent('dataset:schema-updated', { detail: eventDetail }));
+            return eventDetail;
+        },
+        getSnapshot() {
+            return window.globalData || window.currentData || currentData || [];
+        },
+        subscribe(eventName, callback) {
+            window.addEventListener(eventName, callback);
+            return () => window.removeEventListener(eventName, callback);
+        }
+    };
+
+    window.addEventListener('dataset:schema-updated', () => {
+        const data = window.datasetStore.getSnapshot();
+        if (lineupMgr) {
+            lineupMgr.render(data);
+            lineupInstance = lineupMgr.getInstance();
+        }
+        if (graphicWalkerMgr && graphicWalkerMgr.hasRenderedData) {
+            graphicWalkerMgr.render(data);
+        }
+        if (sanddanceMgr && typeof sanddanceMgr.updateOptions === 'function') {
+            sanddanceMgr.updateOptions();
+        }
+        if (sankeyMgr && typeof sankeyMgr.updateColumnOptions === 'function') {
+            sankeyMgr.updateColumnOptions();
+        }
+        if (mermaidMgr && typeof mermaidMgr.updateColumnOptions === 'function') {
+            mermaidMgr.updateColumnOptions();
+        }
+        if (vegaMgr && typeof vegaMgr.updateColumnOptions === 'function') {
+            vegaMgr.updateColumnOptions();
+        }
+        if (agentMgr && typeof agentMgr.renderPreviewTable === 'function') {
+            agentMgr.renderPreviewTable(data.slice(0, 5));
+        }
+        updateDatasetIndicator(currentDatasetName, data.length);
+    });
 
     // Loading State Toggle
     const toggleLoading = (show) => {
@@ -452,6 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
             agentContainer.classList.remove('hidden');
             if (copilotDragHandle) copilotDragHandle.classList.remove('hidden');
             if (showAgentBtn) showAgentBtn.classList.add('active');
+            if (agentMgr && typeof agentMgr.checkStatusLazy === 'function') {
+                agentMgr.checkStatusLazy();
+            }
             setTimeout(() => { if (agentMgr && agentMgr.chatInput) agentMgr.chatInput.focus(); }, 60);
         } else {
             agentContainer.classList.add('hidden');
@@ -464,6 +560,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function showAgent() {
         if (!currentData || currentData.length === 0) return;
         toggleAgent(true);
+    }
+
+    function showCanvas() {
+        if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'canvas';
+        setActiveView(canvasContainer, showCanvasBtn);
+        if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
     }
 
     function activateViewByName(viewName) {
@@ -486,6 +589,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'vega-online':
                 showVega();
                 break;
+            case 'canvas':
+                showCanvas();
+                break;
             case 'agent':
                 showAgent();
                 break;
@@ -506,6 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showLineupBtn) showLineupBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showLineup(); });
     if (showGraphicwalkerBtn) showGraphicwalkerBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showGraphicWalker(); });
     if (showSanddanceBtn) showSanddanceBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSanddance(); });
+    if (showCanvasBtn) showCanvasBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showCanvas(); });
     if (plotsPrimaryBtn) {
         plotsPrimaryBtn.addEventListener('click', () => {
             if (!currentData || currentData.length === 0) return;
@@ -591,10 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const copilotCollapseBtn = document.getElementById('agent-copilot-collapse-btn');
-    if (copilotCollapseBtn) {
-        copilotCollapseBtn.addEventListener('click', () => toggleAgent(false));
-    }
 
     // Draggable Split-Pane Resizer for Agent
     if (copilotDragHandle && agentContainer) {
@@ -763,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const processAndRenderData = (data, datasetName = null) => {
         currentData = data;
         window.currentData = data;
+        window.globalData = data;
         if (datasetName) {
             currentDatasetName = datasetName;
         } else if (!currentDatasetName) {
@@ -867,9 +971,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sanddanceMgr.reset();
         sankeyMgr.reset();
         mermaidMgr.reset();
+        if (canvasMgr && typeof canvasMgr.reset === 'function') {
+            canvasMgr.reset();
+        }
 
         currentData = [];
         window.currentData = [];
+        window.globalData = [];
         if (window.duckdbEngine) {
             window.duckdbEngine.clear().catch(() => { });
         }
@@ -1177,7 +1285,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (dummyDataButton) dummyDataButton.addEventListener('click', renderDummyData);
-    if (resetButton) resetButton.addEventListener('click', resetView);
+
+    const openResetConfirmModal = () => {
+        if (dataDropdownMenu) {
+            dataDropdownMenu.classList.remove('show');
+            if (dataDropdownBtn) dataDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
+        if (resetConfirmModal) {
+            resetConfirmModal.classList.remove('hidden');
+        } else if (window.confirm('Reset dataset? This will discard your current working state, reset all charts, and permanently remove all items from your Insight Canvas.')) {
+            resetView();
+        }
+    };
+
+    const closeResetConfirmModal = () => {
+        if (resetConfirmModal) resetConfirmModal.classList.add('hidden');
+    };
+
+    if (resetButton) resetButton.addEventListener('click', openResetConfirmModal);
+    if (cancelResetConfirmBtn) cancelResetConfirmBtn.addEventListener('click', closeResetConfirmModal);
+    if (closeResetConfirmModalBtn) closeResetConfirmModalBtn.addEventListener('click', closeResetConfirmModal);
+    if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', () => {
+            closeResetConfirmModal();
+            resetView();
+        });
+    }
 
     window.addEventListener('resize', () => {
         if (sanddanceContainer && !sanddanceContainer.classList.contains('hidden')) {
@@ -1559,7 +1692,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     sankey: sankeyMgr,
                     mermaid: mermaidMgr,
                     vega: vegaMgr,
-                    agent: agentMgr
+                    agent: agentMgr,
+                    canvas: canvasMgr
                 },
                 lineupInstance
             });
@@ -1644,7 +1778,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             sankey: sankeyMgr,
                             mermaid: mermaidMgr,
                             vega: vegaMgr,
-                            agent: agentMgr
+                            agent: agentMgr,
+                            canvas: canvasMgr
                         },
                         restoreLineup: restoreLineupWithDump,
                         activateView: activateViewByName

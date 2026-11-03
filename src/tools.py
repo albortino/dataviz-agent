@@ -13,6 +13,7 @@ except ImportError:
     sns = None
 
 import ast
+import re
 import time
 import signal
 import threading
@@ -91,14 +92,14 @@ ALLOWED_ROOT_MODULES = frozenset({
     'pandas', 'numpy', 'matplotlib', 'seaborn',
     'math', 'datetime', 'scipy', 'collections',
     'itertools', 'functools', 're', 'json',
-    'vizkit', 'helpers', 'src'
+    'vizkit', 'helpers', 'src', 'sklearn', 'statsmodels'
 })
 
 def _check_module_allowed(mod_name: str) -> bool:
     if not mod_name:
         return False
     root = mod_name.split('.')[0]
-    if root in {'pandas', 'numpy', 'matplotlib', 'seaborn', 'math', 'datetime', 'scipy', 'collections', 'itertools', 'functools', 're', 'json', 'vizkit', 'helpers'}:
+    if root in ALLOWED_ROOT_MODULES:
         return True
     if root.startswith('VK_') or root.startswith('vk_'):
         return True
@@ -250,7 +251,7 @@ def audit_dataset(df: pd.DataFrame) -> str:
         return f"Error: {str(e)}"
 
 
-def execute_python_code(df: pd.DataFrame, code: str) -> dict:
+def execute_python_code(df: pd.DataFrame, code: str, sql_query: str = None) -> dict:
     """
     Executes sandboxed Python code with access to pd, np, plt, sns, and df.
     Restricts builtins, blocks imports/introspection, enforces a 10s execution timeout,
@@ -837,8 +838,71 @@ def execute_sql(df: pd.DataFrame = None, query: str = "") -> str:
     except Exception as e:
         return f"SQL Error: {str(e)}"
 
+def sanitize_sql_division(expr: str) -> str:
+    """Wraps / <term> with / NULLIF(<term>, 0) in SQL expressions, avoiding strings and existing NULLIF."""
+    if not expr or not isinstance(expr, str):
+        return expr
+    result = []
+    i = 0
+    n = len(expr)
+    while i < n:
+        if expr[i] == "'":
+            next_q = expr.find("'", i + 1)
+            if next_q == -1:
+                result.append(expr[i:])
+                break
+            else:
+                result.append(expr[i:next_q + 1])
+                i = next_q + 1
+                continue
+        if expr[i] == '/':
+            j = i + 1
+            while j < n and expr[j].isspace():
+                j += 1
+            if j + 6 <= n and expr[j:j + 6].upper() == 'NULLIF':
+                result.append('/')
+                i += 1
+                continue
+            if j < n and expr[j] == '(':
+                depth = 0
+                k = j
+                while k < n:
+                    if expr[k] == '(':
+                        depth += 1
+                    elif expr[k] == ')':
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    k += 1
+                if depth == 0 and k < n:
+                    term = expr[j:k + 1]
+                    result.append(f"/ NULLIF({term}, 0)")
+                    i = k + 1
+                    continue
+            m = re.match(r'^[a-zA-Z_0-9."]+', expr[j:])
+            if m:
+                term = m.group(0)
+                result.append(f"/ NULLIF({term}, 0)")
+                i = j + len(term)
+                continue
+        result.append(expr[i])
+        i += 1
+    return "".join(result)
+
+def propose_column(df: pd.DataFrame = None, column_name: str = "", sql_expression: str = "", description: str = "") -> str:
+    """Propose adding a calculated column to the active dataset using a safe SQL expression."""
+    sanitized = sanitize_sql_division(sql_expression)
+    desc = f" ({description})" if description else ""
+    return f"Column proposal prepared: '{column_name}' with formula '{sanitized}'{desc}."
+
+def generate_python_chart(df: pd.DataFrame = None, sql_query: str = "", python_code: str = "") -> str:
+    """Fallback stub for generate_python_chart if executed on server instead of client delegation."""
+    return "Client delegation required: generate_python_chart must be executed client-side via DuckDB-Wasm."
+
 AVAILABLE_TOOLS = {
     "execute_sql": execute_sql,
+    "propose_column": propose_column,
+    "generate_python_chart": generate_python_chart,
     "list_columns": list_columns,
     "get_info": get_info,
     "summarize_dataset": summarize_dataset,
@@ -860,7 +924,7 @@ AVAILABLE_TOOLS = {
 }
 
 CLIENT_DELEGATED_TOOLS = frozenset({
-    "execute_sql", "audit_dataset", "summarize_dataset", "get_info", "list_columns",
+    "execute_sql", "propose_column", "generate_python_chart", "execute_python_code", "audit_dataset", "summarize_dataset", "get_info", "list_columns",
     "calculate_mean", "calculate_sum", "get_statistics", "get_unique_values",
     "calculate_correlation", "get_group_summary"
 })
@@ -868,6 +932,8 @@ CLIENT_DELEGATED_TOOLS = frozenset({
 # Tool descriptions for LLM (fallback textual prompt)
 TOOL_DESCRIPTIONS = """
 execute_sql(query): Execute a SQL query on the full dataset in DuckDB (table name is 'dataset')
+propose_column(column_name, sql_expression, description): Propose adding a new calculated or derived column to the active dataset using a safe SQL expression with interactive user confirmation
+generate_python_chart(sql_query, python_code): Execute DuckDB SQL query to project/aggregate data against table 'dataset', then plot the projected DataFrame 'df' in Python using seaborn and matplotlib
 list_columns(): Get all column names
 get_info(): Get shape and dtypes
 summarize_dataset(): Comprehensive overview (shape, dtypes, null counts, numeric statistics, categorical frequencies, head sample)
@@ -879,7 +945,7 @@ get_statistics(column, columns): Summary stats (describe) for one, multiple, or 
 apply_filter(column, value, operator): Filter data (==, >, <, contains)
 get_group_summary(group_col, agg_col, agg_cols, agg_func): Group by and aggregate one or multiple numeric columns (mean, sum, count, median, min, max)
 calculate_correlation(col_a, col_b): Pearson correlation
-execute_python_code(code): Execute Python code with access to pd, np, plt, sns (seaborn - prioritized), and df. Create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, etc.) targeting ax. Figures are automatically captured and rendered in chat.
+execute_python_code(code, sql_query): Execute sandboxed Python code for machine learning (e.g. KNeighborsClassifier), statistical modeling (statsmodels), or general calculations. Set sql_query to project dataset rows into df, or omit for pure calculations.
 generate_mermaid_pie(column, title, top_n): Generate Mermaid pie chart for category distribution
 generate_mermaid_flowchart(source_col, target_col, agg_col, agg_func, direction): Generate Mermaid flowchart between columns
 generate_mermaid_xy_chart(x_col, y_col, chart_type, title): Generate Mermaid xychart-beta (bar or line)
@@ -904,6 +970,52 @@ OPENAI_TOOLS = [
                     }
                 },
                 "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_column",
+            "description": "Propose adding a calculated or derived column to the active dataset using a safe SQL expression. Automatically validates arithmetic expressions and presents an interactive preview confirmation card for the user. Use this whenever the user asks to add, calculate, or derive a new column or metric.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "column_name": {
+                        "type": "string",
+                        "description": "The proposed target column name (e.g. 'profit_margin', 'tenure_years')."
+                    },
+                    "sql_expression": {
+                        "type": "string",
+                        "description": "DuckDB SQL expression to calculate the column values (e.g. '((revenue - cost) / NULLIF(revenue, 0)) * 100')."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Brief explanation of what the column calculates."
+                    }
+                },
+                "required": ["column_name", "sql_expression"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_python_chart",
+            "description": "Generates a publication-quality Seaborn/Matplotlib chart with takeaway titles and clean styling by executing an analytical SQL query against DuckDB-Wasm first, then plotting the projected data in Python.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sql_query": {
+                        "type": "string",
+                        "description": "DuckDB SQL query targeting table 'dataset' to aggregate or project the exact columns and rows required for plotting."
+                    },
+                    "python_code": {
+                        "type": "string",
+                        "description": "Python plotting code using seaborn (sns) and matplotlib.pyplot (plt) targeting ax, with pre-loaded VK_* layout helpers. Plotted data is available in DataFrame 'df'."
+                    }
+                },
+                "required": ["sql_query", "python_code"]
             }
         }
     },
@@ -1175,13 +1287,17 @@ OPENAI_TOOLS = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python data visualization or analysis code. You have access to pd, np, plt, sns, df, and pre-loaded VK_* visual helpers (VK_apply_clean_layout, VK_apply_narrative_layout, VK_direct_label_last, VK_label_bars, VK_palette, VK_ACCENT, VK_PRIMARY, VK_GRAY). Always create plots using Seaborn (sns.barplot, sns.lineplot, sns.scatterplot, sns.histplot, sns.boxplot, sns.heatmap) targeting ax.",
+            "description": "Executes sandboxed Python code for machine learning (e.g. scikit-learn models like KNeighborsClassifier, RandomForest, LogisticRegression), statistical modeling (statsmodels), data science calculations, or general algorithms. If modeling or analyzing dataset columns, supply `sql_query` to project data into DataFrame 'df'. If running standalone scripts or calculations without dataset data, omit `sql_query`.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "Python code to execute. For charts: PRIORITIZE Seaborn (e.g. sns.barplot(data=df_sorted, x=..., y=..., ax=ax, palette=[...])) instead of raw ax.bar/ax.barh/ax.plot. Sort categorical data by value, start bar axes at 0, label bars with VK_label_bars(ax, fmt='%.1f') or VK_label_bars(ax, fmt='%d'), apply VK_apply_clean_layout(ax, takeaway_title, subtitle) or VK_apply_narrative_layout(ax, action_title, callout). Do not call ax.set_title() or manual ax.text() for bar labels. Do not call plt.show()."
+                        "description": "Python code to execute. Can import pandas, numpy, scipy, sklearn, statsmodels, math, datetime, collections, etc. DataFrame 'df' contains the projected dataset rows (if sql_query was specified). Print results via print() to output findings."
+                    },
+                    "sql_query": {
+                        "type": "string",
+                        "description": "Optional SQL query against DuckDB table 'dataset' to project rows into DataFrame 'df'. Required when modeling or analyzing data."
                     }
                 },
                 "required": ["code"]

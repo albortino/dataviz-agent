@@ -13,6 +13,7 @@ import {
     fetchAiDiagram,
     bindCollapsibleSidebar,
     populateColumnSelects,
+    getInitialViewColumns,
     bindAiModal,
     CHART_CATEGORICAL,
     withButtonSpinner,
@@ -118,8 +119,10 @@ export class VegaManager {
         this.aiModalCancelBtn = document.getElementById('cancel-vega-ai-modal-btn');
         this.aiModalSubmitBtn = document.getElementById('confirm-vega-ai-modal-btn');
         this.applyChatBtn = document.getElementById('vega-apply-chat-btn');
+        this.pinCanvasBtn = document.getElementById('vega-pin-canvas-btn');
         this.sourceChartId = null;
         this.onApplyToChat = options.onApplyToChat || null;
+        this.getDatasetName = options.getDatasetName || null;
     }
 
     init() {
@@ -354,6 +357,39 @@ export class VegaManager {
             });
         }
 
+        if (this.pinCanvasBtn) {
+            this.pinCanvasBtn.addEventListener('click', () => {
+                let currentSpec = null;
+                const raw = this.getSpecText()?.trim();
+                if (raw) {
+                    try {
+                        currentSpec = JSON.parse(raw);
+                    } catch (e) {
+                        currentSpec = null;
+                    }
+                }
+                if (!currentSpec) return;
+
+                const data = typeof this.getData === 'function' ? this.getData() : [];
+                if ((!currentSpec.data || !currentSpec.data.values || currentSpec.data.values.length === 0) && data && data.length > 0) {
+                    currentSpec = JSON.parse(JSON.stringify(currentSpec));
+                    currentSpec.data = { values: data };
+                }
+
+                const title = this.chartTitleInput?.value?.trim() || (typeof currentSpec.title === 'string' ? currentSpec.title : null) || 'Vega-Lite Chart';
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                    detail: {
+                        type: 'vega',
+                        title: title || 'Vega-Lite Chart',
+                        payload: { spec: currentSpec },
+                        source: { origin: 'vega', datasetName: currentDatasetName, timestamp: Date.now() }
+                    }
+                }));
+            });
+        }
+
         // Zoom Controls
         if (this.zoomInBtn) this.zoomInBtn.addEventListener('click', () => this.setZoom(this.zoomLevel + 0.15));
         if (this.zoomOutBtn) this.zoomOutBtn.addEventListener('click', () => this.setZoom(this.zoomLevel - 0.15));
@@ -423,9 +459,10 @@ export class VegaManager {
         if (!data || data.length === 0) return;
 
         const columns = Object.keys(data[0] || {});
+        const initialCols = getInitialViewColumns(data);
         populateColumnSelects([
-            this.xCol,
-            this.yCol,
+            { select: this.xCol, defaultVal: initialCols.categoricalCol },
+            { select: this.yCol, defaultVal: initialCols.numericCol },
             { select: this.colorCol, includeNone: true },
             { select: this.facetColSelect, includeNone: true }
         ], columns);
@@ -436,19 +473,16 @@ export class VegaManager {
         if (!data || data.length === 0) return;
 
         this.updateColumnOptions();
-        const sample = data[0] || {};
-        const isInternalCol = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
-        const cols = Object.keys(sample).filter(c => !isInternalCol(c));
-
-        let catCol = cols.find(c => typeof sample[c] === 'string') || cols[0];
-        let numCol = cols.find(c => typeof sample[c] === 'number') || cols[1] || cols[0];
+        const initialCols = getInitialViewColumns(data);
+        const catCol = initialCols.categoricalCol;
+        const numCol = initialCols.numericCol;
 
         if (this.presetSelect) this.presetSelect.value = 'bar';
         if (this.chartTitleInput) this.chartTitleInput.value = '';
         if (this.xCol && catCol) this.xCol.value = catCol;
         if (this.yCol && numCol) this.yCol.value = numCol;
         if (this.colorCol) this.colorCol.value = '';
-        if (this.aggFunc) this.aggFunc.value = typeof sample[numCol] === 'number' ? 'sum' : 'none';
+        if (this.aggFunc) this.aggFunc.value = initialCols.numericCols.includes(numCol) ? 'sum' : 'none';
 
         this.generateFromControls();
     }

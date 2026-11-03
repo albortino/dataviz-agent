@@ -6,7 +6,7 @@
 
 import { aggregateValues, detectType, aggregateFlows } from './data-transform.js';
 import { formatSankeySyntax } from './spec-formatter.js';
-import { exportSvg, bindCollapsibleSidebar, populateColumnSelects, CHART_CATEGORICAL } from './studio-utils.js';
+import { exportSvg, extractStandaloneSvg, bindCollapsibleSidebar, populateColumnSelects, CHART_CATEGORICAL } from './studio-utils.js';
 
 export { CHART_CATEGORICAL };
 export const CHART_SINGLE = '#0072B2';
@@ -49,6 +49,7 @@ export class SankeyManager {
         this.customWidthInput = document.getElementById('sankey-custom-width');
         this.customHeightInput = document.getElementById('sankey-custom-height');
         this.addTextBtn = document.getElementById('sankey-add-text-btn');
+        this.pinCanvasBtn = document.getElementById('sankey-pin-canvas-btn');
         this.exportPngBtn = document.getElementById('sankey-export-png-btn');
         this.exportSvgBtn = document.getElementById('sankey-export-svg-btn');
         this.controlsSidebar = document.getElementById('sankey-controls-sidebar');
@@ -56,6 +57,7 @@ export class SankeyManager {
         this.controlsExpandBtn = document.getElementById('sankey-controls-expand-btn');
         this.svg = d3.select('#sankey-svg');
         this.resizeTimeout = null;
+        this.getDatasetName = options.getDatasetName || null;
     }
 
     init() {
@@ -612,6 +614,23 @@ export class SankeyManager {
         if (this.exportSvgBtn) {
             this.exportSvgBtn.addEventListener('click', () => {
                 exportSvg(document.getElementById('sankey-svg'), 'svg', 'sankey-chart');
+            });
+        }
+
+        if (this.pinCanvasBtn) {
+            this.pinCanvasBtn.addEventListener('click', () => {
+                const svgEl = document.getElementById('sankey-svg');
+                const svgString = svgEl ? extractStandaloneSvg(svgEl) : '';
+                const currentDatasetName = (typeof this.getDatasetName === 'function' ? this.getDatasetName() : null) || window.currentDatasetName || 'dataset.csv';
+
+                window.dispatchEvent(new CustomEvent('dataviz:pin-card', {
+                    detail: {
+                        type: 'sankey',
+                        title: 'Sankey Flow Diagram',
+                        payload: { svgString },
+                        source: { origin: 'sankey', datasetName: currentDatasetName, timestamp: Date.now() }
+                    }
+                }));
             });
         }
     }

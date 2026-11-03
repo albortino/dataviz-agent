@@ -185,22 +185,24 @@ class ReActAgent:
             "2. THINK FIRST: Plan your steps before calling any tool. Do not guess or test randomly.\n"
             "3. NO REDUNDANT EXPLORATION: The columns, data types, and sample data are already given above. Do NOT call `list_columns` or `get_info` unless the user explicitly asked for them.\n"
             "4. BE DECISIVE (TARGET 1-2 STEPS MAX):\n"
-            "   - For metrics or calculations, call `execute_sql`.\n"
-            "   - For charts or visualizations, write a single `execute_python_code` script prioritizing `seaborn` (`sns`) alongside `matplotlib.pyplot` (`plt`) and `VK_*` helpers.\n"
+            "   - For metrics or aggregations across the dataset, call `execute_sql`.\n"
+            "   - For charts or visualizations, call `generate_python_chart(sql_query, python_code)` prioritizing `seaborn` (`sns`) alongside `matplotlib.pyplot` (`plt`) and `VK_*` helpers.\n"
+            "   - For machine learning (e.g. KNeighborsClassifier, RandomForest, LogisticRegression), statistical modeling (statsmodels), or general Python computations, call `execute_python_code(code, sql_query=...)`. Supply `sql_query` to project needed columns into `df`.\n"
             "   - Once a plot is generated successfully, do not re-run or repeat plotting code unless there was an explicit Execution error or a LINT warning to fix.\n"
-            "5. KEEP IT SHORT & CONCISE: Present direct answers without unnecessary filler text.\n\n"
+            "5. KEEP IT SHORT & CONCISE: Present direct answers without unnecessary filler text.\n"
+            "6. DATASET MUTATIONS & CALCULATED COLUMNS: When the user asks to add, calculate, or derive a new column or metric, invoke `propose_column(column_name, sql_expression, description)`. This runs a safe dry-run preview and presents an interactive confirmation card for the user to commit the column to the active dataset.\n\n"
         )
         if self.audit_on:
             base += (
                 "ROUTING (two-track):\n"
-                "- fast-path: explicit chart request ('bar chart of X by Y'). Go straight to one `execute_python_code` call.\n"
+                "- fast-path: explicit chart request ('bar chart of X by Y'). Go straight to one `generate_python_chart` call.\n"
                 "- eda-path: vague request ('analyze revenue', 'what drives churn', 'summarize dataset'). First call `summarize_dataset` or `audit_dataset`, then state 2-3 hypotheses as VisualizationPlan JSON "
                 '{"metric, dimension, filter, agg, rollup, intent, mode} intent in [ranking, trend, distribution, group_compare, relation, part_whole, correlation, change_2pt], '
                 "mode in [exploration, editorial, narrative]. Execute one plan at a time.\n\n"
             )
         else:
             base += (
-                "ROUTING: the data-audit skill is OFF. Use `summarize_dataset` for overviews or go straight to `execute_python_code`.\n\n"
+                "ROUTING: the data-audit skill is OFF. Use `summarize_dataset` for overviews or go straight to `generate_python_chart`.\n\n"
             )
         if self.dataviz_on:
             base += (
@@ -240,18 +242,19 @@ class ReActAgent:
                 "- Anomaly & Inflection Detection: Calculate outlier bounds (Z-score |z|>2.5 or IQR 1.5x) and inflection points (second derivative sign change). Annotate any detected anomaly or inflection with an in-plot highlight marker or callout.\n\n"
             )
         base += (
-            "VISUALIZATION CAPABILITY:\n"
-            "- Python Matplotlib/Seaborn: Use `execute_python_code`. Standard safe libraries (pd, np, plt, sns, math, datetime, scipy) can be imported or used directly. Any figures you generate via `plt` are captured, linted, and rendered directly in the user's chat.\n"
+            "EXECUTION CAPABILITIES:\n"
+            "- Python Matplotlib/Seaborn: Call `generate_python_chart(sql_query, python_code)` strictly when creating visual plots or charts. Figures generated via `plt` are captured, linted, and rendered directly in chat.\n"
+            "- Python Data Science & ML: Call `execute_python_code(code, sql_query=...)` for machine learning (e.g. scikit-learn models like KNeighborsClassifier, clustering, regressions), statistical modeling (statsmodels), or general Python scripts. Provide `sql_query` to project data into `df`, or omit `sql_query` for pure scripts.\n"
             "- Mermaid diagrams: Use Mermaid tools (`generate_mermaid_sankey`, `generate_mermaid_radar`, `generate_mermaid_treemap`, `generate_mermaid_flowchart`, `generate_mermaid_pie`, `generate_mermaid_xy_chart`) or code blocks."
         )
         return base
 
     def _active_openai_tools(self) -> list:
-        """Return tool schemas minus disabled skills (audit_dataset when off)."""
-        if self.audit_on:
-            return OPENAI_TOOLS
-        return [t for t in OPENAI_TOOLS
-                if not (isinstance(t, dict) and t.get("function", {}).get("name") == "audit_dataset")]
+        """Return tool schemas excluding disabled skills."""
+        tools = list(OPENAI_TOOLS)
+        if not self.audit_on:
+            tools = [t for t in tools if not (isinstance(t, dict) and t.get("function", {}).get("name") == "audit_dataset")]
+        return tools
 
     def process_query(self, user_query: str = None, messages: list = None, tool_results: list = None):
         logs = []
