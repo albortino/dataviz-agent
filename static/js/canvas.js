@@ -76,9 +76,9 @@ export class CanvasManager {
             .filter((event) => {
                 // Allow wheel zooming everywhere across canvas container
                 if (event.type === 'wheel') return true;
-                // Prevent drag-pan when interacting with cards or the control dock
+                // Prevent drag-pan when interacting with cards, text notes, or the control dock
                 if (event.target && event.target.closest) {
-                    if (event.target.closest('.canvas-card') || event.target.closest('.canvas-floating-dock')) {
+                    if (event.target.closest('.canvas-card') || event.target.closest('.canvas-text-note') || event.target.closest('.canvas-floating-dock')) {
                         return false;
                     }
                 }
@@ -172,14 +172,15 @@ export class CanvasManager {
 
         const id = cardDetail.id || `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const type = cardDetail.type || 'markdown';
-        const title = cardDetail.title || (type === 'markdown' ? 'Note' : 'Insight Card');
-        const width = cardDetail.width || 440;
-        const height = cardDetail.height || 320;
+        const isText = (type === 'text');
+        const title = cardDetail.title || (isText ? 'Text' : (type === 'markdown' ? 'Note' : 'Insight Card'));
+        const width = cardDetail.width || (isText ? 320 : 440);
+        const height = cardDetail.height || (isText ? 160 : 320);
         const zIndex = cardDetail.zIndex || ++this.nextZIndex;
         const payload = cardDetail.payload ? JSON.parse(JSON.stringify(cardDetail.payload)) : {};
         const source = {
             origin: cardDetail.source?.origin || 'user',
-            datasetName: cardDetail.source?.datasetName || '',
+            datasetName: cardDetail.source?.datasetName || (isText ? 'Text Note' : ''),
             timestamp: cardDetail.source?.timestamp || Date.now()
         };
 
@@ -255,6 +256,7 @@ export class CanvasManager {
         cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
         cardEl.style.zIndex = card.zIndex;
         if (card.width) cardEl.style.width = `${card.width}px`;
+        if (card.height) cardEl.style.height = `${card.height}px`;
 
         // Bring to front on click
         cardEl.addEventListener('pointerdown', () => {
@@ -351,6 +353,8 @@ export class CanvasManager {
         `;
         cardEl.appendChild(footer);
 
+        this.initCardResize(cardEl, card);
+
         return cardEl;
     }
 
@@ -360,6 +364,8 @@ export class CanvasManager {
         noteEl.className = 'canvas-text-note';
         noteEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
         noteEl.style.zIndex = card.zIndex;
+        if (card.width) noteEl.style.width = `${card.width}px`;
+        if (card.height) noteEl.style.height = `${card.height}px`;
 
         // Bring to front on pointerdown
         noteEl.addEventListener('pointerdown', () => {
@@ -367,22 +373,19 @@ export class CanvasManager {
             noteEl.style.zIndex = card.zIndex;
         });
 
-        // Hover toolbar with drag handle and delete button
-        const hoverBar = document.createElement('div');
-        hoverBar.className = 'text-note-hover-bar';
-        hoverBar.innerHTML = `
-            <i class="fa-solid fa-grip-vertical text-drag-handle" title="Drag to move text"></i>
-            <button type="button" class="text-note-delete-btn" title="Delete text"><i class="fa-solid fa-xmark"></i></button>
-        `;
-        noteEl.appendChild(hoverBar);
-
-        const deleteBtn = hoverBar.querySelector('.text-note-delete-btn');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeCard(card.id);
-            });
-        }
+        // Native top-right delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'card-action-btn delete-card-btn';
+        deleteBtn.title = 'Delete note';
+        deleteBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        deleteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        deleteBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeCard(card.id);
+        });
+        noteEl.appendChild(deleteBtn);
 
         // Content div (rendered markdown)
         const contentDiv = document.createElement('div');
@@ -415,11 +418,12 @@ export class CanvasManager {
             noteEl.classList.add('is-editing');
             textarea.focus();
             textarea.style.height = 'auto';
-            textarea.style.height = `${Math.max(48, textarea.scrollHeight)}px`;
+            textarea.style.height = `${Math.max(48, textarea.scrollHeight || 48)}px`;
         };
 
         const exitEdit = () => {
             if (textarea.classList.contains('hidden')) return;
+            if (!card.payload) card.payload = {};
             card.payload.content = textarea.value;
             renderText();
             textarea.classList.add('hidden');
@@ -429,13 +433,36 @@ export class CanvasManager {
 
         textarea.addEventListener('input', () => {
             textarea.style.height = 'auto';
-            textarea.style.height = `${Math.max(48, textarea.scrollHeight)}px`;
+            textarea.style.height = `${Math.max(48, textarea.scrollHeight || 48)}px`;
         });
 
-        contentDiv.addEventListener('click', enterEdit);
         textarea.addEventListener('blur', exitEdit);
         textarea.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') exitEdit();
+        });
+
+        // Click-to-edit: clicking rendered markdown enters edit mode
+        contentDiv.addEventListener('click', (e) => {
+            if (noteEl._wasDragged) {
+                noteEl._wasDragged = false;
+                return;
+            }
+            enterEdit();
+        });
+
+        noteEl.addEventListener('click', (e) => {
+            if (noteEl._wasDragged) {
+                noteEl._wasDragged = false;
+                return;
+            }
+            if (e.target && e.target.closest) {
+                if (e.target.closest('button') || e.target.closest('.text-note-editor') || e.target.closest('.resize-handle')) {
+                    return;
+                }
+            }
+            if (!noteEl.classList.contains('is-editing')) {
+                enterEdit();
+            }
         });
 
         renderText();
@@ -443,8 +470,8 @@ export class CanvasManager {
             setTimeout(enterEdit, 20);
         }
 
-        const dragHandle = hoverBar.querySelector('.text-drag-handle');
-        this.initCardDrag(noteEl, card, dragHandle);
+        this.initCardDrag(noteEl, card);
+        this.initCardResize(noteEl, card);
 
         return noteEl;
     }
@@ -611,13 +638,14 @@ export class CanvasManager {
         const onPointerDown = (e) => {
             if (e.button !== undefined && e.button !== 0) return;
             if (e.target && e.target.closest) {
-                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('[contenteditable="true"]')) {
+                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('[contenteditable="true"]') || e.target.closest('.resize-handle')) {
                     return;
                 }
             }
 
             if (e.stopPropagation) e.stopPropagation();
             isDragging = true;
+            cardEl._wasDragged = false;
             if (handle.setPointerCapture && e.pointerId !== undefined) {
                 try {
                     handle.setPointerCapture(e.pointerId);
@@ -639,6 +667,9 @@ export class CanvasManager {
             const scale = this.currentScale || 1.0;
             const deltaX = ((e.clientX || 0) - startClientX) / scale;
             const deltaY = ((e.clientY || 0) - startClientY) / scale;
+            if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+                cardEl._wasDragged = true;
+            }
             card.x = Math.round(startCardX + deltaX);
             card.y = Math.round(startCardY + deltaY);
             cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
@@ -679,6 +710,149 @@ export class CanvasManager {
                     cardEl.classList.remove('is-dragging');
                 });
             d3.select(handle).call(drag);
+        }
+    }
+
+    initCardResize(cardEl, card) {
+        if (!cardEl || !card) return;
+
+        const handles = [
+            { dir: 'tl', className: 'resize-corner-tl', cursor: 'nwse-resize' },
+            { dir: 't',  className: 'resize-edge-t',    cursor: 'ns-resize' },
+            { dir: 'tr', className: 'resize-corner-tr', cursor: 'nesw-resize' },
+            { dir: 'r',  className: 'resize-edge-r',    cursor: 'ew-resize' },
+            { dir: 'br', className: 'resize-corner-br', cursor: 'nwse-resize' },
+            { dir: 'b',  className: 'resize-edge-b',    cursor: 'ns-resize' },
+            { dir: 'bl', className: 'resize-corner-bl', cursor: 'nesw-resize' },
+            { dir: 'l',  className: 'resize-edge-l',    cursor: 'ew-resize' }
+        ];
+
+        handles.forEach(({ dir, className, cursor }) => {
+            const handleEl = document.createElement('div');
+            handleEl.className = `resize-handle ${className}`;
+            handleEl.style.cursor = cursor;
+            cardEl.appendChild(handleEl);
+
+            let isResizing = false;
+            let startClientX = 0;
+            let startClientY = 0;
+            let startX = 0;
+            let startY = 0;
+            let startW = 0;
+            let startH = 0;
+
+            const onPointerMove = (e) => {
+                if (!isResizing) return;
+                if (e.stopPropagation) e.stopPropagation();
+
+                const scale = this.currentScale || 1.0;
+                const clientX = e.clientX !== undefined ? e.clientX : 0;
+                const clientY = e.clientY !== undefined ? e.clientY : 0;
+                const deltaX = (clientX - startClientX) / scale;
+                const deltaY = (clientY - startClientY) / scale;
+
+                const isText = (card.type === 'text');
+                const minW = isText ? 200 : 320;
+                const maxW = 1200;
+                const minH = isText ? 60 : 200;
+                const maxH = isText ? 1200 : 900;
+
+                if (dir.includes('r')) {
+                    const rawW = startW + deltaX;
+                    card.width = Math.round(Math.max(minW, Math.min(maxW, rawW)));
+                    card.x = startX;
+                } else if (dir.includes('l')) {
+                    const rawW = startW - deltaX;
+                    card.width = Math.round(Math.max(minW, Math.min(maxW, rawW)));
+                    card.x = Math.round(startX + (startW - card.width));
+                }
+
+                if (dir.includes('b')) {
+                    const rawH = startH + deltaY;
+                    card.height = Math.round(Math.max(minH, Math.min(maxH, rawH)));
+                    card.y = startY;
+                } else if (dir.includes('t')) {
+                    const rawH = startH - deltaY;
+                    card.height = Math.round(Math.max(minH, Math.min(maxH, rawH)));
+                    card.y = Math.round(startY + (startH - card.height));
+                }
+
+                cardEl.style.width = `${card.width}px`;
+                cardEl.style.height = `${card.height}px`;
+                cardEl.style.transform = `translate3d(${card.x}px, ${card.y}px, 0)`;
+
+                this.onCardResized(card, cardEl);
+            };
+
+            const onPointerUp = (e) => {
+                if (!isResizing) return;
+                isResizing = false;
+                if (e && e.stopPropagation) e.stopPropagation();
+
+                if (handleEl.releasePointerCapture && e && e.pointerId !== undefined) {
+                    try {
+                        handleEl.releasePointerCapture(e.pointerId);
+                    } catch (_) {}
+                }
+
+                cardEl.classList.remove('is-resizing');
+                handleEl.removeEventListener('pointermove', onPointerMove);
+                handleEl.removeEventListener('pointerup', onPointerUp);
+                handleEl.removeEventListener('pointercancel', onPointerUp);
+
+                if (typeof window !== 'undefined') {
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUp);
+                }
+
+                this.onCardResized(card, cardEl);
+            };
+
+            handleEl.addEventListener('pointerdown', (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                if (e.stopPropagation) e.stopPropagation();
+                if (e.preventDefault) e.preventDefault();
+
+                isResizing = true;
+                if (handleEl.setPointerCapture && e.pointerId !== undefined) {
+                    try {
+                        handleEl.setPointerCapture(e.pointerId);
+                    } catch (_) {}
+                }
+
+                startClientX = e.clientX !== undefined ? e.clientX : 0;
+                startClientY = e.clientY !== undefined ? e.clientY : 0;
+                startX = card.x;
+                startY = card.y;
+                startW = card.width || (cardEl.offsetWidth || (card.type === 'text' ? 320 : 440));
+                startH = card.height || (cardEl.offsetHeight || (card.type === 'text' ? 160 : 320));
+
+                card.width = startW;
+                card.height = startH;
+
+                card.zIndex = ++this.nextZIndex;
+                cardEl.style.zIndex = card.zIndex;
+                cardEl.classList.add('is-resizing');
+
+                handleEl.addEventListener('pointermove', onPointerMove);
+                handleEl.addEventListener('pointerup', onPointerUp);
+                handleEl.addEventListener('pointercancel', onPointerUp);
+
+                if (typeof window !== 'undefined') {
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUp);
+                }
+            });
+        });
+    }
+
+    onCardResized(card, cardEl) {
+        if (!card || !cardEl) return;
+        if (card.type === 'vega') {
+            const vegaContainer = cardEl.querySelector('.canvas-card-body .vega-embed');
+            if (vegaContainer && typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('resize'));
+            }
         }
     }
 
