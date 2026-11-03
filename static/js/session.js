@@ -6,7 +6,7 @@
  */
 
 export const SESSION_FORMAT = 'dataviz-agent-session';
-export const SESSION_VERSION = 1;
+export const SESSION_VERSION = 2;
 export const INTERNAL_TOOL_COLUMNS = new Set(['GL_ORDINAL', '_unit_id', '__row_id', '__index']);
 
 /**
@@ -95,7 +95,8 @@ export function exportSession({ currentData, datasetName = null, activeView, man
             sankey: managers.sankey?.exportState ? managers.sankey.exportState() : null,
             mermaid: managers.mermaid?.exportState ? managers.mermaid.exportState() : null,
             vega: managers.vega?.exportState ? managers.vega.exportState() : null,
-            agent: managers.agent?.exportState ? managers.agent.exportState() : null
+            agent: managers.agent?.exportState ? managers.agent.exportState() : null,
+            canvas: managers.canvas?.exportState ? managers.canvas.exportState() : null
         }
     };
 
@@ -189,6 +190,15 @@ export function restoreSessionState(session, { managers = {}, restoreLineup, act
             managers.agent.importState(tools.agent);
         } catch (e) {
             console.warn('Error restoring Agent from session:', e);
+        }
+    }
+
+    // Restore Canvas
+    if (tools.canvas && managers.canvas?.importState) {
+        try {
+            managers.canvas.importState(tools.canvas);
+        } catch (e) {
+            console.warn('Error restoring Canvas from session:', e);
         }
     }
 

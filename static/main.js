@@ -20,6 +20,7 @@ import { SandDanceManager } from './js/sanddance.js';
 import { GraphicWalkerManager } from './js/graphic-walker.js';
 import { AgentManager } from './js/agent.js?v=20261020_v6';
 import { SettingsManager } from './js/settings.js';
+import { CanvasManager } from './js/canvas.js';
 import { exportSession, validateDatasetForSession, restoreSessionState } from './js/session.js';
 
 const isInternalColumn = c => c === 'GL_ORDINAL' || c === '_unit_id' || (typeof c === 'string' && c.startsWith('__'));
@@ -41,15 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotsItemSankey = document.getElementById('plots-item-sankey');
     const plotsItemMermaid = document.getElementById('plots-item-mermaid');
     const showAgentBtn = document.getElementById('show-agent-btn');
+    const showCanvasBtn = document.getElementById('show-canvas-btn');
     const headerSpecToggleBtn = document.getElementById('header-spec-toggle-btn');
     const headerControlsToggleBtn = document.getElementById('header-controls-toggle-btn');
     const headerControlsLabel = document.getElementById('header-controls-label');
-    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn];
+    const visualViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showCanvasBtn];
     // Note: plotsMenuToggleBtn is intentionally NOT in allViewButtons. Disabled
     // buttons never fire click events, so including the Charts engine picker
     // would make the dropdown unopenable. The picker stays enabled so users
     // can always switch engines; engine items no-op until data is loaded.
-    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
+    const allViewButtons = [showLineupBtn, showGraphicwalkerBtn, showSanddanceBtn, plotsPrimaryBtn, showCanvasBtn, showAgentBtn, headerControlsToggleBtn, headerSpecToggleBtn];
 
     // Tool View Containers
     const lineupContainer = document.getElementById('lineup-container');
@@ -58,9 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const mermaidContainer = document.getElementById('mermaid-container');
     const sankeyContainer = document.getElementById('sankey-container');
     const vegaContainer = document.getElementById('vega-container');
+    const canvasContainer = document.getElementById('canvas-container');
     const agentContainer = document.getElementById('agent-container');
     const copilotDragHandle = document.getElementById('copilot-drag-handle');
-    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer];
+    const visualContainers = [lineupContainer, graphicwalkerContainer, sanddanceContainer, mermaidContainer, sankeyContainer, vegaContainer, canvasContainer];
     const allContainers = [...visualContainers, agentContainer];
 
     const emptyStateContainer = document.getElementById('empty-state-container');
@@ -206,6 +209,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsMgr = new SettingsManager({
         onSettingsSaved: () => {
             agentMgr.checkAvailability();
+        }
+    });
+
+    const canvasMgr = new CanvasManager({
+        container: canvasContainer,
+        onOpenVega: (spec, chartId) => {
+            vegaMgr.loadSpec(spec, chartId);
+            showVega();
+        },
+        onOpenMermaid: (code, chartId) => {
+            mermaidMgr.loadDiagram(code, chartId);
+            showMermaid();
+        },
+        onOpenSankey: (payload) => {
+            if (payload?.state) {
+                sankeyMgr.importState(payload.state);
+            } else if (payload?.text && sankeyMgr.textEditor) {
+                sankeyMgr.textEditor.value = payload.text;
+                sankeyMgr.renderChart();
+            }
+            showSankey();
         }
     });
 
@@ -466,6 +490,13 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleAgent(true);
     }
 
+    function showCanvas() {
+        if (!currentData || currentData.length === 0) return;
+        currentActiveView = 'canvas';
+        setActiveView(canvasContainer, showCanvasBtn);
+        if (sanddanceMgr.toolbar) sanddanceMgr.toolbar.classList.add('hidden');
+    }
+
     function activateViewByName(viewName) {
         switch (viewName) {
             case 'graphic-walker':
@@ -485,6 +516,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'vega-lite':
             case 'vega-online':
                 showVega();
+                break;
+            case 'canvas':
+                showCanvas();
                 break;
             case 'agent':
                 showAgent();
@@ -506,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showLineupBtn) showLineupBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showLineup(); });
     if (showGraphicwalkerBtn) showGraphicwalkerBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showGraphicWalker(); });
     if (showSanddanceBtn) showSanddanceBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showSanddance(); });
+    if (showCanvasBtn) showCanvasBtn.addEventListener('click', () => { if (currentData && currentData.length > 0) showCanvas(); });
     if (plotsPrimaryBtn) {
         plotsPrimaryBtn.addEventListener('click', () => {
             if (!currentData || currentData.length === 0) return;
@@ -1559,7 +1594,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     sankey: sankeyMgr,
                     mermaid: mermaidMgr,
                     vega: vegaMgr,
-                    agent: agentMgr
+                    agent: agentMgr,
+                    canvas: canvasMgr
                 },
                 lineupInstance
             });
@@ -1644,7 +1680,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             sankey: sankeyMgr,
                             mermaid: mermaidMgr,
                             vega: vegaMgr,
-                            agent: agentMgr
+                            agent: agentMgr,
+                            canvas: canvasMgr
                         },
                         restoreLineup: restoreLineupWithDump,
                         activateView: activateViewByName

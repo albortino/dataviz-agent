@@ -5261,3 +5261,341 @@ label.modal-section-label,
     margin-right: 0.35rem;
     margin-top: 0.25rem;
 }
+
+/* ==========================================================================
+   Insight Canvas (Infinite 2D Workspace)
+   ========================================================================== */
+
+#canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--c-canvas);
+    background-image: radial-gradient(var(--c-border-strong) 1px, transparent 1px);
+    background-size: 24px 24px;
+    user-select: none;
+}
+
+#canvas-world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+/* Floating Controls Dock */
+.canvas-floating-dock {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: var(--c-surface);
+    box-shadow: var(--shadow-pop);
+    border: 1px solid var(--c-border);
+}
+
+.canvas-zoom-text {
+    font-size: var(--fs-13);
+    font-weight: var(--fw-med);
+    color: var(--c-muted);
+    padding: 0 var(--s2);
+    min-width: 44px;
+    text-align: center;
+    user-select: none;
+}
+
+/* Canvas Header Badge Counter */
+.badge-counter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: var(--fw-semi);
+    border-radius: var(--r-full);
+    background: var(--c-primary);
+    color: #ffffff;
+    line-height: 1;
+    margin-left: 4px;
+    box-sizing: border-box;
+}
+
+/* Canvas Cards */
+.canvas-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 320px;
+    width: 440px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+}
+
+.canvas-card:hover {
+    box-shadow: 0 6px 18px -4px rgb(15 23 42 / 0.12);
+    border-color: var(--c-border-strong);
+}
+
+.canvas-card.is-dragging {
+    box-shadow: var(--shadow-pop);
+    opacity: 0.95;
+    cursor: grabbing !important;
+}
+
+/* Card Header */
+.canvas-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 8px 12px;
+    background: var(--c-raised);
+    border-bottom: 1px solid var(--c-border);
+    cursor: grab;
+    font-size: var(--fs-13);
+}
+
+.canvas-card-header .drag-handle {
+    color: var(--c-faint);
+    cursor: grab;
+    font-size: var(--fs-12);
+}
+
+.canvas-card-header .drag-handle:hover {
+    color: var(--c-muted);
+}
+
+.canvas-card-header .canvas-card-title {
+    flex: 1;
+    font-weight: var(--fw-med);
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    outline: none;
+    border-radius: var(--r-sm);
+    padding: 1px 4px;
+    cursor: text;
+}
+
+.canvas-card-header .canvas-card-title:focus {
+    background: var(--c-surface);
+    box-shadow: 0 0 0 1px var(--c-primary);
+}
+
+.canvas-card-header .card-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--c-muted);
+    padding: 4px 6px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-12);
+    transition: all 0.15s ease;
+}
+
+.canvas-card-header .card-action-btn:hover {
+    background: var(--c-border);
+    color: var(--c-ink);
+}
+
+.canvas-card-header .delete-card-btn:hover {
+    background: var(--c-danger-bg);
+    color: var(--c-danger);
+}
+
+/* Badges */
+.badge-card {
+    font-size: var(--fs-12);
+    font-weight: var(--fw-semi);
+    padding: 2px 6px;
+    border-radius: var(--r-sm);
+    letter-spacing: 0.02em;
+    user-select: none;
+}
+
+.badge-vega {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.badge-mermaid {
+    background: #fdf2f8;
+    color: #db2777;
+}
+
+.badge-sankey {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.badge-plot {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
+.badge-markdown,
+.badge-note {
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+}
+
+/* Card Body */
+.canvas-card-body {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+    max-height: 480px;
+    padding: 12px;
+    overflow: auto;
+    background: var(--c-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: text;
+}
+
+.canvas-card-body .vega-embed,
+.canvas-card-body svg {
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+}
+
+.canvas-plot-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--r-sm);
+    display: block;
+}
+
+.canvas-markdown-content {
+    width: 100%;
+    height: 100%;
+    font-size: var(--fs-13);
+    line-height: 1.5;
+    color: var(--c-ink);
+    overflow-y: auto;
+    user-select: text;
+}
+
+.canvas-markdown-editor {
+    width: 100%;
+    min-height: 180px;
+    height: 100%;
+    border: 1px solid var(--c-primary);
+    border-radius: var(--r-sm);
+    padding: 8px;
+    font-family: inherit;
+    font-size: var(--fs-13);
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    background: var(--c-raised);
+    color: var(--c-ink);
+    box-sizing: border-box;
+}
+
+.canvas-spec-dump,
+.canvas-code-dump {
+    width: 100%;
+    max-height: 200px;
+    font-family: monospace;
+    font-size: var(--fs-12);
+    color: var(--c-muted);
+    background: var(--c-raised);
+    padding: 8px;
+    border-radius: var(--r-sm);
+    overflow: auto;
+    margin: 0;
+}
+
+.canvas-card-error,
+.canvas-card-empty {
+    font-size: var(--fs-13);
+    color: var(--c-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+
+.canvas-card-error {
+    color: var(--c-danger);
+}
+
+/* Card Footer */
+.canvas-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--c-raised);
+    border-top: 1px solid var(--c-border);
+    font-size: var(--fs-12);
+    color: var(--c-muted);
+}
+
+.canvas-card-footer .card-provenance {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 65%;
+}
+
+.canvas-card-footer .provenance-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.canvas-card-footer .card-timestamp {
+    color: var(--c-faint);
+    white-space: nowrap;
+}
+
+/* Canvas Toast Notification */
+.canvas-toast {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--c-ink);
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: var(--r-full);
+    font-size: var(--fs-13);
+    font-weight: var(--fw-med);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-pop);
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.canvas-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

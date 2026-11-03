@@ -166,6 +166,12 @@
                         </button>
                     </div>
                 </div>
+                <div class="nav-separator-dot"></div>
+                <button id="show-canvas-btn" class="button icon-button" disabled
+                    title="Storytelling board with pinned findings, charts, and notes (Canvas)">
+                    <i class="fa-solid fa-shapes"></i><span>Canvas</span>
+                    <span id="canvas-card-count" class="badge-counter hidden">0</span>
+                </button>
             </nav>
         </div>
 
@@ -250,7 +256,7 @@
             </div>
         </div>
     </header>
-    <main>
+    <main id="main-content">
         <div id="visual-stage" class="visual-stage">
             <!-- Overall Welcome / Empty State (shown when nothing is loaded) -->
             <div id="empty-state-container" class="vis-container">
@@ -1220,6 +1226,26 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Insight Canvas (Infinite 2D Storytelling Workspace) -->
+            <div id="canvas-container" class="vis-container hidden">
+                <div id="canvas-control-dock" class="sidebars-controls-pill canvas-floating-dock">
+                    <button id="canvas-add-note-btn" class="icon-button copilot-header-btn" title="Add Note">
+                        <i class="fa-regular fa-note-sticky"></i><span>Note</span>
+                    </button>
+                    <button id="canvas-arrange-btn" class="icon-button copilot-header-btn" title="Auto-arrange cards in grid">
+                        <i class="fa-solid fa-table-cells-large"></i><span>Tidy</span>
+                    </button>
+                    <button id="canvas-fit-btn" class="icon-button copilot-header-btn" title="Fit all cards in view">
+                        <i class="fa-solid fa-expand"></i><span>Fit</span>
+                    </button>
+                    <div class="nav-separator-dot"></div>
+                    <button id="canvas-zoom-out-btn" class="icon-button copilot-header-btn" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                    <span id="canvas-zoom-level" class="canvas-zoom-text">100%</span>
+                    <button id="canvas-zoom-in-btn" class="icon-button copilot-header-btn" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="canvas-world"></div>
             </div>
         </div>
 
