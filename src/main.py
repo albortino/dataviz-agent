@@ -153,12 +153,14 @@ def check_credentials_validity(api_key: str, base_url: str, model_name: str, api
 
 @app.get("/health")
 def health():
+    has_server_config = bool(os.getenv("LLM_API_KEY") and (os.getenv("LLM_BASE_URL") or os.getenv("LLM_MODEL")))
     server_status = check_credentials_validity(DEFAULT_API_KEY, DEFAULT_BASE_URL, DEFAULT_MODEL_NAME) if (DEFAULT_API_KEY or "localhost" in DEFAULT_BASE_URL or "127.0.0.1" in DEFAULT_BASE_URL) else {"valid": False}
     return {
         "status": "healthy",
         "provider_url": DEFAULT_BASE_URL,
         "default_model": DEFAULT_MODEL_NAME,
         "has_server_key": bool(DEFAULT_API_KEY),
+        "has_server_config": has_server_config,
         "server_settings_valid": server_status.get("valid", False)
     }
 
@@ -230,13 +232,26 @@ PROVIDER_PRESETS = [
 @app.get("/models")
 def models():
     """Returns provider info, recommended presets, and server-configured default status."""
+    has_server_config = bool(
+        os.getenv("LLM_API_KEY") and (os.getenv("LLM_BASE_URL") or os.getenv("LLM_MODEL"))
+    )
     server_status = check_credentials_validity(DEFAULT_API_KEY, DEFAULT_BASE_URL, DEFAULT_MODEL_NAME) if (DEFAULT_API_KEY or "localhost" in DEFAULT_BASE_URL or "127.0.0.1" in DEFAULT_BASE_URL) else {"valid": False}
+    
+    presets = []
+    for p in PROVIDER_PRESETS:
+        item = dict(p)
+        if has_server_config:
+            item["default"] = False
+        presets.append(item)
+
     return {
         "default_model": DEFAULT_MODEL_NAME,
         "default_base_url": DEFAULT_BASE_URL,
         "has_server_key": bool(DEFAULT_API_KEY),
+        "has_server_config": has_server_config,
+        "default_preset": "custom" if has_server_config else "deepseek-flash",
         "server_settings_valid": server_status.get("valid", False),
-        "presets": PROVIDER_PRESETS
+        "presets": presets
     }
 
 @app.post("/chat")

@@ -55,6 +55,11 @@ export class SettingsManager {
             if (resp.ok) {
                 const data = await resp.json();
                 this.serverSettings = data;
+                if (data.default_preset) {
+                    this.defaultPresetId = data.default_preset;
+                } else if (data.has_server_config) {
+                    this.defaultPresetId = 'custom';
+                }
                 if (Array.isArray(data.presets)) {
                     this.presets = {};
                     if (this.presetSelect) this.presetSelect.innerHTML = '';
@@ -68,7 +73,7 @@ export class SettingsManager {
                             baseUrl: p.base_url || p.baseUrl,
                             apiVersion: p.api_version || p.apiVersion || ''
                         };
-                        if (p.default) this.defaultPresetId = id;
+                        if (p.default && !data.has_server_config) this.defaultPresetId = id;
 
                         if (this.presetSelect) {
                             const opt = document.createElement('option');
@@ -153,16 +158,38 @@ export class SettingsManager {
     }
 
     loadSavedSettings() {
-        const savedPreset = localStorage.getItem('ai_preset') || this.defaultPresetId;
-        const currentPresetConfig = this.presets[savedPreset];
+        const hasServerConfig = Boolean(this.serverSettings?.has_server_config);
+        const serverDefaultPreset = this.serverSettings?.default_preset || (hasServerConfig ? 'custom' : this.defaultPresetId);
 
-        const fallbackBaseUrl = (this.serverSettings?.server_settings_valid && this.serverSettings?.default_base_url)
+        let savedPreset = localStorage.getItem('ai_preset');
+        if (!savedPreset || (hasServerConfig && (savedPreset === 'deepseek-flash' || !this.presets[savedPreset]))) {
+            savedPreset = serverDefaultPreset;
+        }
+
+        const currentPresetConfig = this.presets[savedPreset];
+        const serverBaseUrl = this.serverSettings?.default_base_url;
+        const serverModel = this.serverSettings?.default_model;
+
+        const fallbackBaseUrl = (hasServerConfig && serverBaseUrl)
+            || (savedPreset === 'custom' && serverBaseUrl)
+            || serverBaseUrl
             || (currentPresetConfig ? currentPresetConfig.baseUrl : 'https://api.deepseek.com');
-        const fallbackModel = (this.serverSettings?.server_settings_valid && this.serverSettings?.default_model)
+
+        const fallbackModel = (hasServerConfig && serverModel)
+            || (savedPreset === 'custom' && serverModel)
+            || serverModel
             || (currentPresetConfig ? currentPresetConfig.model : 'deepseek-flash');
 
-        const savedBaseUrl = localStorage.getItem('ai_base_url') || fallbackBaseUrl;
-        const savedModel = localStorage.getItem('ai_model') || fallbackModel;
+        let savedBaseUrl = localStorage.getItem('ai_base_url');
+        if (!savedBaseUrl || (hasServerConfig && savedBaseUrl === 'https://api.deepseek.com')) {
+            savedBaseUrl = fallbackBaseUrl;
+        }
+
+        let savedModel = localStorage.getItem('ai_model');
+        if (!savedModel || (hasServerConfig && savedModel === 'deepseek-flash')) {
+            savedModel = fallbackModel;
+        }
+
         const savedApiVersion = localStorage.getItem('ai_api_version') || (currentPresetConfig ? currentPresetConfig.apiVersion : '') || '2024-10-21';
         const savedApiKey = localStorage.getItem('ai_api_key') || '';
         const savedDirect = localStorage.getItem('ai_direct_browser') === 'true';
@@ -306,6 +333,13 @@ export class SettingsManager {
                     if (preset === 'azure-openai') {
                         // Azure corporate endpoints default to Direct Browser for VPN compatibility
                         this.setRouteMode('browser', true);
+                    }
+                } else if (preset === 'custom') {
+                    if (this.serverSettings?.default_base_url && this.baseUrlInput) {
+                        this.baseUrlInput.value = this.serverSettings.default_base_url;
+                    }
+                    if (this.serverSettings?.default_model && this.modelNameInput) {
+                        this.modelNameInput.value = this.serverSettings.default_model;
                     }
                 }
                 this.updateContextualFields();

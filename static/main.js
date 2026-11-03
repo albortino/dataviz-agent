@@ -253,7 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sanddanceMgr.init();
     graphicWalkerMgr.init();
     agentMgr.init();
-    settingsMgr.init();
+    settingsMgr.init().then(() => {
+        agentMgr.checkAvailability();
+    });
 
     // Central Dataset Single Source of Truth Store
     window.datasetStore = {
